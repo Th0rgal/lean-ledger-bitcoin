@@ -1,3 +1,14 @@
+import Spec.Basic
+import Spec.Bip32
+import Spec.Script
+import Spec.WalletPolicy
+import Spec.Psbt
+import Spec.MerkleProtocol
+import Spec.Musig2
+import Spec.SilentPayments
+import Spec.AppStateMachine
+import Spec.Unified
+
 namespace Spec
 
 structure AppVersion where
