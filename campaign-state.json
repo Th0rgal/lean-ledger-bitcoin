@@ -1,7 +1,7 @@
 {
   "campaign": "lean-ledger-bitcoin",
   "created_at": "2026-11-10T15:55:00Z",
-  "last_updated": "2026-11-10T16:02:00Z",
+  "last_updated": "2026-11-10T16:13:00Z",
   "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
   "allowed_providers_policy": {
     "allowed": [
@@ -69,7 +69,8 @@
       "last_pushed_sha": null
     },
     "Spec/WalletPolicy.lean": {
-      "owner_mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
+      "owner_mission_id": "211ccbd6-9433-4d4b-bd9c-2b7cb845173b",
+      "supersedes_mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
       "track": "llb-w1-s2-wallet-policy",
       "repo": "Th0rgal/lean-ledger-bitcoin",
       "branch": "wave1/spec-s2-wallet-policy",
@@ -93,7 +94,8 @@
       "last_pushed_sha": null
     },
     "Spec/{Musig2,SilentPayments,AppStateMachine}.lean": {
-      "owner_mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
+      "owner_mission_id": "c9a69eea-3f7a-498a-a784-749eec62d45b",
+      "supersedes_mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
       "track": "llb-w1-s4-musig-sp-state",
       "repo": "Th0rgal/lean-ledger-bitcoin",
       "branch": "wave1/spec-s4-musig-sp-state",
@@ -128,7 +130,7 @@
       "role": "Track S1 spec primitives",
       "state": "online"
     },
-    "mmqap8yqxj": {
+    "mma5r5kcwp": {
       "name": "large-c",
       "size": "large",
       "provider": "boat",
@@ -142,7 +144,7 @@
       "role": "Track S3 spec PSBT + Merkle",
       "state": "online"
     },
-    "mmf6rpx5qb": {
+    "mma838x5e4": {
       "name": "large-d",
       "size": "large",
       "provider": "boat",
@@ -178,12 +180,12 @@
       "status": "active"
     },
     "W1_S2_wallet_policy": {
-      "mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
-      "requested_backend": "opencode",
-      "effective_backend": "opencode",
-      "requested_model": "ethereumfoundation/glm-5.3",
-      "effective_model": "ethereumfoundation/glm-5.3",
-      "remote_node_id": "managed-mmqap8yqxj",
+      "mission_id": "211ccbd6-9433-4d4b-bd9c-2b7cb845173b",
+      "supersedes_mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
+      "requested_backend": "antigravity",
+      "effective_backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mma5r5kcwp",
       "status": "active"
     },
     "W1_S3_psbt_merkle": {
@@ -196,12 +198,12 @@
       "status": "active"
     },
     "W1_S4_musig_sp_state": {
-      "mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
-      "requested_backend": "opencode",
-      "effective_backend": "opencode",
-      "requested_model": "ethereumfoundation/glm-5.3",
-      "effective_model": "ethereumfoundation/glm-5.3",
-      "remote_node_id": "managed-mmf6rpx5qb",
+      "mission_id": "c9a69eea-3f7a-498a-a784-749eec62d45b",
+      "supersedes_mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
+      "requested_backend": "antigravity",
+      "effective_backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mma838x5e4",
       "status": "active"
     }
   },
