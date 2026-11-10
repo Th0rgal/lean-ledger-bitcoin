@@ -1318,7 +1318,9 @@ theorem nonvacuous_stepVerifiedPsbtSign_ok :
       have hRoot : singleMap.keysRoot = Spec.MerkleProtocol.merkleLeafHash psbtSha256 k0 := by
         show Spec.MerkleProtocol.merkleRoot psbtSha256 [k0] = _
         rw [Spec.MerkleProtocol.merkleRoot]
-      have hNotBad : ¬(((1 : Nat) == 0 || 0 ≥ 1) = true) := by decide
+      have hNotBad : ¬((decide ((1 : Nat) = 0) || decide (0 ≥ 1) ||
+                        decide (0 > Spec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX) ||
+                        decide (singleOp.siblingsBottomUp.length > Spec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH)) = true) := by decide
       rw [ite_eq_right_iff.mpr (fun h => absurd h hNotBad), hDir, hRoot]
       decide
     have hSortedMap : Spec.MerkleProtocol.verifySortedMerkleMapOpenings
