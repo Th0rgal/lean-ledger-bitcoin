@@ -980,170 +980,514 @@ theorem BolosStatusWord.fromUInt16?_toUInt16 (sw : BolosStatusWord) :
     BolosStatusWord.fromUInt16? sw.toUInt16 = some sw := by
   cases sw <;> rfl
 
-/-- Vanadium Bitcoin V-App CBOR error enum (`vanadium/apps/bitcoin/common/src/errors.rs`, `#[n(0..58)]`). -/
+theorem BolosStatusWord.toUInt16_fromUInt16? {w : UInt16} {sw : BolosStatusWord}
+    (h : BolosStatusWord.fromUInt16? w = some sw) :
+    sw.toUInt16 = w := by
+  unfold BolosStatusWord.fromUInt16? at h
+  split at h <;> simp at h <;> subst h <;> rfl
+
+/-- Command / subsystem scope for BOLOS 2-byte `EC_*` diagnostic sub-codes
+    (`app-bitcoin/src/error_codes.h`). Numeric `EC_*` codes are command-scoped
+    (for example `0x0000` is used in `REGISTER_WALLET`, `SIGN_PSBT`, and `SWAP`). -/
+inductive BolosErrorDomain where
+  | registerWallet
+  | signPsbt
+  | swap
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Optional 2-byte BOLOS diagnostic error sub-codes (`EC_*` in `app-bitcoin/src/error_codes.h`),
+    emitted as big-endian response payload bytes by `SEND_SW_EC(dc, sw, error_code)`. -/
+inductive BolosErrorCode where
+  -- REGISTER_WALLET (`0x0000..0x0004`)
+  | ecRegisterWalletUnacceptablePolicyName                  -- 0x0000
+  | ecRegisterWalletPolicyNotSane                           -- 0x0001
+  | ecRegisterWalletPolicyHasNoInternalKey                  -- 0x0002
+  | ecRegisterWalletMusigWithMultipleInternalKeys           -- 0x0003
+  | ecRegisterWalletTooManyInternalKeyExpressions           -- 0x0004
+  -- SIGN_PSBT (`0x0000..0x0017`)
+  | ecSignPsbtMissingHmacForNondefaultPolicy                -- 0x0000
+  | ecSignPsbtNoNameForDefaultPolicy                        -- 0x0001
+  | ecSignPsbtWalletPolicyHasNoInternalKey                  -- 0x0002
+  | ecSignPsbtMissingNonwitnessutxoAndWitnessutxo           -- 0x0003
+  | ecSignPsbtNonwitnessutxoCheckFailed                     -- 0x0004
+  | ecSignPsbtNonwitnessutxoAndWitnessutxoMismatch          -- 0x0005
+  | ecSignPsbtMissingNonwitnessutxoOrUnexpectedWitnessutxoForLegacy -- 0x0006
+  | ecSignPsbtMissingWitnessutxoForSegwit                   -- 0x0007
+  | ecSignPsbtUnallowedSighashSingle                        -- 0x0008
+  | ecSignPsbtTooManyChangeOutputs                          -- 0x0009
+  | ecSignPsbtMismatchingWitnessScript                      -- 0x000a
+  | ecSignPsbtMismatchingRedeemScript                       -- 0x000b
+  | ecSignPsbtWalletPolicyTooManyInternalKeys               -- 0x000c
+  | ecSignPsbtNondefaultSighashNotAllowed                   -- 0x000d
+  | ecSignPsbtUndeterminableLocktime                        -- 0x000e
+  | ecSignPsbtRequiredLocktimeOutOfRange                    -- 0x000f
+  | ecSignPsbtBip322InvalidStructure                        -- 0x0010
+  | ecSignPsbtBip322TospendMismatch                         -- 0x0011
+  | ecSignPsbtBip322ForbiddenSighash                        -- 0x0012
+  | ecSignPsbtBip322Unsupported                             -- 0x0013
+  | ecSignPsbtBip322NotAllowedInSwap                        -- 0x0014
+  | ecSignPsbtBip322ExternalInputs                          -- 0x0015
+  | ecSignPsbtInvalidMusig2SessionId                        -- 0x0016
+  | ecSignPsbtMusig2SessionNotFound                         -- 0x0017
+  -- SWAP (`0x0000..0xFF02`)
+  | ecSwapErrorInternal                                     -- 0x0000
+  | ecSwapErrorWrongAmount                                  -- 0x0100
+  | ecSwapErrorWrongDestination                             -- 0x0200
+  | ecSwapErrorWrongFees                                    -- 0x0300
+  | ecSwapErrorWrongMethod                                  -- 0x0400
+  | ecSwapErrorWrongMethodNondefaultPolicy                  -- 0x0401
+  | ecSwapErrorWrongMethodExternalInputs                    -- 0x0402
+  | ecSwapErrorWrongMethodMissingNonwitnessutxo             -- 0x0403
+  | ecSwapErrorWrongMethodWrongNOfOutputs                   -- 0x0404
+  | ecSwapErrorWrongMethodWrongUnsupportedOutput            -- 0x0405
+  | ecSwapErrorCrosschainWrongMode                          -- 0x0500
+  | ecSwapErrorCrosschainWrongMethod                        -- 0x0600
+  | ecSwapErrorCrosschainWrongMethodInvalidFirstOutput      -- 0x0601
+  | ecSwapErrorCrosschainWrongMethodNonzeroAmount           -- 0x0602
+  | ecSwapErrorCrosschainWrongHash                          -- 0x0700
+  | ecSwapErrorGeneric                                      -- 0xFF00
+  | ecSwapErrorGenericUnknownMode                           -- 0xFF01
+  | ecSwapErrorGenericCopyTransactionParametersFailed       -- 0xFF02
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Command / subsystem domain of a `BolosErrorCode`. -/
+def BolosErrorCode.domain : BolosErrorCode → BolosErrorDomain
+  | .ecRegisterWalletUnacceptablePolicyName
+  | .ecRegisterWalletPolicyNotSane
+  | .ecRegisterWalletPolicyHasNoInternalKey
+  | .ecRegisterWalletMusigWithMultipleInternalKeys
+  | .ecRegisterWalletTooManyInternalKeyExpressions => .registerWallet
+  | .ecSignPsbtMissingHmacForNondefaultPolicy
+  | .ecSignPsbtNoNameForDefaultPolicy
+  | .ecSignPsbtWalletPolicyHasNoInternalKey
+  | .ecSignPsbtMissingNonwitnessutxoAndWitnessutxo
+  | .ecSignPsbtNonwitnessutxoCheckFailed
+  | .ecSignPsbtNonwitnessutxoAndWitnessutxoMismatch
+  | .ecSignPsbtMissingNonwitnessutxoOrUnexpectedWitnessutxoForLegacy
+  | .ecSignPsbtMissingWitnessutxoForSegwit
+  | .ecSignPsbtUnallowedSighashSingle
+  | .ecSignPsbtTooManyChangeOutputs
+  | .ecSignPsbtMismatchingWitnessScript
+  | .ecSignPsbtMismatchingRedeemScript
+  | .ecSignPsbtWalletPolicyTooManyInternalKeys
+  | .ecSignPsbtNondefaultSighashNotAllowed
+  | .ecSignPsbtUndeterminableLocktime
+  | .ecSignPsbtRequiredLocktimeOutOfRange
+  | .ecSignPsbtBip322InvalidStructure
+  | .ecSignPsbtBip322TospendMismatch
+  | .ecSignPsbtBip322ForbiddenSighash
+  | .ecSignPsbtBip322Unsupported
+  | .ecSignPsbtBip322NotAllowedInSwap
+  | .ecSignPsbtBip322ExternalInputs
+  | .ecSignPsbtInvalidMusig2SessionId
+  | .ecSignPsbtMusig2SessionNotFound => .signPsbt
+  | .ecSwapErrorInternal
+  | .ecSwapErrorWrongAmount
+  | .ecSwapErrorWrongDestination
+  | .ecSwapErrorWrongFees
+  | .ecSwapErrorWrongMethod
+  | .ecSwapErrorWrongMethodNondefaultPolicy
+  | .ecSwapErrorWrongMethodExternalInputs
+  | .ecSwapErrorWrongMethodMissingNonwitnessutxo
+  | .ecSwapErrorWrongMethodWrongNOfOutputs
+  | .ecSwapErrorWrongMethodWrongUnsupportedOutput
+  | .ecSwapErrorCrosschainWrongMode
+  | .ecSwapErrorCrosschainWrongMethod
+  | .ecSwapErrorCrosschainWrongMethodInvalidFirstOutput
+  | .ecSwapErrorCrosschainWrongMethodNonzeroAmount
+  | .ecSwapErrorCrosschainWrongHash
+  | .ecSwapErrorGeneric
+  | .ecSwapErrorGenericUnknownMode
+  | .ecSwapErrorGenericCopyTransactionParametersFailed => .swap
+
+/-- Exact 16-bit `EC_*` value of a `BolosErrorCode` (`app-bitcoin/src/error_codes.h`). -/
+def BolosErrorCode.toUInt16 : BolosErrorCode → UInt16
+  | .ecRegisterWalletUnacceptablePolicyName                  => 0x0000
+  | .ecRegisterWalletPolicyNotSane                           => 0x0001
+  | .ecRegisterWalletPolicyHasNoInternalKey                  => 0x0002
+  | .ecRegisterWalletMusigWithMultipleInternalKeys           => 0x0003
+  | .ecRegisterWalletTooManyInternalKeyExpressions           => 0x0004
+  | .ecSignPsbtMissingHmacForNondefaultPolicy                => 0x0000
+  | .ecSignPsbtNoNameForDefaultPolicy                        => 0x0001
+  | .ecSignPsbtWalletPolicyHasNoInternalKey                  => 0x0002
+  | .ecSignPsbtMissingNonwitnessutxoAndWitnessutxo           => 0x0003
+  | .ecSignPsbtNonwitnessutxoCheckFailed                     => 0x0004
+  | .ecSignPsbtNonwitnessutxoAndWitnessutxoMismatch          => 0x0005
+  | .ecSignPsbtMissingNonwitnessutxoOrUnexpectedWitnessutxoForLegacy => 0x0006
+  | .ecSignPsbtMissingWitnessutxoForSegwit                   => 0x0007
+  | .ecSignPsbtUnallowedSighashSingle                        => 0x0008
+  | .ecSignPsbtTooManyChangeOutputs                          => 0x0009
+  | .ecSignPsbtMismatchingWitnessScript                      => 0x000a
+  | .ecSignPsbtMismatchingRedeemScript                       => 0x000b
+  | .ecSignPsbtWalletPolicyTooManyInternalKeys               => 0x000c
+  | .ecSignPsbtNondefaultSighashNotAllowed                   => 0x000d
+  | .ecSignPsbtUndeterminableLocktime                        => 0x000e
+  | .ecSignPsbtRequiredLocktimeOutOfRange                    => 0x000f
+  | .ecSignPsbtBip322InvalidStructure                        => 0x0010
+  | .ecSignPsbtBip322TospendMismatch                         => 0x0011
+  | .ecSignPsbtBip322ForbiddenSighash                        => 0x0012
+  | .ecSignPsbtBip322Unsupported                             => 0x0013
+  | .ecSignPsbtBip322NotAllowedInSwap                        => 0x0014
+  | .ecSignPsbtBip322ExternalInputs                          => 0x0015
+  | .ecSignPsbtInvalidMusig2SessionId                        => 0x0016
+  | .ecSignPsbtMusig2SessionNotFound                         => 0x0017
+  | .ecSwapErrorInternal                                     => 0x0000
+  | .ecSwapErrorWrongAmount                                  => 0x0100
+  | .ecSwapErrorWrongDestination                             => 0x0200
+  | .ecSwapErrorWrongFees                                    => 0x0300
+  | .ecSwapErrorWrongMethod                                  => 0x0400
+  | .ecSwapErrorWrongMethodNondefaultPolicy                  => 0x0401
+  | .ecSwapErrorWrongMethodExternalInputs                    => 0x0402
+  | .ecSwapErrorWrongMethodMissingNonwitnessutxo             => 0x0403
+  | .ecSwapErrorWrongMethodWrongNOfOutputs                   => 0x0404
+  | .ecSwapErrorWrongMethodWrongUnsupportedOutput            => 0x0405
+  | .ecSwapErrorCrosschainWrongMode                          => 0x0500
+  | .ecSwapErrorCrosschainWrongMethod                        => 0x0600
+  | .ecSwapErrorCrosschainWrongMethodInvalidFirstOutput      => 0x0601
+  | .ecSwapErrorCrosschainWrongMethodNonzeroAmount           => 0x0602
+  | .ecSwapErrorCrosschainWrongHash                          => 0x0700
+  | .ecSwapErrorGeneric                                      => 0xFF00
+  | .ecSwapErrorGenericUnknownMode                           => 0xFF01
+  | .ecSwapErrorGenericCopyTransactionParametersFailed       => 0xFF02
+
+/-- 2-byte big-endian wire encoding of a `BolosErrorCode` matching `SEND_SW_EC`
+    (`dispatcher.h:51-58`). -/
+def BolosErrorCode.toWireBytes (ec : BolosErrorCode) : ByteArray :=
+  let v := ec.toUInt16.toNat
+  ByteArray.mk #[UInt8.ofNat ((v / 256) % 256), UInt8.ofNat (v % 256)]
+
+/-- Domain-scoped decoder for 16-bit BOLOS `EC_*` diagnostic sub-codes. -/
+def BolosErrorCode.fromUInt16? (dom : BolosErrorDomain) (code : UInt16) : Option BolosErrorCode :=
+  match dom, code with
+  | .registerWallet, 0x0000 => some .ecRegisterWalletUnacceptablePolicyName
+  | .registerWallet, 0x0001 => some .ecRegisterWalletPolicyNotSane
+  | .registerWallet, 0x0002 => some .ecRegisterWalletPolicyHasNoInternalKey
+  | .registerWallet, 0x0003 => some .ecRegisterWalletMusigWithMultipleInternalKeys
+  | .registerWallet, 0x0004 => some .ecRegisterWalletTooManyInternalKeyExpressions
+  | .signPsbt, 0x0000 => some .ecSignPsbtMissingHmacForNondefaultPolicy
+  | .signPsbt, 0x0001 => some .ecSignPsbtNoNameForDefaultPolicy
+  | .signPsbt, 0x0002 => some .ecSignPsbtWalletPolicyHasNoInternalKey
+  | .signPsbt, 0x0003 => some .ecSignPsbtMissingNonwitnessutxoAndWitnessutxo
+  | .signPsbt, 0x0004 => some .ecSignPsbtNonwitnessutxoCheckFailed
+  | .signPsbt, 0x0005 => some .ecSignPsbtNonwitnessutxoAndWitnessutxoMismatch
+  | .signPsbt, 0x0006 => some .ecSignPsbtMissingNonwitnessutxoOrUnexpectedWitnessutxoForLegacy
+  | .signPsbt, 0x0007 => some .ecSignPsbtMissingWitnessutxoForSegwit
+  | .signPsbt, 0x0008 => some .ecSignPsbtUnallowedSighashSingle
+  | .signPsbt, 0x0009 => some .ecSignPsbtTooManyChangeOutputs
+  | .signPsbt, 0x000a => some .ecSignPsbtMismatchingWitnessScript
+  | .signPsbt, 0x000b => some .ecSignPsbtMismatchingRedeemScript
+  | .signPsbt, 0x000c => some .ecSignPsbtWalletPolicyTooManyInternalKeys
+  | .signPsbt, 0x000d => some .ecSignPsbtNondefaultSighashNotAllowed
+  | .signPsbt, 0x000e => some .ecSignPsbtUndeterminableLocktime
+  | .signPsbt, 0x000f => some .ecSignPsbtRequiredLocktimeOutOfRange
+  | .signPsbt, 0x0010 => some .ecSignPsbtBip322InvalidStructure
+  | .signPsbt, 0x0011 => some .ecSignPsbtBip322TospendMismatch
+  | .signPsbt, 0x0012 => some .ecSignPsbtBip322ForbiddenSighash
+  | .signPsbt, 0x0013 => some .ecSignPsbtBip322Unsupported
+  | .signPsbt, 0x0014 => some .ecSignPsbtBip322NotAllowedInSwap
+  | .signPsbt, 0x0015 => some .ecSignPsbtBip322ExternalInputs
+  | .signPsbt, 0x0016 => some .ecSignPsbtInvalidMusig2SessionId
+  | .signPsbt, 0x0017 => some .ecSignPsbtMusig2SessionNotFound
+  | .swap, 0x0000 => some .ecSwapErrorInternal
+  | .swap, 0x0100 => some .ecSwapErrorWrongAmount
+  | .swap, 0x0200 => some .ecSwapErrorWrongDestination
+  | .swap, 0x0300 => some .ecSwapErrorWrongFees
+  | .swap, 0x0400 => some .ecSwapErrorWrongMethod
+  | .swap, 0x0401 => some .ecSwapErrorWrongMethodNondefaultPolicy
+  | .swap, 0x0402 => some .ecSwapErrorWrongMethodExternalInputs
+  | .swap, 0x0403 => some .ecSwapErrorWrongMethodMissingNonwitnessutxo
+  | .swap, 0x0404 => some .ecSwapErrorWrongMethodWrongNOfOutputs
+  | .swap, 0x0405 => some .ecSwapErrorWrongMethodWrongUnsupportedOutput
+  | .swap, 0x0500 => some .ecSwapErrorCrosschainWrongMode
+  | .swap, 0x0600 => some .ecSwapErrorCrosschainWrongMethod
+  | .swap, 0x0601 => some .ecSwapErrorCrosschainWrongMethodInvalidFirstOutput
+  | .swap, 0x0602 => some .ecSwapErrorCrosschainWrongMethodNonzeroAmount
+  | .swap, 0x0700 => some .ecSwapErrorCrosschainWrongHash
+  | .swap, 0xFF00 => some .ecSwapErrorGeneric
+  | .swap, 0xFF01 => some .ecSwapErrorGenericUnknownMode
+  | .swap, 0xFF02 => some .ecSwapErrorGenericCopyTransactionParametersFailed
+  | _, _ => none
+
+theorem BolosErrorCode.fromUInt16?_toUInt16 (ec : BolosErrorCode) :
+    BolosErrorCode.fromUInt16? ec.domain ec.toUInt16 = some ec := by
+  cases ec <;> rfl
+
+theorem BolosErrorCode.toUInt16_fromUInt16? {dom : BolosErrorDomain} {code : UInt16}
+    {ec : BolosErrorCode} (h : BolosErrorCode.fromUInt16? dom code = some ec) :
+    ec.domain = dom ∧ ec.toUInt16 = code := by
+  unfold BolosErrorCode.fromUInt16? at h
+  split at h <;> simp at h <;> subst h <;> exact ⟨rfl, rfl⟩
+
+/-- BOLOS error RAPDU pairing a mandatory 16-bit status word (`SEND_SW`) with an optional
+    2-byte `EC_*` diagnostic sub-code (`SEND_SW_EC`). -/
+structure BolosErrorResponse where
+  statusWord : BolosStatusWord
+  errorCode? : Option BolosErrorCode := none
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Encode a `BolosErrorResponse` as the RAPDU payload followed by the 2-byte big-endian `SW`. -/
+def BolosErrorResponse.toRapduBytes (resp : BolosErrorResponse) : ByteArray :=
+  let payload := match resp.errorCode? with
+    | none => ByteArray.empty
+    | some ec => ec.toWireBytes
+  let sw := resp.statusWord.toUInt16.toNat
+  payload ++ ByteArray.mk #[UInt8.ofNat ((sw / 256) % 256), UInt8.ofNat (sw % 256)]
+
+/-- Vanadium Bitcoin V-App CBOR error enum (`vanadium/apps/bitcoin/common/src/errors.rs`,
+    `#[cbor(index_only)] pub enum Error`, `#[n(0)]..#[n(58)]`). -/
 inductive AppError where
-  | invalidRequest                 -- #[n(0)]
-  | unexpectedMessage              -- #[n(1)]
-  | requestDecodeFailed            -- #[n(2)]
-  | responseEncodeFailed           -- #[n(3)]
-  | rawRequestFailed               -- #[n(4)]
-  | sendBufferFailed               -- #[n(5)]
-  | receiveBufferFailed            -- #[n(6)]
-  | storeGetFailed                 -- #[n(7)]
-  | storeSetFailed                 -- #[n(8)]
-  | derivationPathTooLong          -- #[n(9)]
-  | masterFingerprintFailed        -- #[n(10)]
-  | deriveHdNodeFailed             -- #[n(11)]
-  | pubkeyFromSliceFailed          -- #[n(12)]
-  | xpubSliceFailed                -- #[n(13)]
-  | xpubDecodeFailed               -- #[n(14)]
-  | residentKeyInvalidIndex        -- #[n(15)]
-  | residentKeyDeriveFailed        -- #[n(16)]
-  | userRejected                   -- #[n(17)]
-  | accountConversionFailed        -- #[n(18)]
-  | accountDecodeFailed            -- #[n(19)]
-  | accountInvalidHmac             -- #[n(20)]
-  | accountUnsupportedType         -- #[n(21)]
-  | accountXpubDerivationFailed    -- #[n(22)]
-  | accountResidentKeyUnsupported  -- #[n(23)]
-  | accountSpPubkeyNotAllowed      -- #[n(24)]
-  | accountCoordinatesMismatch     -- #[n(25)]
-  | addressInvalidIndex            -- #[n(26)]
-  | addressNotSupported            -- #[n(27)]
-  | psbtParseFailed                -- #[n(28)]
-  | psbtPrevoutVerifyFailed        -- #[n(29)]
-  | psbtMissingTxData              -- #[n(30)]
-  | psbtUnsupportedInput           -- #[n(31)]
-  | psbtSignFailed                -- #[n(32)]
-  | psbtTooManyAccounts            -- #[n(33)]
-  | psbtOutputsExceedInputs        -- #[n(34)]
-  | psbtNoInputs                   -- #[n(35)]
-  | psbtNoSignableInput            -- #[n(36)]
-  | psbtMissingSighash             -- #[n(37)]
-  | psbtUnsupportedSighash         -- #[n(38)]
-  | psbtTaprootKeyDerivFailed      -- #[n(39)]
-  | psbtTaprootTweakFailed         -- #[n(40)]
-  | psbtSchnorrSignFailed          -- #[n(41)]
-  | psbtEcdsaSignFailed            -- #[n(42)]
-  | psbtSigFromSliceFailed         -- #[n(43)]
-  | addressFromScriptFailed        -- #[n(44)]
-  | sighashComputeFailed           -- #[n(45)]
-  | invalidCoordinates             -- #[n(46)]
-  | messageTooLong                 -- #[n(47)]
-  | messageSigningFailed          -- #[n(48)]
-  | identityInvalidIndex           -- #[n(49)]
-  | identityDerivationFailed      -- #[n(50)]
-  | identitySigningFailed          -- #[n(51)]
-  | spKeyDerivationFailed          -- #[n(52)]
-  | spAddressFormatFailed          -- #[n(53)]
-  | spOutputCheckFailed            -- #[n(54)]
-  | silentPaymentDuplicateAccount  -- #[n(55)]
-  | silentPaymentMixedInputs       -- #[n(56)]
-  | silentPaymentWrongNetwork      -- #[n(57)]
-  | silentPaymentChangeLabel       -- #[n(58)]
+  | invalidRequest                    -- #[n(0)]
+  | invalidParameter                  -- #[n(1)]
+  | invalidWalletPolicy               -- #[n(2)]
+  | defaultAccountsNotSupported       -- #[n(3)]
+  | invalidProofOfRegistrationLength  -- #[n(4)]
+  | invalidProofOfRegistration        -- #[n(5)]
+  | invalidAccountId                  -- #[n(6)]
+  | invalidKeyIndex                   -- #[n(7)]
+  | invalidScriptContext              -- #[n(8)]
+  | tooManyKeys                       -- #[n(9)]
+  | invalidMultisigQuorum             -- #[n(10)]
+  | unsupportedWalletPolicy           -- #[n(11)]
+  | derivationPathTooLong             -- #[n(12)]
+  | keyDerivationFailed               -- #[n(13)]
+  | hardenedDerivationNotSupported    -- #[n(14)]
+  | invalidKey                        -- #[n(15)]
+  | errorComputingSighash             -- #[n(16)]
+  | signingFailed                     -- #[n(17)]
+  | failedToDeserializePsbt           -- #[n(18)]
+  | failedToGetAccounts               -- #[n(19)]
+  | externalInputsNotSupported        -- #[n(20)]
+  | witnessUtxoNotAllowedForLegacy    -- #[n(21)]
+  | invalidNonWitnessUtxo             -- #[n(22)]
+  | nonWitnessUtxoMismatch            -- #[n(23)]
+  | nonWitnessUtxoRequired            -- #[n(24)]
+  | witnessUtxoRequiredForSegwit      -- #[n(25)]
+  | invalidWitnessUtxo                -- #[n(26)]
+  | redeemScriptMismatchWitness       -- #[n(27)]
+  | witnessScriptRequiredForP2WSH     -- #[n(28)]
+  | witnessScriptMismatchWitness      -- #[n(29)]
+  | redeemScriptMismatch              -- #[n(30)]
+  | missingPreviousOutputIndex        -- #[n(31)]
+  | missingInputUtxo                  -- #[n(32)]
+  | inputScriptMismatch               -- #[n(33)]
+  | outputScriptMissing               -- #[n(34)]
+  | outputAmountMissing               -- #[n(35)]
+  | outputScriptMismatch              -- #[n(36)]
+  | inputsLessThanOutputs             -- #[n(37)]
+  | failedUnsignedTransaction         -- #[n(38)]
+  | addressFromScriptFailed           -- #[n(39)]
+  | invalidIdentitySignature          -- #[n(40)]
+  | identityMessageFieldTooLong       -- #[n(41)]
+  | unexpectedTaprootPolicy           -- #[n(42)]
+  | unexpectedSegwitVersion           -- #[n(43)]
+  | storageError                      -- #[n(44)]
+  | userRejected                      -- #[n(45)]
+  | missingMusigSession               -- #[n(46)]
+  | missingMusigPubnonce              -- #[n(47)]
+  | unsupportedSilentPayment          -- #[n(48)]
+  | unsupportedSighashType            -- #[n(49)]
+  | invalidSilentPayment              -- #[n(50)]
+  | silentPaymentInputNotHeld         -- #[n(51)]
+  | silentPaymentNoEligibleInputs     -- #[n(52)]
+  | silentPaymentSegwitVersion        -- #[n(53)]
+  | silentPaymentSighashType          -- #[n(54)]
+  | silentPaymentShareMismatch        -- #[n(55)]
+  | silentPaymentOutputScriptMismatch -- #[n(56)]
+  | silentPaymentAccountKeyMismatch   -- #[n(57)]
+  | silentPaymentChangeLabel          -- #[n(58)]
   deriving Repr, DecidableEq, Inhabited
 
 /-- CBOR `#[n(...)]` discriminant of Vanadium's `common::errors::Error` (`AppError`). -/
 def AppError.toCborCode : AppError → Nat
-  | .invalidRequest                => 0
-  | .unexpectedMessage             => 1
-  | .requestDecodeFailed           => 2
-  | .responseEncodeFailed          => 3
-  | .rawRequestFailed              => 4
-  | .sendBufferFailed              => 5
-  | .receiveBufferFailed           => 6
-  | .storeGetFailed                => 7
-  | .storeSetFailed                => 8
-  | .derivationPathTooLong         => 9
-  | .masterFingerprintFailed       => 10
-  | .deriveHdNodeFailed            => 11
-  | .pubkeyFromSliceFailed         => 12
-  | .xpubSliceFailed               => 13
-  | .xpubDecodeFailed              => 14
-  | .residentKeyInvalidIndex       => 15
-  | .residentKeyDeriveFailed       => 16
-  | .userRejected                  => 17
-  | .accountConversionFailed       => 18
-  | .accountDecodeFailed           => 19
-  | .accountInvalidHmac            => 20
-  | .accountUnsupportedType        => 21
-  | .accountXpubDerivationFailed   => 22
-  | .accountResidentKeyUnsupported => 23
-  | .accountSpPubkeyNotAllowed     => 24
-  | .accountCoordinatesMismatch    => 25
-  | .addressInvalidIndex           => 26
-  | .addressNotSupported           => 27
-  | .psbtParseFailed               => 28
-  | .psbtPrevoutVerifyFailed       => 29
-  | .psbtMissingTxData             => 30
-  | .psbtUnsupportedInput          => 31
-  | .psbtSignFailed                => 32
-  | .psbtTooManyAccounts           => 33
-  | .psbtOutputsExceedInputs       => 34
-  | .psbtNoInputs                  => 35
-  | .psbtNoSignableInput           => 36
-  | .psbtMissingSighash            => 37
-  | .psbtUnsupportedSighash        => 38
-  | .psbtTaprootKeyDerivFailed     => 39
-  | .psbtTaprootTweakFailed        => 40
-  | .psbtSchnorrSignFailed         => 41
-  | .psbtEcdsaSignFailed           => 42
-  | .psbtSigFromSliceFailed        => 43
-  | .addressFromScriptFailed       => 44
-  | .sighashComputeFailed          => 45
-  | .invalidCoordinates            => 46
-  | .messageTooLong                => 47
-  | .messageSigningFailed          => 48
-  | .identityInvalidIndex          => 49
-  | .identityDerivationFailed      => 50
-  | .identitySigningFailed         => 51
-  | .spKeyDerivationFailed         => 52
-  | .spAddressFormatFailed         => 53
-  | .spOutputCheckFailed           => 54
-  | .silentPaymentDuplicateAccount => 55
-  | .silentPaymentMixedInputs      => 56
-  | .silentPaymentWrongNetwork     => 57
-  | .silentPaymentChangeLabel      => 58
+  | .invalidRequest                    => 0
+  | .invalidParameter                  => 1
+  | .invalidWalletPolicy               => 2
+  | .defaultAccountsNotSupported       => 3
+  | .invalidProofOfRegistrationLength  => 4
+  | .invalidProofOfRegistration        => 5
+  | .invalidAccountId                  => 6
+  | .invalidKeyIndex                   => 7
+  | .invalidScriptContext              => 8
+  | .tooManyKeys                       => 9
+  | .invalidMultisigQuorum             => 10
+  | .unsupportedWalletPolicy           => 11
+  | .derivationPathTooLong             => 12
+  | .keyDerivationFailed               => 13
+  | .hardenedDerivationNotSupported    => 14
+  | .invalidKey                        => 15
+  | .errorComputingSighash             => 16
+  | .signingFailed                     => 17
+  | .failedToDeserializePsbt           => 18
+  | .failedToGetAccounts               => 19
+  | .externalInputsNotSupported        => 20
+  | .witnessUtxoNotAllowedForLegacy    => 21
+  | .invalidNonWitnessUtxo             => 22
+  | .nonWitnessUtxoMismatch            => 23
+  | .nonWitnessUtxoRequired            => 24
+  | .witnessUtxoRequiredForSegwit      => 25
+  | .invalidWitnessUtxo                => 26
+  | .redeemScriptMismatchWitness       => 27
+  | .witnessScriptRequiredForP2WSH     => 28
+  | .witnessScriptMismatchWitness      -- #[n(29)]
+                                       => 29
+  | .redeemScriptMismatch              => 30
+  | .missingPreviousOutputIndex        => 31
+  | .missingInputUtxo                  => 32
+  | .inputScriptMismatch               => 33
+  | .outputScriptMissing               => 34
+  | .outputAmountMissing               => 35
+  | .outputScriptMismatch              => 36
+  | .inputsLessThanOutputs             => 37
+  | .failedUnsignedTransaction         => 38
+  | .addressFromScriptFailed           => 39
+  | .invalidIdentitySignature          => 40
+  | .identityMessageFieldTooLong       => 41
+  | .unexpectedTaprootPolicy           => 42
+  | .unexpectedSegwitVersion           => 43
+  | .storageError                      => 44
+  | .userRejected                      => 45
+  | .missingMusigSession               => 46
+  | .missingMusigPubnonce              => 47
+  | .unsupportedSilentPayment          => 48
+  | .unsupportedSighashType            => 49
+  | .invalidSilentPayment              => 50
+  | .silentPaymentInputNotHeld         => 51
+  | .silentPaymentNoEligibleInputs     => 52
+  | .silentPaymentSegwitVersion        => 53
+  | .silentPaymentSighashType          => 54
+  | .silentPaymentShareMismatch        => 55
+  | .silentPaymentOutputScriptMismatch => 56
+  | .silentPaymentAccountKeyMismatch   => 57
+  | .silentPaymentChangeLabel          => 58
+
+/-- Partial inverse of `AppError.toCborCode` (`#[n(0)]..#[n(58)]`). -/
+def AppError.ofCborCode? : Nat → Option AppError
+  | 0  => some .invalidRequest
+  | 1  => some .invalidParameter
+  | 2  => some .invalidWalletPolicy
+  | 3  => some .defaultAccountsNotSupported
+  | 4  => some .invalidProofOfRegistrationLength
+  | 5  => some .invalidProofOfRegistration
+  | 6  => some .invalidAccountId
+  | 7  => some .invalidKeyIndex
+  | 8  => some .invalidScriptContext
+  | 9  => some .tooManyKeys
+  | 10 => some .invalidMultisigQuorum
+  | 11 => some .unsupportedWalletPolicy
+  | 12 => some .derivationPathTooLong
+  | 13 => some .keyDerivationFailed
+  | 14 => some .hardenedDerivationNotSupported
+  | 15 => some .invalidKey
+  | 16 => some .errorComputingSighash
+  | 17 => some .signingFailed
+  | 18 => some .failedToDeserializePsbt
+  | 19 => some .failedToGetAccounts
+  | 20 => some .externalInputsNotSupported
+  | 21 => some .witnessUtxoNotAllowedForLegacy
+  | 22 => some .invalidNonWitnessUtxo
+  | 23 => some .nonWitnessUtxoMismatch
+  | 24 => some .nonWitnessUtxoRequired
+  | 25 => some .witnessUtxoRequiredForSegwit
+  | 26 => some .invalidWitnessUtxo
+  | 27 => some .redeemScriptMismatchWitness
+  | 28 => some .witnessScriptRequiredForP2WSH
+  | 29 => some .witnessScriptMismatchWitness
+  | 30 => some .redeemScriptMismatch
+  | 31 => some .missingPreviousOutputIndex
+  | 32 => some .missingInputUtxo
+  | 33 => some .inputScriptMismatch
+  | 34 => some .outputScriptMissing
+  | 35 => some .outputAmountMissing
+  | 36 => some .outputScriptMismatch
+  | 37 => some .inputsLessThanOutputs
+  | 38 => some .failedUnsignedTransaction
+  | 39 => some .addressFromScriptFailed
+  | 40 => some .invalidIdentitySignature
+  | 41 => some .identityMessageFieldTooLong
+  | 42 => some .unexpectedTaprootPolicy
+  | 43 => some .unexpectedSegwitVersion
+  | 44 => some .storageError
+  | 45 => some .userRejected
+  | 46 => some .missingMusigSession
+  | 47 => some .missingMusigPubnonce
+  | 48 => some .unsupportedSilentPayment
+  | 49 => some .unsupportedSighashType
+  | 50 => some .invalidSilentPayment
+  | 51 => some .silentPaymentInputNotHeld
+  | 52 => some .silentPaymentNoEligibleInputs
+  | 53 => some .silentPaymentSegwitVersion
+  | 54 => some .silentPaymentSighashType
+  | 55 => some .silentPaymentShareMismatch
+  | 56 => some .silentPaymentOutputScriptMismatch
+  | 57 => some .silentPaymentAccountKeyMismatch
+  | 58 => some .silentPaymentChangeLabel
+  | _  => none
+
+@[simp] theorem AppError.ofCborCode?_toCborCode (e : AppError) :
+    AppError.ofCborCode? e.toCborCode = some e := by
+  cases e <;> rfl
+
+theorem AppError.toCborCode_ofCborCode? {c : Nat} {e : AppError}
+    (h : AppError.ofCborCode? c = some e) :
+    e.toCborCode = c ∧ c ≤ 58 := by
+  unfold AppError.ofCborCode? at h
+  split at h <;> simp at h <;> subst h <;> decide
+
+theorem AppError.ofCborCode?_eq_none_of_gt {c : Nat} (h : 58 < c) :
+    AppError.ofCborCode? c = none := by
+  cases h59 : AppError.ofCborCode? c with
+  | none => rfl
+  | some e =>
+    have ⟨_, hle⟩ := AppError.toCborCode_ofCborCode? h59
+    omega
+
+theorem AppError.toCborCode_injective {e₁ e₂ : AppError}
+    (h : e₁.toCborCode = e₂.toCborCode) : e₁ = e₂ := by
+  have h₁ := AppError.ofCborCode?_toCborCode e₁
+  have h₂ := AppError.ofCborCode?_toCborCode e₂
+  rw [h] at h₁
+  rw [h₁] at h₂
+  injection h₂
 
 /-- Canonical, implementation-independent Ledger Bitcoin specification error category. -/
 inductive SpecError where
   /-- Malformed APDU / framing / transport payload length (`0x6700`). -/
   | wrongLength
-  /-- Malformed command data payload length (`0x6A87` / `RequestDecodeFailed`). -/
+  /-- Malformed command data payload length (`0x6A87` / `InvalidRequest` `#[n(0)]`). -/
   | wrongDataLength
   /-- Unsupported APDU instruction code (`0x6D00`). -/
   | unsupportedInstruction
   /-- Unsupported APDU class byte (`0x6E00`). -/
   | unsupportedClass
-  /-- Invalid APDU `P1`/`P2` header flags (`0x6A86`). -/
+  /-- Invalid APDU `P1`/`P2` header flags (`0x6A86` / `InvalidParameter` `#[n(1)]`). -/
   | wrongP1P2
-  /-- Interactive UI confirmation rejected by the user (`0x6985` / `UserRejected`). -/
+  /-- Interactive UI confirmation rejected by the user (`0x6985` / `UserRejected` `#[n(45)]`). -/
   | userRejected
-  /-- Security precondition or wallet HMAC / device lock status not satisfied (`0x6982`). -/
+  /-- Security precondition or wallet HMAC / device lock status not satisfied (`0x6982` / `InvalidProofOfRegistration` `#[n(5)]`). -/
   | securityStatusNotSatisfied
   /-- Ledger Exchange / Swap pre-signed parameters mismatch (`0x6B00`). -/
   | swapValidationFailed
-  /-- Malformed, out-of-range, or non-canonical input data (`0x6A80`). -/
+  /-- Malformed, out-of-range, or non-canonical input data (`0x6A80` / `InvalidParameter` `#[n(1)]`). -/
   | invalidData
-  /-- BIP-32 path exceeds depth limits (`0x6A80` / `DerivationPathTooLong`). -/
+  /-- BIP-32 path exceeds depth limits (`0x6A80` / `DerivationPathTooLong` `#[n(12)]`). -/
   | bip32PathTooLong
-  /-- BIP-32 path violates policy or silent-export safety rules (`0x6A82` / `InvalidRequest`). -/
+  /-- BIP-32 path violates policy or silent-export safety rules (`0x6A82` / `KeyDerivationFailed` `#[n(13)]`). -/
   | unsupportedBip32Path
-  /-- Requested script, witness version, or feature is unsupported (`0x6A82` / `AddressNotSupported`). -/
+  /-- Requested script, witness version, or feature is unsupported (`0x6A82` / `UnsupportedWalletPolicy` `#[n(11)]`). -/
   | notSupported
-  /-- Satoshi amount exceeds `MAX_MONEY`, wraps `UInt64`, or outputs exceed inputs (`0x6A80` / `PsbtOutputsExceedInputs`). -/
+  /-- Satoshi amount exceeds `MAX_MONEY`, wraps `UInt64`, or outputs exceed inputs (`0x6A80` / `InputsLessThanOutputs` `#[n(37)]`). -/
   | invalidAmount
-  /-- Script or address serialization / checksum / witness-program validation failed (`0x6A80` / `AddressFromScriptFailed`). -/
+  /-- Script or address serialization / checksum / witness-program validation failed (`0x6A80` / `AddressFromScriptFailed` `#[n(39)]`). -/
   | invalidScriptOrAddress
-  /-- Wallet policy descriptor or key-information vector invalid (`0x6A80` / `AccountDecodeFailed`). -/
+  /-- Wallet policy descriptor or key-information vector invalid (`0x6A80` / `InvalidWalletPolicy` `#[n(2)]`). -/
   | invalidWalletPolicy
-  /-- PSBT global/input/output structure or UTXO proof invalid (`0x6A80` / `PsbtParseFailed`). -/
+  /-- PSBT global/input/output structure or UTXO proof invalid (`0x6A80` / `FailedToDeserializePsbt` `#[n(18)]`). -/
   | invalidPsbt
-  /-- Protocol state machine invariant violated (`0xB007` / `UnexpectedMessage`). -/
+  /-- Protocol state machine invariant violated (`0xB007` / `MissingMusigSession` `#[n(46)]`). -/
   | badState
-  /-- Response buffer capacity exceeded (`0xB000` / `ResponseEncodeFailed`). -/
+  /-- Response buffer capacity exceeded (`0xB000` / `InvalidRequest` `#[n(0)]`). -/
   | wrongResponseLength
-  /-- Cryptographic derivation or signature failure (`0xB008` / `PsbtSignFailed`). -/
+  /-- Cryptographic derivation or signature failure (`0xB008` / `SigningFailed` `#[n(17)]`). -/
   | cryptoOrSignatureFailed
   deriving Repr, DecidableEq, Inhabited
 
@@ -1173,27 +1517,34 @@ def SpecError.toBolosStatusWord : SpecError → BolosStatusWord
 def SpecError.toBolosCode (err : SpecError) : UInt16 :=
   err.toBolosStatusWord.toUInt16
 
-/-- Deterministic mapping from canonical `SpecError` to Vanadium `AppError`. -/
+/-- Deterministic mapping from canonical `SpecError` to Vanadium `AppError`
+    (`vanadium/apps/bitcoin/common/src/errors.rs`). -/
 def SpecError.toVanadiumError : SpecError → AppError
-  | .wrongLength                => .requestDecodeFailed
-  | .wrongDataLength            => .requestDecodeFailed
+  | .wrongLength                => .invalidRequest
+  | .wrongDataLength            => .invalidRequest
   | .unsupportedInstruction     => .invalidRequest
   | .unsupportedClass           => .invalidRequest
-  | .wrongP1P2                  => .invalidRequest
+  | .wrongP1P2                  => .invalidParameter
   | .userRejected               => .userRejected
-  | .securityStatusNotSatisfied => .accountInvalidHmac
+  | .securityStatusNotSatisfied => .invalidProofOfRegistration
   | .swapValidationFailed       => .invalidRequest
-  | .invalidData                => .invalidRequest
+  | .invalidData                => .invalidParameter
   | .bip32PathTooLong           => .derivationPathTooLong
-  | .unsupportedBip32Path       => .invalidRequest
-  | .notSupported               => .addressNotSupported
-  | .invalidAmount              => .psbtOutputsExceedInputs
+  | .unsupportedBip32Path       => .keyDerivationFailed
+  | .notSupported               => .unsupportedWalletPolicy
+  | .invalidAmount              => .inputsLessThanOutputs
   | .invalidScriptOrAddress     => .addressFromScriptFailed
-  | .invalidWalletPolicy        => .accountDecodeFailed
-  | .invalidPsbt                => .psbtParseFailed
-  | .badState                   => .unexpectedMessage
-  | .wrongResponseLength        => .responseEncodeFailed
-  | .cryptoOrSignatureFailed    => .psbtSignFailed
+  | .invalidWalletPolicy        => .invalidWalletPolicy
+  | .invalidPsbt                => .failedToDeserializePsbt
+  | .badState                   => .missingMusigSession
+  | .wrongResponseLength        => .invalidRequest
+  | .cryptoOrSignatureFailed    => .signingFailed
+
+/-- Every `SpecError` maps to a valid Vanadium CBOR `#[n(0..58)]` discriminant that roundtrips. -/
+theorem SpecError.ofCborCode?_toVanadiumError (err : SpecError) :
+    AppError.ofCborCode? err.toVanadiumError.toCborCode = some err.toVanadiumError ∧
+    err.toVanadiumError.toCborCode ≤ 58 := by
+  cases err <;> decide
 
 /-- No `SpecError` ever maps to BOLOS `SW_OK` (`0x9000`) or `SW_INTERRUPTED_EXECUTION` (`0xE000`). -/
 theorem SpecError.toBolosCode_ne_ok_and_interrupted (err : SpecError) :

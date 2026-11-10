@@ -39,9 +39,9 @@ def hardenedBit : UInt32 := 0x80000000
 def isUnhardened (idx : UInt32) : Bool :=
   idx < hardenedBit
 
-/-- Construct a hardened BIP-32 step `0x80000000 + idx` from an unhardened offset. -/
+/-- Construct a hardened BIP-32 step `0x80000000 ||| idx` from an unhardened offset. -/
 def hardened (idx : UInt32) : UInt32 :=
-  hardenedBit + idx
+  0x80000000 ||| idx
 
 /-- Standard BIP-44 coin type (`0` for mainnet, `1` for testnet/regtest/signet). -/
 def Network.coinType : Network → UInt32
@@ -234,30 +234,49 @@ structure KeyInformation where
   hasLegacyWildcard : Bool := false
   deriving DecidableEq, Inhabited
 
-/-- Check `KeyInformation` structural rules for a given `PolicyFormat` and `Network`. -/
-def KeyInformation.validForFormat (fmt : PolicyFormat) (net : Network) (ki : KeyInformation) : Bool :=
+/-- Check `KeyInformation` structural rules for a given `PolicyFormat`, `Network`, and `maxOriginLen`:
+    includes `ki.xpub.depth < 254` to prevent `UInt8` depth wraparound during the 2-step
+    `<M;N>/*` child derivation (`depth + 2 ≤ 255`). -/
+def KeyInformation.validForFormatWithBounds
+    (maxOriginLen : Nat) (fmt : PolicyFormat) (net : Network) (ki : KeyInformation) : Bool :=
   ki.xpub.wellFormed &&
+  ki.xpub.depth.toNat < 254 &&
   ki.xpub.version == net.xpubVersion &&
   (match ki.origin with
    | none => true
-   | some orig => orig.path.length <= maxOriginSteps) &&
+   | some orig => orig.path.length <= maxOriginLen) &&
   (match fmt with
    | .v1 => ki.hasLegacyWildcard == true
    | .v2 => ki.hasLegacyWildcard == false)
 
-/-- Wallet policy name validation (`register_wallet.c:is_policy_name_acceptable`):
-    - Length `1..=64` ASCII bytes (`MAX_WALLET_NAME_LENGTH = 64`),
-    - Every byte in printable ASCII `0x20..=0x7E`,
-    - First and last bytes are not `' '` (`0x20`, no leading or trailing spaces). -/
-def validWalletNameBytes (bytes : List UInt8) : Bool :=
-  let len := bytes.length
-  (1 <= len && len <= 64) &&
-  bytes.all (fun b => 0x20 <= b && b <= 0x7E) &&
-  (match bytes.head?, bytes.getLast? with
-   | some first, some last => first != 0x20 && last != 0x20
-   | _, _ => false)
+/-- Check `KeyInformation` structural rules under default `maxOriginSteps = 8`. -/
+def KeyInformation.validForFormat (fmt : PolicyFormat) (net : Network) (ki : KeyInformation) : Bool :=
+  KeyInformation.validForFormatWithBounds maxOriginSteps fmt net ki
 
-/-- Validate a `String` as a registered wallet policy name. -/
+/-- Wallet policy name validation (`register_wallet.c:is_policy_name_acceptable` vs Vanadium `register_account.rs`):
+    - When `allowEmpty = true` and `maxLenOpt = none` (Vanadium), empty and arbitrary-length printable ASCII names are allowed;
+    - Under BOLOS (`allowEmpty = false`, `maxLenOpt = some 64`), requires length `1..=64` printable ASCII
+      (`0x20..=0x7E`) with no leading or trailing `' '` (`0x20`). -/
+def validWalletNameBytesWithBounds
+    (allowEmpty : Bool) (maxLenOpt : Option Nat) (forbidEdgeSpaces : Bool) (bytes : List UInt8) : Bool :=
+  let len := bytes.length
+  (if len == 0 then allowEmpty else true) &&
+  (match maxLenOpt with
+   | none => true
+   | some maxL => len <= maxL) &&
+  bytes.all (fun b => 0x20 <= b && b <= 0x7E) &&
+  (if !forbidEdgeSpaces || len == 0 then
+     true
+   else
+     match bytes.head?, bytes.getLast? with
+     | some first, some last => first != 0x20 && last != 0x20
+     | _, _ => false)
+
+/-- BOLOS registered wallet policy name validation (`1..=64` printable ASCII, no leading/trailing space). -/
+def validWalletNameBytes (bytes : List UInt8) : Bool :=
+  validWalletNameBytesWithBounds false (some 64) true bytes
+
+/-- Validate a `String` as a registered wallet policy name under default BOLOS rules. -/
 def validWalletName (name : String) : Bool :=
   validWalletNameBytes name.toUTF8.data.toList
 
@@ -383,12 +402,15 @@ inductive DescriptorTemplate where
   | tr (internalKey : KeyExpr) (tree : Option TapTree)
   deriving BEq, Inhabited
 
-/-- Complete BIP-388 Wallet Policy (`PolicyFormat`, wallet `name`, `template`, and `keys` vector). -/
+/-- Complete BIP-388 Wallet Policy (`PolicyFormat`, wallet `name`, `template`, `keys` vector,
+    and optional `rawTemplateBytesLen` recording the exact serialized descriptor template byte length
+    for BOLOS `MAX_DESCRIPTOR_TEMPLATE_LENGTH_V1 = 40` / `V2 = 512` wire checks). -/
 structure WalletPolicy where
   format : PolicyFormat := .v2
   name : String
   template : DescriptorTemplate
   keys : List KeyInformation
+  rawTemplateBytesLen : Option Nat := none
   deriving Inhabited
 
 /-- Domain error taxonomy for BIP-388 wallet policy validation, registration, and script derivation. -/
@@ -458,11 +480,11 @@ def stripAsciiPrefix (pfx : String) (input : List UInt8) : Option (List UInt8) :
     | _ :: _, [] => none
   go pbytes input
 
-/-- Decode a single lowercase hex nibble (`'0'..'9'`, `'a'..'f'`, per canonical BIP-380/Miniscript). -/
+/-- Decode a single lowercase hex nibble (`'0'..'9'`, `'a'..'f'`; uppercase `'A'..'F'` is rejected
+    per canonical BIP-380/Miniscript and `app-bitcoin/src/common/wallet.c:170` & `test_wallet.c:765`). -/
 def decodeHexNibble (b : UInt8) : Option UInt8 :=
   if 0x30 <= b && b <= 0x39 then some (b - 0x30)
   else if 0x61 <= b && b <= 0x66 then some (b - 0x61 + 10)
-  else if 0x41 <= b && b <= 0x46 then some (b - 0x41 + 10)
   else none
 
 /-- Parse exactly `nBytes` hex-encoded bytes (`2 * nBytes` hex characters). -/
@@ -519,11 +541,12 @@ def parseDerivationSpec (fmt : PolicyFormat) (input : List UInt8) : Option (Deri
             | none => none
         | _ => none
 
-/-- Parse a `KeyExpr` (`@k<deriv>` or `musig(@k0,@k1,...)<deriv>`). -/
+/-- Parse a `KeyExpr` (`@k<deriv>` or `musig(@k0,@k1,...)<deriv>`), using input-proportional fuel
+    `r1.length + 1` so Vanadium `musig` (up to 64 keys) parses without hardcoded truncation. -/
 def parseKeyExpr (fmt : PolicyFormat) (input : List UInt8) : Option (KeyExpr × List UInt8) :=
   match stripAsciiPrefix "musig(" input with
   | some r1 =>
-    match parseAtIndexList 32 r1 with
+    match parseAtIndexList (r1.length + 1) r1 with
     | none => none
     | some (idxs, r2) =>
       match parseDerivationSpec fmt r2 with
@@ -551,10 +574,12 @@ def parseKeyExprList (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) : Op
     | some (ke, 0x29 :: rest) => some ([ke], rest)
     | _ => none
 
+/-- Parse multisig threshold and key list using input-proportional fuel `rest.length + 1`
+    so Vanadium `multi_a` (up to 999 keys) parses cleanly. -/
 def parseMultisigArgs (fmt : PolicyFormat) (input : List UInt8) : Option (Nat × List KeyExpr × List UInt8) :=
   match parseDecimalNat input with
   | some (k, 0x2C :: rest) =>
-    match parseKeyExprList 64 fmt rest with
+    match parseKeyExprList (rest.length + 1) fmt rest with
     | some (keys, rest') => some (k, keys, rest')
     | none => none
   | _ => none
@@ -573,21 +598,34 @@ def decodeWrapperByte : UInt8 → Option MiniscriptWrapper
   | 0x75 => some .u -- 'u'
   | _ => none
 
+/-- Peel a non-empty stacked Miniscript wrapper prefix `[asctdvjnlu]+:` (`wallet.c:738-814`) from `input`.
+    Note that e.g. `"sha256(...)"` starts with `'s'` (`'s'` is a wrapper char), followed by `'h'` (not `':'`
+    and not a wrapper char), so `peelWrapperPrefix` cleanly returns `none` and lets base token parsing run! -/
+def peelWrapperPrefixAux : List MiniscriptWrapper → List UInt8 → Option (List MiniscriptWrapper × List UInt8)
+  | acc, 0x3A :: rest => -- ':' = 0x3A
+      if acc.isEmpty then none else some (acc.reverse, rest)
+  | acc, b :: rest =>
+      match decodeWrapperByte b with
+      | some w => peelWrapperPrefixAux (w :: acc) rest
+      | none => none
+  | _, [] => none
+
+def peelWrapperPrefix (input : List UInt8) : Option (List MiniscriptWrapper × List UInt8) :=
+  peelWrapperPrefixAux [] input
+
+/-- Apply a list of stacked wrappers `[w_1, w_2, ..., w_k]` right-to-left around `base`
+    (`w_1 (w_2 (... (w_k base)))`). -/
+def applyMiniscriptWrappers (ws : List MiniscriptWrapper) (base : Miniscript) : Miniscript :=
+  ws.foldr Miniscript.wrap base
+
 mutual
-  /-- Fuel-bounded total parser for `Miniscript` expressions. -/
-  def parseMiniscript (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) : Option (Miniscript × List UInt8) :=
+  /-- Fuel-bounded total parser for a **non-wrapper** Miniscript base fragment.
+      Rejects any leading wrapper prefix so invalid multi-colon chains like `s:l:n:older(12960)` fail! -/
+  def parseMiniscriptBase (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) : Option (Miniscript × List UInt8) :=
     match fuel with
     | 0 => none
     | fuel' + 1 =>
-      -- Check wrapper `w:` first
       match input with
-      | wByte :: 0x3A :: rest => -- ':' = 0x3A
-        match decodeWrapperByte wByte with
-        | some w =>
-          match parseMiniscript fuel' fmt rest with
-          | some (sub, rest') => some (.wrap w sub, rest')
-          | none => none
-        | none => none
       | 0x30 :: rest => -- '0' (ensure not '0' followed by digit)
         match rest with
         | d :: _ => if isAsciiDigit d then none else some (.ms0, rest)
@@ -678,6 +716,21 @@ mutual
           | none => none
         else none
 
+  /-- Fuel-bounded total parser for `Miniscript` expressions:
+      parses an optional single stacked wrapper run `[asctdvjnlu]+:` followed by a non-wrapper base fragment
+      (accepting `sln:older(12960)`, `ac:pk_k(@0/**)`, `utv:thresh(...)` and rejecting `s:l:n:older(12960)`). -/
+  def parseMiniscript (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) : Option (Miniscript × List UInt8) :=
+    match fuel with
+    | 0 => none
+    | fuel' + 1 =>
+      match peelWrapperPrefix input with
+      | some (wrappers, afterColon) =>
+        match parseMiniscriptBase fuel' fmt afterColon with
+        | some (base, rest) => some (applyMiniscriptWrappers wrappers base, rest)
+        | none => none
+      | none =>
+        parseMiniscriptBase fuel' fmt input
+
   def parseBinaryMiniscript (fuel : Nat) (fmt : PolicyFormat)
       (ctor : Miniscript → Miniscript → Miniscript) (input : List UInt8) : Option (Miniscript × List UInt8) :=
     match fuel with
@@ -744,10 +797,13 @@ def parseTapTree (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) : Option
       | some (leaf, rest) => some (.leaf leaf, rest)
       | none => none
 
-/-- Parse a complete top-level BIP-388 descriptor template string (requiring zero trailing bytes). -/
+/-- Parse a complete top-level BIP-388 descriptor template string (requiring zero trailing bytes).
+    Note: `.tr(...)` templates are strictly rejected under `PolicyFormat.v1` (`wallet.c:892`,
+    `test_wallet.c:69-70`), and recursion fuel scales linearly (`bytes.length + 1`) so arbitrarily
+    wide Vanadium `multi_a` (`<= 999`) and `musig` (`<= 64`) expressions parse cleanly. -/
 def parseDescriptorTemplate (fmt : PolicyFormat) (desc : String) : Except PolicyError DescriptorTemplate :=
   let bytes := desc.toUTF8.data.toList
-  let fuel := 128
+  let fuel := bytes.length + 1
   let parsed : Option (DescriptorTemplate × List UInt8) :=
     if let some r := stripAsciiPrefix "pkh(" bytes then
       match parseKeyExpr fmt r with
@@ -780,13 +836,16 @@ def parseDescriptorTemplate (fmt : PolicyFormat) (desc : String) : Except Policy
         | _ => none
       else none
     else if let some r := stripAsciiPrefix "tr(" bytes then
-      match parseKeyExpr fmt r with
-      | some (ik, [0x29]) => some (.tr ik none, [])
-      | some (ik, 0x2C :: rTree) =>
-        match parseTapTree fuel fmt rTree with
-        | some (tree, [0x29]) => some (.tr ik (some tree), [])
+      if fmt == .v1 then
+        none
+      else
+        match parseKeyExpr fmt r with
+        | some (ik, [0x29]) => some (.tr ik none, [])
+        | some (ik, 0x2C :: rTree) =>
+          match parseTapTree fuel fmt rTree with
+          | some (tree, [0x29]) => some (.tr ik (some tree), [])
+          | _ => none
         | _ => none
-      | _ => none
     else none
   match parsed with
   | some (dt, []) => .ok dt
@@ -939,13 +998,16 @@ def checkKeyExprList (fmt : PolicyFormat) (allowMusig : Bool) (maxMusigKeys : Na
     checkKeyExprInContext fmt allowMusig maxMusigKeys ke
     checkKeyExprList fmt allowMusig maxMusigKeys kes
 
-/-- Full BIP-379 type-checker + extended sanity analyzer for `Miniscript` in context `ctx`. -/
+/-- Full BIP-379 type-checker + extended sanity analyzer for `Miniscript` in context `ctx`.
+    Per BIP-379 & `app-bitcoin/src/common/wallet.c:2250-2288`, `.ms0` (unsatisfiable, so vacuously
+    cannot be satisfied without a signature) and key fragments `.pk_k` / `.pk_h` (converted to `B`
+    via `c:` `OP_CHECKSIG`) carry `s := true`. -/
 def analyzeMiniscript (fmt : PolicyFormat) (ctx : MiniscriptCtx) (maxMultiKeys maxMultiAKeys maxMusigKeys : Nat) :
     Miniscript → Except PolicyError MiniscriptExtInfo
   | .ms0 =>
     .ok {
       ty := { base := .B, z := true, o := false, n := false, d := true, u := true }
-      s := false, f := false, e := true, m := true
+      s := true, f := false, e := true, m := true
       g := false, h := false, i := false, j := false, k := true, x := true
       opsCount := 0, opsSat := none, opsDsat := some 0
       stackSat := none, stackDsat := some 0, scriptSize := 1
@@ -981,7 +1043,7 @@ def analyzeMiniscript (fmt : PolicyFormat) (ctx : MiniscriptCtx) (maxMultiKeys m
     checkKeyExprInContext fmt (ctx == .tapscriptCtx) maxMusigKeys ke
     .ok {
       ty := { base := .K, z := false, o := true, n := true, d := true, u := true }
-      s := false, f := false, e := true, m := true
+      s := true, f := false, e := true, m := true
       g := false, h := false, i := false, j := false, k := true, x := true
       opsCount := 0, opsSat := some 0, opsDsat := some 0
       stackSat := some 1, stackDsat := some 1
@@ -991,7 +1053,7 @@ def analyzeMiniscript (fmt : PolicyFormat) (ctx : MiniscriptCtx) (maxMultiKeys m
     checkKeyExprInContext fmt (ctx == .tapscriptCtx) maxMusigKeys ke
     .ok {
       ty := { base := .K, z := false, o := false, n := true, d := true, u := true }
-      s := false, f := false, e := true, m := true
+      s := true, f := false, e := true, m := true
       g := false, h := false, i := false, j := false, k := true, x := true
       opsCount := 3, opsSat := some 0, opsDsat := some 0
       stackSat := some 2, stackDsat := some 2, scriptSize := 24
@@ -1453,7 +1515,10 @@ def checkMiniscriptSane (fmt : PolicyFormat) (ctx : MiniscriptCtx)
 /-! ## Section 4: Whole-Policy BIP-388 Sanity, Default vs Registered Policies & Auth Model -/
 
 /-- Configurable target profile capturing exact BOLOS (`app-bitcoin`) vs Vanadium (`vnd-bitcoin` / BIP-388)
-    capability bounds while sharing the canonical BIP-388 domain core. -/
+    capability bounds while sharing the canonical BIP-388 domain core.
+    Note on `allowShWsh`: canonical BIP-388 and BOLOS `app-bitcoin` support `sh(wsh(multi))` /
+    `sh(wsh(sortedmulti))`, whereas Vanadium `common/src/script.rs:146,168` sets `ctx = ScriptContext::Sh`
+    inside `sh(...)` and rejects `wsh(...)` whenever `ctx != ScriptContext::None` (`allowShWsh := false`). -/
 structure PolicyProfile where
   network : Network := .mainnet
   maxPolicyKeys : Nat := 15
@@ -1461,27 +1526,59 @@ structure PolicyProfile where
   maxP2shMultiKeys : Nat := 15
   maxMultiAKeys : Nat := 16
   maxMusigKeys : Nat := 5
+  maxOriginSteps : Nat := 8
   allowMusigInSortedmultiA : Bool := false
+  allowShWsh : Bool := true
   allowGeneralMiniscriptInShWsh : Bool := true
   requireSequentialPlaceholders : Bool := true
   allowStatelessDefaultPolicies : Bool := true
+  allowEmptyWalletName : Bool := false
+  maxWalletNameBytes : Option Nat := some 64
+  forbidWalletNameEdgeSpaces : Bool := true
   maxInternalKeyExpressions : Nat := 8
+  maxTemplateBytesV1 : Option Nat := none
+  maxTemplateBytesV2 : Option Nat := none
+  maxMiniscriptDepth : Option Nat := none
+  maxThreshNesting : Option Nat := none
+  maxThreshChildren : Option Nat := none
   deriving Repr, DecidableEq, Inhabited
+
+/-- Profile-aware registered wallet name check (`register_wallet.c` vs `vanadium/register_account.rs`). -/
+def PolicyProfile.validRegisteredWalletName (profile : PolicyProfile) (name : String) : Bool :=
+  validWalletNameBytesWithBounds
+    profile.allowEmptyWalletName
+    profile.maxWalletNameBytes
+    profile.forbidWalletNameEdgeSpaces
+    name.toUTF8.data.toList
 
 /-- Canonical BIP-388 + Ledger profile (supports `sh(wsh(Miniscript))` per BIP-388 and enforces
     sequential `@0, @1, ...` first-appearance order). -/
 def canonicalLedgerProfile (net : Network := .mainnet) : PolicyProfile :=
   { network := net }
 
-/-- Exact BOLOS `app-bitcoin` profile (`sh(wsh(...))` restricted to `multi`/`sortedmulti`,
-    first-appearance `@k` order not enforced beyond `{0..nKeys-1}` coverage). -/
+/-- Exact BOLOS `app-bitcoin` profile (`wallet.h` / `wallet.c` / `policy.c` resource bounds enabled:
+    `maxTemplateBytesV1 = 40`, `maxTemplateBytesV2 = 512`, `maxMiniscriptDepth = 16`,
+    `maxThreshNesting = 4`, `maxThreshChildren = 24`, `sh(wsh(...))` restricted to `multi`/`sortedmulti`,
+    and first-appearance `@k` order not enforced beyond `{0..nKeys-1}` coverage). -/
 def bolosAppProfile (net : Network := .mainnet) : PolicyProfile :=
   { network := net
+    maxOriginSteps := 8
+    allowShWsh := true
     allowGeneralMiniscriptInShWsh := false
-    requireSequentialPlaceholders := false }
+    requireSequentialPlaceholders := false
+    allowEmptyWalletName := false
+    maxWalletNameBytes := some 64
+    forbidWalletNameEdgeSpaces := true
+    maxTemplateBytesV1 := some 40
+    maxTemplateBytesV2 := some 512
+    maxMiniscriptDepth := some 16
+    maxThreshNesting := some 4
+    maxThreshChildren := some 24 }
 
-/-- Exact Vanadium `vnd-bitcoin` profile (`multi` up to 20, `multi_a` up to 999,
-    `musig` allowed in `sortedmulti_a`, stateless default policies disabled). -/
+/-- Exact Vanadium `vnd-bitcoin` profile (`multi` up to 20, `multi_a` up to 999, `musig` up to 64,
+    `maxOriginSteps = 255`, `allowShWsh = false` per `vanadium/common/src/script.rs:146,168`,
+    empty/longer wallet names permitted, `musig` allowed in `sortedmulti_a`, and stateless default
+    policies disabled). -/
 def vanadiumAppProfile (net : Network := .mainnet) : PolicyProfile :=
   { network := net
     maxPolicyKeys := 4096
@@ -1489,11 +1586,21 @@ def vanadiumAppProfile (net : Network := .mainnet) : PolicyProfile :=
     maxP2shMultiKeys := 20
     maxMultiAKeys := 999
     maxMusigKeys := 64
+    maxOriginSteps := 255
     allowMusigInSortedmultiA := true
-    allowGeneralMiniscriptInShWsh := true
+    allowShWsh := false
+    allowGeneralMiniscriptInShWsh := false
     requireSequentialPlaceholders := false
     allowStatelessDefaultPolicies := false
-    maxInternalKeyExpressions := 4096 }
+    allowEmptyWalletName := true
+    maxWalletNameBytes := none
+    forbidWalletNameEdgeSpaces := false
+    maxInternalKeyExpressions := 4096
+    maxTemplateBytesV1 := none
+    maxTemplateBytesV2 := none
+    maxMiniscriptDepth := none
+    maxThreshNesting := none
+    maxThreshChildren := none }
 
 /-- Collect all `KeyExpr` nodes in a `Miniscript` in left-to-right pre-order traversal. -/
 def collectMiniscriptKeyExprs : Miniscript → List KeyExpr
@@ -1543,6 +1650,84 @@ def collectTemplateKeyExprs : DescriptorTemplate → List KeyExpr
 def TapTree.depth : TapTree → Nat
   | .leaf _ => 1
   | .branch l r => 1 + max l.depth r.depth
+
+/-- Miniscript AST recursion depth (`1` on leaf fragments, `1 + sub` on each wrapper `wrap w sub`,
+    `1 + max ...` on combinators), matching `wallet.c:710, 753` (`MAX_PARSE_SCRIPT_RECURSION_DEPTH = 16`). -/
+def Miniscript.astDepth : Miniscript → Nat
+  | .ms0 | .ms1 | .pk _ | .pkh _ | .pk_k _ | .pk_h _
+  | .older _ | .after _ | .sha256 _ | .hash256 _ | .ripemd160 _ | .hash160 _
+  | .multi _ _ | .multi_a _ _ => 1
+  | .wrap _ sub => 1 + sub.astDepth
+  | .and_v x y | .and_b x y | .and_n x y
+  | .or_b x y | .or_c x y | .or_d x y | .or_i x y =>
+    1 + max x.astDepth y.astDepth
+  | .andor x y z =>
+    1 + max x.astDepth (max y.astDepth z.astDepth)
+  | .thresh _ subs =>
+    let rec maxList : List Miniscript → Nat
+      | [] => 0
+      | m :: ms => max m.astDepth (maxList ms)
+    1 + maxList subs
+
+/-- Maximum nested `thresh(...)` depth inside a `Miniscript` (`0` when `thresh`-free, `1` for a flat
+    `thresh`, `1 + max child` for nested `thresh`), matching `wallet.c:1435` (`MAX_THRESH_NESTING = 4`). -/
+def Miniscript.threshNesting : Miniscript → Nat
+  | .ms0 | .ms1 | .pk _ | .pkh _ | .pk_k _ | .pk_h _
+  | .older _ | .after _ | .sha256 _ | .hash256 _ | .ripemd160 _ | .hash160 _
+  | .multi _ _ | .multi_a _ _ => 0
+  | .wrap _ sub => sub.threshNesting
+  | .and_v x y | .and_b x y | .and_n x y
+  | .or_b x y | .or_c x y | .or_d x y | .or_i x y =>
+    max x.threshNesting y.threshNesting
+  | .andor x y z =>
+    max x.threshNesting (max y.threshNesting z.threshNesting)
+  | .thresh _ subs =>
+    let rec maxList : List Miniscript → Nat
+      | [] => 0
+      | m :: ms => max m.threshNesting (maxList ms)
+    1 + maxList subs
+
+/-- Maximum child count `n` of any `thresh(k, X_1, ..., X_n)` node in a `Miniscript`,
+    matching `wallet.c:2164` (`MAX_N_IN_THRESH = 24`). -/
+def Miniscript.maxThreshArity : Miniscript → Nat
+  | .ms0 | .ms1 | .pk _ | .pkh _ | .pk_k _ | .pk_h _
+  | .older _ | .after _ | .sha256 _ | .hash256 _ | .ripemd160 _ | .hash160 _
+  | .multi _ _ | .multi_a _ _ => 0
+  | .wrap _ sub => sub.maxThreshArity
+  | .and_v x y | .and_b x y | .and_n x y
+  | .or_b x y | .or_c x y | .or_d x y | .or_i x y =>
+    max x.maxThreshArity y.maxThreshArity
+  | .andor x y z =>
+    max x.maxThreshArity (max y.maxThreshArity z.maxThreshArity)
+  | .thresh _ subs =>
+    let rec maxList : List Miniscript → Nat
+      | [] => 0
+      | m :: ms => max m.maxThreshArity (maxList ms)
+    max subs.length (maxList subs)
+
+/-- Enforce optional profile-level Miniscript AST resource bounds (`maxMiniscriptDepth`,
+    `maxThreshNesting`, `maxThreshChildren`). -/
+def checkMiniscriptResourceBounds (profile : PolicyProfile) (ms : Miniscript) : Except PolicyError Unit := do
+  if let some maxD := profile.maxMiniscriptDepth then
+    if ms.astDepth > maxD then throw .policyDepthExceeded
+  if let some maxTN := profile.maxThreshNesting then
+    if ms.threshNesting > maxTN then throw .miniscriptResourceLimit
+  if let some maxTC := profile.maxThreshChildren then
+    if ms.maxThreshArity > maxTC then throw .miniscriptResourceLimit
+
+/-- Profile-aware BIP-388 descriptor template parser enforcing `maxTemplateBytesV1` / `maxTemplateBytesV2`
+    directly on the raw UTF-8 wire length (`MAX_DESCRIPTOR_TEMPLATE_LENGTH_V1 = 40`, `V2 = 512` on BOLOS). -/
+def parseDescriptorTemplateWithProfile (profile : PolicyProfile) (fmt : PolicyFormat) (desc : String) :
+    Except PolicyError DescriptorTemplate := do
+  let byteLen := desc.toUTF8.size
+  match fmt with
+  | .v1 =>
+    if let some maxB := profile.maxTemplateBytesV1 then
+      if byteLen > maxB then throw .miniscriptResourceLimit
+  | .v2 =>
+    if let some maxB := profile.maxTemplateBytesV2 then
+      if byteLen > maxB then throw .miniscriptResourceLimit
+  parseDescriptorTemplate fmt desc
 
 /-- Deduplicate a `List Nat` preserving first-appearance order. -/
 def dedupFirstAppearance : List Nat → List Nat
@@ -1608,6 +1793,7 @@ def checkWshScript (profile : PolicyProfile) (fmt : PolicyFormat) (insideSh : Bo
     if k < 1 || k > n || n > profile.maxMultiKeys then throw .invalidMultisigThreshold
     checkKeyExprList fmt false profile.maxMusigKeys keys
   | .miniscript ms => do
+    checkMiniscriptResourceBounds profile ms
     if insideSh && !profile.allowGeneralMiniscriptInShWsh then
       match ms with
       | .multi k keys =>
@@ -1624,13 +1810,16 @@ def checkTapTree (profile : PolicyProfile) (fmt : PolicyFormat) : TapTree → Ex
     let n := keys.length
     if k < 1 || k > n || n > profile.maxMultiAKeys then throw .invalidMultisigThreshold
     checkKeyExprList fmt profile.allowMusigInSortedmultiA profile.maxMusigKeys keys
-  | .leaf (.miniscript ms) =>
+  | .leaf (.miniscript ms) => do
+    checkMiniscriptResourceBounds profile ms
     checkMiniscriptSane fmt .tapscriptCtx profile.maxMultiKeys profile.maxMultiAKeys profile.maxMusigKeys ms
   | .branch l r => do
     checkTapTree profile fmt l
     checkTapTree profile fmt r
 
-/-- Validate top-level `DescriptorTemplate` syntax, context rules, and Miniscript sanity. -/
+/-- Validate top-level `DescriptorTemplate` syntax, context rules, and Miniscript sanity.
+    Rejects `.tr` under `PolicyFormat.v1` (`wallet.c:892`) and rejects `sh(wsh(...))` when
+    `!profile.allowShWsh` (`vanadium/common/src/script.rs:146,168`). -/
 def checkDescriptorTemplate (profile : PolicyProfile) (fmt : PolicyFormat) :
     DescriptorTemplate → Except PolicyError Unit
   | .pkh ke => checkKeyExprInContext fmt false profile.maxMusigKeys ke
@@ -1640,26 +1829,51 @@ def checkDescriptorTemplate (profile : PolicyProfile) (fmt : PolicyFormat) :
     let n := keys.length
     if k < 1 || k > n || n > profile.maxP2shMultiKeys then throw .invalidMultisigThreshold
     checkKeyExprList fmt false profile.maxMusigKeys keys
-  | .sh (.wsh inner) => checkWshScript profile fmt true inner
+  | .sh (.wsh inner) => do
+    if !profile.allowShWsh then throw .invalidScriptContext
+    checkWshScript profile fmt true inner
   | .wsh inner => checkWshScript profile fmt false inner
-  | .tr ik none => checkKeyExprInContext fmt true profile.maxMusigKeys ik
+  | .tr ik none => do
+    if fmt == .v1 then throw .invalidScriptContext
+    checkKeyExprInContext fmt true profile.maxMusigKeys ik
   | .tr ik (some tree) => do
+    if fmt == .v1 then throw .invalidScriptContext
     if tree.depth > 9 then throw .policyDepthExceeded
     checkKeyExprInContext fmt true profile.maxMusigKeys ik
     checkTapTree profile fmt tree
 
+/-- Check optional template wire byte length (`policy.rawTemplateBytesLen`) against
+    `profile.maxTemplateBytesV1` / `profile.maxTemplateBytesV2`. -/
+def checkTemplateByteBounds (profile : PolicyProfile) (policy : WalletPolicy) : Bool :=
+  match policy.rawTemplateBytesLen with
+  | none => true
+  | some len =>
+    match policy.format with
+    | .v1 =>
+      match profile.maxTemplateBytesV1 with
+      | none => true
+      | some maxB => len <= maxB
+    | .v2 =>
+      match profile.maxTemplateBytesV2 with
+      | none => true
+      | some maxB => len <= maxB
+
 /-- Structural & BIP-388 well-formedness of a `WalletPolicy` (prior to device keystore / HMAC checks):
+    - Optional `rawTemplateBytesLen` within `maxTemplateBytesV1` / `maxTemplateBytesV2`;
     - Key count within `1..=profile.maxPolicyKeys`;
-    - Every `KeyInformation` is structurally valid for `(policy.format, profile.network)`;
+    - Every `KeyInformation` is structurally valid for `(profile.maxOriginSteps, policy.format, profile.network)`
+      including `ki.xpub.depth < 254` (`depth + 2 <= 255` wraparound guard);
     - All 33-byte compressed public keys in `policy.keys` are pairwise distinct (`B3`);
-    - `policy.template` satisfies context sensitivity (`WshCtx` vs `TapscriptCtx`), Miniscript type
-      & non-malleability/sig/timelock-mix sanity, and `<M;N>` `M != N`;
+    - `policy.template` satisfies context sensitivity (`WshCtx` vs `TapscriptCtx`, no `.tr` in `v1`,
+      `allowShWsh`), resource bounds, Miniscript type & non-malleability/sig/timelock-mix sanity,
+      and `<M;N>` `M != N`;
     - Placeholder coverage (`[0..nKeys)` all referenced, sequential if required) and disjoint
       multipaths on repeated placeholders (`B4`). -/
 def checkPolicyWellFormed (profile : PolicyProfile) (policy : WalletPolicy) : Except PolicyError Unit := do
+  if !checkTemplateByteBounds profile policy then throw .miniscriptResourceLimit
   let nKeys := policy.keys.length
   if nKeys == 0 || nKeys > profile.maxPolicyKeys then throw .invalidKeyInfo
-  if !policy.keys.all (KeyInformation.validForFormat policy.format profile.network) then
+  if !policy.keys.all (KeyInformation.validForFormatWithBounds profile.maxOriginSteps policy.format profile.network) then
     throw .invalidKeyInfo
   let compPubkeys := policy.keys.map (fun ki => ki.xpub.compressedPubkey)
   if !listNodup compPubkeys then throw .duplicatePubkey
@@ -1795,11 +2009,12 @@ inductive PolicyAuthorization where
   deriving DecidableEq, Inhabited
 
 /-- Complete validation of `REGISTER_WALLET` (`register_wallet.c` / `register_account.rs`):
-    Requires valid wallet name (`1..=64` printable ASCII, no leading/trailing space),
-    well-formed policy, internal key & signability checks (`hasOurKey`), and explicit user confirmation. -/
+    Requires profile-valid wallet name (`1..=64` printable ASCII with no edge spaces on BOLOS;
+    empty/arbitrary-length printable ASCII allowed on Vanadium), well-formed policy, internal key &
+    signability checks (`hasOurKey`), and explicit user confirmation. -/
 def validatePolicyRegistration (profile : PolicyProfile) (dev : DeviceRegistrationOracle)
     (policy : WalletPolicy) (userApproved : Bool) : Except PolicyError Unit := do
-  if !validWalletName policy.name then throw .invalidWalletName
+  if !profile.validRegisteredWalletName policy.name then throw .invalidWalletName
   checkPolicyWellFormed profile policy
   checkRegisteredSignability profile dev policy
   if !userApproved then throw .unauthorizedPolicy
@@ -1807,7 +2022,7 @@ def validatePolicyRegistration (profile : PolicyProfile) (dev : DeviceRegistrati
 /-- Authorize a `WalletPolicy` for address derivation or PSBT signing:
     - Under `.statelessDefault`: requires `profile.allowStatelessDefaultPolicies`, well-formedness,
       `isDefaultStatelessPolicy`, and `addressIndex <= 50000` (`MAX_BIP44_ADDRESS_INDEX_RECOMMENDED`).
-    - Under `.proofOfRegistration hmac`: requires valid registered wallet name, well-formedness,
+    - Under `.proofOfRegistration hmac`: requires profile-valid registered wallet name, well-formedness,
       `hmac.size == 32`, `hmac != 0x00^32`, and `dev.verifyRegistrationProof policy hmac == true`.
     - `.userConfirmedRegistration` is only valid during `validatePolicyRegistration`, not as a
       persistent session token for stateless `get_wallet_address`. -/
@@ -1822,7 +2037,7 @@ def authorizePolicyUse (profile : PolicyProfile) (dev : DeviceRegistrationOracle
     if !isDefaultStatelessPolicy dev profile.network policy then throw .unauthorizedPolicy
     if addressIndex > maxDefaultAddressIndex then throw .invalidAddressIndex
   | .proofOfRegistration hmac =>
-    if !validWalletName policy.name then throw .invalidWalletName
+    if !profile.validRegisteredWalletName policy.name then throw .invalidWalletName
     if hmac.size != 32 || hmac == zeroBytes32 then throw .unauthorizedPolicy
     if !dev.verifyRegistrationProof policy hmac then throw .unauthorizedPolicy
   | .userConfirmedRegistration =>
@@ -2001,6 +2216,7 @@ def deriveKeyExprCompressedPubkey (ora : CryptoPolicyOracle) (net : Network)
       | none => throw .keyDerivationFailed
   let step1 := ke.deriv.stepForBranch isChange
   if !isUnhardened step1 then throw .invalidDerivationSuffix
+  if baseXpub.depth.toNat >= 254 then throw .keyDerivationFailed
   let child1 ←
     match ora.ckdPub baseXpub step1 with
     | some x => pure x
@@ -2085,7 +2301,7 @@ def compileMiniscript (ora : CryptoPolicyOracle) (net : Network) (keys : List Ke
   | .pk_k ke => do
     let cpk ← deriveKeyExprCompressedPubkey ora net keys isChange addressIndex ke
     let pkBytes := if ctx == .tapscriptCtx then cpk.extract 1 33 else cpk
-    .ok (pushSmallBytes pkBytes)
+    .ok (pushSmallBytes pkBytes ++ (if verifyFlag then ByteArray.mk #[OP_VERIFY] else ByteArray.empty))
   | .pk_h ke => do
     let cpk ← deriveKeyExprCompressedPubkey ora net keys isChange addressIndex ke
     let pkBytes := if ctx == .tapscriptCtx then cpk.extract 1 33 else cpk
@@ -2093,7 +2309,8 @@ def compileMiniscript (ora : CryptoPolicyOracle) (net : Network) (keys : List Ke
     .ok (
       ByteArray.mk #[OP_DUP, OP_HASH160] ++
       pushSmallBytes pkh20 ++
-      ByteArray.mk #[OP_EQUALVERIFY]
+      ByteArray.mk #[OP_EQUALVERIFY] ++
+      (if verifyFlag then ByteArray.mk #[OP_VERIFY] else ByteArray.empty)
     )
   | .older val =>
     .ok (pushScriptU32 val ++ emitOpVerify verifyFlag OP_CSV)
@@ -2189,9 +2406,9 @@ def compileMiniscript (ora : CryptoPolicyOracle) (net : Network) (keys : List Ke
     match w with
     | .a => do
       let s ← compileMiniscript ora net keys ctx isChange addressIndex false sub
-      .ok (ByteArray.mk #[OP_TOALTSTACK] ++ s ++ ByteArray.mk #[OP_FROMALTSTACK])
+      .ok (ByteArray.mk #[OP_TOALTSTACK] ++ s ++ emitOpVerify verifyFlag OP_FROMALTSTACK)
     | .s => do
-      let s ← compileMiniscript ora net keys ctx isChange addressIndex false sub
+      let s ← compileMiniscript ora net keys ctx isChange addressIndex verifyFlag sub
       .ok (ByteArray.mk #[OP_SWAP] ++ s)
     | .c => do
       let s ← compileMiniscript ora net keys ctx isChange addressIndex false sub
@@ -2312,10 +2529,14 @@ def deriveWalletScriptPubKeyWithProfile (profile : PolicyProfile) (ora : CryptoP
       .ok (mkP2TR tweakedXOnly)
     | none => throw .taprootTweakFailed
 
-/-- Canonical `deriveWalletScriptPubKey` over `canonicalLedgerProfile .mainnet`. -/
+/-- Canonical `deriveWalletScriptPubKey` over `canonicalLedgerProfile .mainnet` with
+    `requireSequentialPlaceholders := false` (matching both `app-bitcoin` and `vnd-bitcoin`,
+    which allow `@k` placeholders to appear in any order as long as `[0..nKeys)` is covered). -/
 def deriveWalletScriptPubKey (ora : CryptoPolicyOracle) (policy : WalletPolicy)
     (isChange : Bool) (addressIndex : UInt32) : Except PolicyError ByteArray :=
-  deriveWalletScriptPubKeyWithProfile (canonicalLedgerProfile .mainnet) ora policy isChange addressIndex
+  deriveWalletScriptPubKeyWithProfile
+    { canonicalLedgerProfile .mainnet with requireSequentialPlaceholders := false }
+    ora policy isChange addressIndex
 
 /-- Authorized wallet script derivation combining `authorizePolicyUse` (stateless default vs
     valid 32-byte HMAC / ProofOfRegistration) with `deriveWalletScriptPubKeyWithProfile`. -/
@@ -2588,10 +2809,10 @@ theorem equal_multipath_policy_rejected
   cases hAddr : (!isUnhardened addrIdx)
   · simp only [Bool.false_eq_true, ↓reduceIte]
     unfold checkPolicyWellFormed
-    dsimp only
+    dsimp [checkTemplateByteBounds]
     cases hLen : (keys.length == 0 || keys.length > profile.maxPolicyKeys)
     · simp only [Bool.false_eq_true, ↓reduceIte]
-      cases hKi : (!keys.all (KeyInformation.validForFormat fmt profile.network))
+      cases hKi : (!keys.all (KeyInformation.validForFormatWithBounds profile.maxOriginSteps fmt profile.network))
       · simp only [Bool.false_eq_true, ↓reduceIte]
         cases hDup : (!listNodup (keys.map fun ki => ki.xpub.compressedPubkey))
         · simp only [Bool.false_eq_true, ↓reduceIte, checkDescriptorTemplate]
@@ -2660,22 +2881,25 @@ theorem out_of_range_placeholder_policy_rejected
   have hWF : ∃ err, checkPolicyWellFormed profile policy = .error err := by
     unfold checkPolicyWellFormed
     dsimp only
-    cases hLen : (policy.keys.length == 0 || policy.keys.length > profile.maxPolicyKeys)
+    cases hTb : (!checkTemplateByteBounds profile policy)
     · simp only [Bool.false_eq_true, ↓reduceIte]
-      cases hKi : (!policy.keys.all (KeyInformation.validForFormat policy.format profile.network))
+      cases hLen : (policy.keys.length == 0 || policy.keys.length > profile.maxPolicyKeys)
       · simp only [Bool.false_eq_true, ↓reduceIte]
-        cases hDup : (!listNodup (policy.keys.map fun ki => ki.xpub.compressedPubkey))
+        cases hKi : (!policy.keys.all (KeyInformation.validForFormatWithBounds profile.maxOriginSteps policy.format profile.network))
         · simp only [Bool.false_eq_true, ↓reduceIte]
-          cases hDt : checkDescriptorTemplate profile policy.format policy.template with
-          | error e => exact ⟨e, rfl⟩
-          | ok _ =>
-            have hCov := out_of_range_placeholder_coverage_rejected
-              policy.keys.length profile.requireSequentialPlaceholders
-              (collectTemplateKeyExprs policy.template) ke k hKe hK hOut
-            exact ⟨.outOfRangeKeyIndex, by dsimp [Bind.bind, Except.bind]; rw [hCov]⟩
-        · exact ⟨.duplicatePubkey, rfl⟩
+          cases hDup : (!listNodup (policy.keys.map fun ki => ki.xpub.compressedPubkey))
+          · simp only [Bool.false_eq_true, ↓reduceIte]
+            cases hDt : checkDescriptorTemplate profile policy.format policy.template with
+            | error e => exact ⟨e, rfl⟩
+            | ok _ =>
+              have hCov := out_of_range_placeholder_coverage_rejected
+                policy.keys.length profile.requireSequentialPlaceholders
+                (collectTemplateKeyExprs policy.template) ke k hKe hK hOut
+              exact ⟨.outOfRangeKeyIndex, by dsimp [Bind.bind, Except.bind]; rw [hCov]⟩
+          · exact ⟨.duplicatePubkey, rfl⟩
+        · exact ⟨.invalidKeyInfo, rfl⟩
       · exact ⟨.invalidKeyInfo, rfl⟩
-    · exact ⟨.invalidKeyInfo, rfl⟩
+    · exact ⟨.miniscriptResourceLimit, rfl⟩
   refine ⟨hWF, ?_⟩
   unfold deriveWalletScriptPubKeyWithProfile
   cases hAddr : (!isUnhardened addrIdx)
@@ -2690,7 +2914,8 @@ theorem out_of_range_placeholder_policy_rejected
 theorem multi_tapscript_and_multi_a_wsh_rejected
     (profile : PolicyProfile) (ora : CryptoPolicyOracle) (fmt : PolicyFormat)
     (k : Nat) (kes : List KeyExpr) (ik : KeyExpr) (keys : List KeyInformation)
-    (isChange : Bool) (addrIdx : UInt32) (vFlag : Bool) :
+    (isChange : Bool) (addrIdx : UInt32) (vFlag : Bool)
+    (hDepth : ∀ maxD, profile.maxMiniscriptDepth = some maxD → maxD >= 1) :
     checkMiniscriptSane fmt .tapscriptCtx profile.maxMultiKeys profile.maxMultiAKeys profile.maxMusigKeys
       (.multi k kes) = .error .invalidScriptContext ∧
     compileMiniscript ora profile.network keys .tapscriptCtx isChange addrIdx vFlag
@@ -2704,13 +2929,43 @@ theorem multi_tapscript_and_multi_a_wsh_rejected
       (match ik with | .single _ _ => True | .musig _ _ => False) →
       checkDescriptorTemplate profile fmt (.tr ik (some (.leaf (.miniscript (.multi k kes))))) =
         .error .invalidScriptContext) := by
-  refine ⟨rfl, rfl, rfl, rfl, rfl, ?_⟩
-  intro hDeriv _ hSingle
-  cases ik with
-  | single idx d =>
-    subst hDeriv
+  have hResMultiA : checkMiniscriptResourceBounds profile (.multi_a k kes) = .ok () := by
+    unfold checkMiniscriptResourceBounds Miniscript.astDepth Miniscript.threshNesting Miniscript.maxThreshArity
+    cases hD : profile.maxMiniscriptDepth with
+    | none =>
+      cases profile.maxThreshNesting <;> cases profile.maxThreshChildren <;> rfl
+    | some maxD =>
+      have hGe := hDepth maxD hD
+      have hNotGt : ¬ (1 > maxD) := Nat.not_lt.mpr hGe
+      simp only [hNotGt, ↓reduceIte]
+      cases profile.maxThreshNesting <;> cases profile.maxThreshChildren <;> rfl
+  have hResMulti : checkMiniscriptResourceBounds profile (.multi k kes) = .ok () := by
+    unfold checkMiniscriptResourceBounds Miniscript.astDepth Miniscript.threshNesting Miniscript.maxThreshArity
+    cases hD : profile.maxMiniscriptDepth with
+    | none =>
+      cases profile.maxThreshNesting <;> cases profile.maxThreshChildren <;> rfl
+    | some maxD =>
+      have hGe := hDepth maxD hD
+      have hNotGt : ¬ (1 > maxD) := Nat.not_lt.mpr hGe
+      simp only [hNotGt, ↓reduceIte]
+      cases profile.maxThreshNesting <;> cases profile.maxThreshChildren <;> rfl
+  refine ⟨rfl, rfl, rfl, rfl, ?_, ?_⟩
+  · unfold checkDescriptorTemplate checkWshScript
+    dsimp [Bind.bind, Except.bind]
+    rw [hResMultiA]
     rfl
-  | musig _ _ => cases hSingle
+  · intro hDeriv _ hSingle
+    cases ik with
+    | single idx d =>
+      subst hDeriv
+      cases fmt with
+      | v1 => rfl
+      | v2 =>
+        unfold checkDescriptorTemplate checkTapTree TapTree.depth
+        dsimp [Bind.bind, Except.bind, checkKeyExprInContext, KeyExpr.deriv]
+        rw [hResMulti]
+        rfl
+    | musig _ _ => cases hSingle
 
 /-- Security Theorem 4: Registered (non-default) wallet policies without a valid 32-byte non-zero
     HMAC / ProofOfRegistration from `dev.verifyRegistrationProof` are universally rejected by
@@ -2742,7 +2997,7 @@ theorem registered_wallet_without_valid_hmac_rejected
         | userConfirmedRegistration =>
           exact ⟨.unauthorizedPolicy, rfl⟩
         | proofOfRegistration hmac =>
-          cases hName : (!validWalletName policy.name)
+          cases hName : (!profile.validRegisteredWalletName policy.name)
           · simp only [Bool.false_eq_true, ↓reduceIte]
             cases hSizeZero : (hmac.size != 32 || hmac == zeroBytes32)
             · simp only [Bool.false_eq_true, ↓reduceIte]
@@ -2792,7 +3047,7 @@ theorem registration_requires_our_key
     (hNoOurKey : hasOurKey dev profile.network policy = false) :
     ∃ err : PolicyError, validatePolicyRegistration profile dev policy userApproved = .error err := by
   unfold validatePolicyRegistration
-  cases hName : (!validWalletName policy.name)
+  cases hName : (!profile.validRegisteredWalletName policy.name)
   · simp only [Bool.false_eq_true, ↓reduceIte]
     cases hWF : checkPolicyWellFormed profile policy with
     | error e => exact ⟨e, rfl⟩
@@ -2822,6 +3077,147 @@ theorem registration_requires_our_key
       exact ⟨.missingInternalKey, by dsimp only; rw [hLen0]; rfl⟩
   · exact ⟨.invalidWalletName, rfl⟩
 
+/-! ### 6.4 Wave 1.5 Audit Remediation Regression Theorems (`C-01`, `M-01`, `m-01`) -/
+
+/-- Regression C-01.1: Stacked Miniscript wrapper run `sln:older(12960)` inside
+    `wsh(and_b(pk(@0/**),sln:older(12960)))` parses into nested `.wrap .s (.wrap .l (.wrap .n (.older 12960)))`
+    and passes `checkPolicyWellFormed` on both `bolosAppProfile` and `vanadiumAppProfile`,
+    whereas invalid multi-colon `s:l:n:older(12960)` is rejected with `.error .parseError`. -/
+theorem stacked_wrappers_sln_older_accepted_and_multicolon_rejected :
+    let expectedTemplate : DescriptorTemplate :=
+      .wsh (.miniscript (.and_b
+        (.pk (.single 0 .wildcard))
+        (.wrap .s (.wrap .l (.wrap .n (.older 12960))))))
+    let pol : WalletPolicy :=
+      { format := .v2
+        name := "Stacked Wrapper Vault"
+        template := expectedTemplate
+        keys := [witnessKeyInfo 0x01 0x73C5DA0A [hardened 48, hardened 0, hardened 0, hardened 2]] }
+    parseDescriptorTemplate .v2 "wsh(and_b(pk(@0/**),sln:older(12960)))" = .ok expectedTemplate ∧
+    checkPolicyWellFormed (bolosAppProfile .mainnet) pol = .ok () ∧
+    checkPolicyWellFormed (vanadiumAppProfile .mainnet) pol = .ok () ∧
+    parseDescriptorTemplate .v2 "wsh(and_b(pk(@0/**),s:l:n:older(12960)))" = .error .parseError := by
+  exact ⟨rfl, rfl, rfl, rfl⟩
+
+/-- Regression C-01.2: `0`, `pk_k`, and `pk_h` have `s = true` (vacuously / structurally require a
+    signature), so `wsh(or_d(pk(@0/<0;1>/*),0))`, `c:or_i(pk_k(@0/**),pk_k(@1/**))`, and
+    `c:andor(0,pk_k(@0/**),pk_k(@1/**))` all parse cleanly and pass `checkMiniscriptSane` &
+    `checkPolicyWellFormed`! -/
+theorem miniscript_s_property_or_d_ms0_and_pk_k_sane :
+    let orDTemplate : DescriptorTemplate :=
+      .wsh (.miniscript (.or_d (.pk (.single 0 (.multipath 0 1))) .ms0))
+    let orDPolicy : WalletPolicy :=
+      { format := .v2
+        name := "BIP379 or_d 0"
+        template := orDTemplate
+        keys := [witnessKeyInfo 0x01 0x73C5DA0A [hardened 48, hardened 0, hardened 0, hardened 2]] }
+    let orIPkK : Miniscript :=
+      .wrap .c (.or_i (.pk_k (.single 0 .wildcard)) (.pk_k (.single 1 .wildcard)))
+    let andor0PkK : Miniscript :=
+      .wrap .c (.andor .ms0 (.pk_k (.single 0 .wildcard)) (.pk_k (.single 1 .wildcard)))
+    parseDescriptorTemplate .v2 "wsh(or_d(pk(@0/<0;1>/*),0))" = .ok orDTemplate ∧
+    checkMiniscriptSane .v2 .wshCtx 16 16 5 (.or_d (.pk (.single 0 (.multipath 0 1))) .ms0) = .ok () ∧
+    checkPolicyWellFormed (bolosAppProfile .mainnet) orDPolicy = .ok () ∧
+    checkMiniscriptSane .v2 .wshCtx 16 16 5 orIPkK = .ok () ∧
+    checkMiniscriptSane .v2 .wshCtx 16 16 5 andor0PkK = .ok () := by
+  exact ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+/-- Regression C-01.3: `compileMiniscript` propagates `verifyFlag` through `.a` and `.s`
+    (`v:a:pk_k` emits `OP_TOALTSTACK <pk> OP_FROMALTSTACK OP_VERIFY`, `v:s:pk_k` emits
+    `OP_SWAP <pk> OP_VERIFY`, and `v:a:c:pk_k` / `v:s:c:pk_k` fuse/append verification cleanly). -/
+theorem compileMiniscript_verifyFlag_on_a_and_s :
+    let keys := [witnessKeyInfo 0x01 0x73C5DA0A [hardened 48, hardened 0, hardened 0, hardened 2]]
+    let ke := KeyExpr.single 0 .wildcard
+    let derivedPk := ByteArray.mk (#[0x02, 0x01, 0x00] ++ Array.replicate 30 0x44)
+    compileMiniscript witnessCryptoOracle .mainnet keys .wshCtx false 0 false
+      (.wrap .v (.wrap .a (.pk_k ke))) =
+      .ok (ByteArray.mk #[OP_TOALTSTACK] ++ pushSmallBytes derivedPk ++ ByteArray.mk #[OP_FROMALTSTACK, OP_VERIFY]) ∧
+    compileMiniscript witnessCryptoOracle .mainnet keys .wshCtx false 0 false
+      (.wrap .v (.wrap .s (.pk_k ke))) =
+      .ok (ByteArray.mk #[OP_SWAP] ++ pushSmallBytes derivedPk ++ ByteArray.mk #[OP_VERIFY]) ∧
+    compileMiniscript witnessCryptoOracle .mainnet keys .wshCtx false 0 false
+      (.wrap .v (.wrap .s (.wrap .c (.pk_k ke)))) =
+      .ok (ByteArray.mk #[OP_SWAP] ++ pushSmallBytes derivedPk ++ ByteArray.mk #[OP_CHECKSIGVERIFY]) := by
+  exact ⟨rfl, rfl, rfl⟩
+
+/-- Regression M-01a: `decodeHexNibble` accepts only lowercase `'0'..'9'` and `'a'..'f'`, rejecting
+    uppercase `'A'..'F'` (`wallet.c:170`, `test_wallet.c:765`). -/
+theorem lowercase_hex_enforced_uppercase_rejected :
+    decodeHexNibble 0x61 = some 10 ∧
+    decodeHexNibble 0x66 = some 15 ∧
+    decodeHexNibble 0x41 = none ∧
+    decodeHexNibble 0x46 = none ∧
+    parseDescriptorTemplate .v2
+      "wsh(and_v(v:pk(@0/**),hash160(0123456789abcdef0123456789abcdef01234567)))" =
+      .ok (.wsh (.miniscript (.and_v (.wrap .v (.pk (.single 0 .wildcard)))
+        (.hash160 (ByteArray.mk #[0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+                                  0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+                                  0x01, 0x23, 0x45, 0x67]))))) ∧
+    parseDescriptorTemplate .v2
+      "wsh(and_v(v:pk(@0/**),hash160(0123456789ABCDEF0123456789abcdef01234567)))" =
+      .error .parseError := by
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
+
+/-- Regression M-01b: `.tr` templates are universally rejected under `PolicyFormat.v1` by both
+    `parseDescriptorTemplate` and `checkDescriptorTemplate` / `checkPolicyWellFormed` (`wallet.c:892`). -/
+theorem v1_tr_rejected
+    (profile : PolicyProfile) (ik : KeyExpr) (treeOpt : Option TapTree)
+    (name : String) (keys : List KeyInformation) :
+    parseDescriptorTemplate .v1 "tr(@0)" = .error .parseError ∧
+    checkDescriptorTemplate profile .v1 (.tr ik treeOpt) = .error .invalidScriptContext ∧
+    (∃ err, checkPolicyWellFormed profile
+      { format := .v1, name := name, template := .tr ik treeOpt, keys := keys } = .error err) := by
+  refine ⟨rfl, ?_, ?_⟩
+  · cases treeOpt <;> rfl
+  · unfold checkPolicyWellFormed
+    dsimp only
+    cases (!checkTemplateByteBounds profile { format := .v1, name := name, template := .tr ik treeOpt, keys := keys })
+    · simp only [Bool.false_eq_true, ↓reduceIte]
+      cases (keys.length == 0 || keys.length > profile.maxPolicyKeys)
+      · simp only [Bool.false_eq_true, ↓reduceIte]
+        cases (!keys.all (KeyInformation.validForFormatWithBounds profile.maxOriginSteps .v1 profile.network))
+        · simp only [Bool.false_eq_true, ↓reduceIte]
+          cases (!listNodup (keys.map fun ki => ki.xpub.compressedPubkey))
+          · simp only [Bool.false_eq_true, ↓reduceIte]
+            cases treeOpt <;> exact ⟨.invalidScriptContext, rfl⟩
+          · exact ⟨.duplicatePubkey, rfl⟩
+        · exact ⟨.invalidKeyInfo, rfl⟩
+      · exact ⟨.invalidKeyInfo, rfl⟩
+    · exact ⟨.miniscriptResourceLimit, rfl⟩
+
+/-- Regression M-01c: BOLOS vs Vanadium profile bounds, `xpub.depth < 254` wraparound guard,
+    non-sequential placeholder support in `deriveWalletScriptPubKey`, and `hardened` bitwise-OR idempotence. -/
+theorem bolos_and_vanadium_profile_bounds_and_depth_guard :
+    let deepXpub := { witnessXpub 0x01 0 with depth := 254 }
+    let deepKi : KeyInformation := { origin := none, xpub := deepXpub, hasLegacyWildcard := false }
+    let deepPol : WalletPolicy :=
+      { format := .v2, name := "Deep", template := .wpkh (.single 0 .wildcard), keys := [deepKi] }
+    let shWshSorted : DescriptorTemplate :=
+      .sh (.wsh (.sortedmulti 1 [.single 0 .wildcard]))
+    let nonSeqPol : WalletPolicy :=
+      { format := .v2
+        name := "NonSeq"
+        template := .wsh (.sortedmulti 2 [.single 1 .wildcard, .single 0 .wildcard])
+        keys := [
+          witnessKeyInfo 0x01 0x73C5DA0A [hardened 48, hardened 0, hardened 0, hardened 2],
+          witnessKeyInfo 0x02 0xAABBCCDD [hardened 48, hardened 0, hardened 0, hardened 2]
+        ] }
+    -- 1. xpub.depth = 254 is rejected (preventing depth + 2 = 256 UInt8 wraparound)
+    checkPolicyWellFormed (bolosAppProfile .mainnet) deepPol = .error .invalidKeyInfo ∧
+    deriveKeyExprCompressedPubkey witnessCryptoOracle .mainnet [deepKi] false 0 (.single 0 .wildcard) =
+      .error .keyDerivationFailed ∧
+    -- 2. sh(wsh(sortedmulti)) is accepted on BOLOS, rejected on Vanadium (`allowShWsh = false`)
+    checkDescriptorTemplate (bolosAppProfile .mainnet) .v2 shWshSorted = .ok () ∧
+    checkDescriptorTemplate (vanadiumAppProfile .mainnet) .v2 shWshSorted = .error .invalidScriptContext ∧
+    -- 3. Vanadium allows empty wallet names on registered accounts; BOLOS rejects them
+    (vanadiumAppProfile .mainnet).validRegisteredWalletName "" = true ∧
+    (bolosAppProfile .mainnet).validRegisteredWalletName "" = false ∧
+    -- 4. `deriveWalletScriptPubKey` accepts non-sequential `@1, @0` placeholders by default
+    (deriveWalletScriptPubKey witnessCryptoOracle nonSeqPol false 0).isOk = true ∧
+    -- 5. `hardened` uses bitwise OR (`0x80000000 ||| idx`) and is idempotent
+    hardened (hardened 44) = hardened 44 := by
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+
 /-! ### Axiom Hygiene Verification -/
 #print axioms nonvacuous_bip84_wpkh
 #print axioms nonvacuous_bip86_tr
@@ -2835,5 +3231,11 @@ theorem registration_requires_our_key
 #print axioms registered_wallet_without_valid_hmac_rejected
 #print axioms receive_change_derivation_non_collision
 #print axioms registration_requires_our_key
+#print axioms stacked_wrappers_sln_older_accepted_and_multicolon_rejected
+#print axioms miniscript_s_property_or_d_ms0_and_pk_k_sane
+#print axioms compileMiniscript_verifyFlag_on_a_and_s
+#print axioms lowercase_hex_enforced_uppercase_rejected
+#print axioms v1_tr_rejected
+#print axioms bolos_and_vanadium_profile_bounds_and_depth_guard
 
 end Spec.WalletPolicy

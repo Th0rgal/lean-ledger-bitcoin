@@ -141,152 +141,7 @@ def mkP2WSH (witnessScriptHash32 : ByteArray) : ByteArray :=
 def mkP2TR (outputKeyXOnly32 : ByteArray) : ByteArray :=
   ByteArray.mk #[OP_1, 0x20] ++ outputKeyXOnly32
 
-/-- Classified standard output script representations. -/
-inductive StandardScript where
-  /-- Pay-to-PubKey-Hash (`20`-byte `HASH160`). -/
-  | p2pkh (hash20 : ByteArray)
-  /-- Pay-to-Script-Hash (`20`-byte `HASH160`). -/
-  | p2sh (hash20 : ByteArray)
-  /-- Pay-to-Witness-PubKey-Hash (`v0`, `20`-byte `HASH160`). -/
-  | p2wpkh (hash20 : ByteArray)
-  /-- Pay-to-Witness-Script-Hash (`v0`, `32`-byte `SHA256`). -/
-  | p2wsh (hash32 : ByteArray)
-  /-- Pay-to-Taproot (`v1`, `32`-byte x-only Tweaked PubKey). -/
-  | p2tr (key32 : ByteArray)
-  /-- Forward-compatible witness program (`v0..v16`, `2..40` bytes, excluding `P2WPKH`/`P2WSH`/`P2TR`). -/
-  | unknownWitness (version : UInt8) (program : ByteArray)
-  /-- Unspendable `OP_RETURN` script carrying raw tail bytes after `0x6a`. -/
-  | opReturn (rawTail : ByteArray)
-  deriving DecidableEq, Inhabited
-
-/-- Structural validity of each `StandardScript` constructor's payload width. -/
-def StandardScript.WellFormed : StandardScript → Prop
-  | .p2pkh h => Bytes20 h
-  | .p2sh h => Bytes20 h
-  | .p2wpkh h => Bytes20 h
-  | .p2wsh h => Bytes32 h
-  | .p2tr k => Bytes32 k
-  | .unknownWitness v prog =>
-      v.toNat ≤ 16 ∧
-      2 ≤ prog.size ∧ prog.size ≤ 40 ∧
-      ¬ (v = 0 ∧ (prog.size = 20 ∨ prog.size = 32)) ∧
-      ¬ (v = 1 ∧ prog.size = 32)
-  | .opReturn _ => True
-
-/-- Serialize a `StandardScript` into its raw `scriptPubKey` bytes. -/
-def StandardScript.toScriptPubKey : StandardScript → ByteArray
-  | .p2pkh h => mkP2PKH h
-  | .p2sh h => mkP2SH h
-  | .p2wpkh h => mkP2WPKH h
-  | .p2wsh h => mkP2WSH h
-  | .p2tr k => mkP2TR k
-  | .unknownWitness v prog =>
-      let op := if v = 0 then OP_0 else 0x50 + v
-      ByteArray.mk #[op, UInt8.ofNat prog.size] ++ prog
-  | .opReturn tail =>
-      ByteArray.mk #[OP_RETURN] ++ tail
-
-/-- Classify an arbitrary `scriptPubKey` byte array into `StandardScript`
-    (matching BOLOS `get_script_type` in `app-bitcoin/src/common/script.c` plus `OP_RETURN`). -/
-def classifyScript? (script : ByteArray) : Option StandardScript :=
-  let bytes := script.data.toList
-  match bytes with
-  | 0x6A :: tail =>
-      some (.opReturn (ByteArray.mk tail.toArray))
-  | 0x76 :: 0xA9 :: 0x14 :: rest =>
-      if rest.length = 22 then
-        let hash20 := rest.take 20
-        let suffix := rest.drop 20
-        if suffix = [0x88, 0xAC] then
-          some (.p2pkh (ByteArray.mk hash20.toArray))
-        else
-          none
-      else
-        none
-  | 0xA9 :: 0x14 :: rest =>
-      if rest.length = 21 then
-        let hash20 := rest.take 20
-        let suffix := rest.drop 20
-        if suffix = [0x87] then
-          some (.p2sh (ByteArray.mk hash20.toArray))
-        else
-          none
-      else
-        none
-  | op :: pushLen :: prog =>
-      match decodeWitnessVersionOpcode? op with
-      | none => none
-      | some ver =>
-          if pushLen.toNat = prog.length ∧ 2 ≤ prog.length ∧ prog.length ≤ 40 then
-            let progBytes := ByteArray.mk prog.toArray
-            if ver = 0 ∧ prog.length = 20 then
-              some (.p2wpkh progBytes)
-            else if ver = 0 ∧ prog.length = 32 then
-              some (.p2wsh progBytes)
-            else if ver = 1 ∧ prog.length = 32 then
-              some (.p2tr progBytes)
-            else
-              some (.unknownWitness ver progBytes)
-          else
-            none
-  | _ => none
-
-theorem classifyScript?_mkP2PKH {h : ByteArray} (h20 : Bytes20 h) :
-    classifyScript? (mkP2PKH h) = some (.p2pkh h) := by
-  unfold classifyScript? mkP2PKH
-  cases h with
-  | mk arr =>
-      have hl : arr.toList.length = 20 := h20
-      have htake : List.take 20 (arr.toList ++ [136, 172]) = arr.toList := by
-        rw [List.take_append_of_le_length (by omega), ← hl, List.take_length]
-      have hdrop : List.drop 20 (arr.toList ++ [136, 172]) = [136, 172] := by
-        rw [List.drop_append_of_le_length (by omega), ← hl, List.drop_length]
-        rfl
-      simp only [ByteArray.data_append, OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG]
-      simp [htake, hdrop]
-      exact h20
-
-theorem classifyScript?_mkP2SH {h : ByteArray} (h20 : Bytes20 h) :
-    classifyScript? (mkP2SH h) = some (.p2sh h) := by
-  unfold classifyScript? mkP2SH
-  cases h with
-  | mk arr =>
-      have hl : arr.toList.length = 20 := h20
-      have htake : List.take 20 (arr.toList ++ [135]) = arr.toList := by
-        rw [List.take_append_of_le_length (by omega), ← hl, List.take_length]
-      have hdrop : List.drop 20 (arr.toList ++ [135]) = [135] := by
-        rw [List.drop_append_of_le_length (by omega), ← hl, List.drop_length]
-        rfl
-      simp only [ByteArray.data_append, OP_HASH160, OP_EQUAL]
-      simp [htake, hdrop]
-      exact h20
-
-theorem classifyScript?_mkP2WPKH {h : ByteArray} (h20 : Bytes20 h) :
-    classifyScript? (mkP2WPKH h) = some (.p2wpkh h) := by
-  unfold classifyScript? mkP2WPKH
-  cases h with
-  | mk arr =>
-      have hl : arr.toList.length = 20 := h20
-      simp [ByteArray.data_append, OP_0, decodeWitnessVersionOpcode?, hl]
-
-theorem classifyScript?_mkP2WSH {h : ByteArray} (h32 : Bytes32 h) :
-    classifyScript? (mkP2WSH h) = some (.p2wsh h) := by
-  unfold classifyScript? mkP2WSH
-  cases h with
-  | mk arr =>
-      have hl : arr.toList.length = 32 := h32
-      simp [ByteArray.data_append, OP_0, decodeWitnessVersionOpcode?, hl]
-
-theorem classifyScript?_mkP2TR {k : ByteArray} (h32 : Bytes32 k) :
-    classifyScript? (mkP2TR k) = some (.p2tr k) := by
-  unfold classifyScript? mkP2TR
-  have hdec : decodeWitnessVersionOpcode? 81 = some 1 := rfl
-  cases k with
-  | mk arr =>
-      have hl : arr.toList.length = 32 := h32
-      simp [ByteArray.data_append, OP_1, hdec, hl]
-
-/-! ## 2. Pushdata Canonicality (`MINIMALDATA` Rules) -/
+/-! ## 2. Pushdata Canonicality (`MINIMALDATA` Rules) & Standard `OP_RETURN` Validation -/
 
 /-- Minimal push-opcode script size for a non-negative `CScriptNum` integer `n`
     (exact specification of BOLOS `get_push_script_size` in `app-bitcoin/src/common/script.c:17-30`). -/
@@ -404,10 +259,11 @@ def decodeMinimalPushPrefix? (script : ByteArray) : Option (ByteArray × ByteArr
         none
 
 /-- Validate BOLOS's standard `OP_RETURN` output formatting rules (`format_opscript_script`,
-    `app-bitcoin/src/common/script.c:139-203`):
+    `app-bitcoin/src/common/script.c:139-203` and `unit-tests/test_script.c:294-303`):
     - Starts with `OP_RETURN (0x6a)` and total length `≤ 83` (`MAX_STANDARD_OP_RETURN_LEN`)
     - Either bare `OP_RETURN` (length 1, used e.g. in BIP-322 virtual to_spend) or `1..5` canonical
-      `MINIMALDATA` pushes (with total length ≤ 83, automatically excluding `OP_PUSHDATA2`/`4`). -/
+      `MINIMALDATA` pushes (rejecting non-minimal 1-byte pushes `0x01 0x01..0x10` and `0x01 0x81`,
+      non-minimal `OP_PUSHDATA1`, `OP_PUSHDATA2`/`4`, non-push opcodes, `> 5` pushes, and `> 83` bytes). -/
 def checkMinimalPushesBounded : Nat → List UInt8 → Bool
   | 0, [] => true
   | 0, _ :: _ => false
@@ -417,11 +273,177 @@ def checkMinimalPushesBounded : Nat → List UInt8 → Bool
       | none => false
       | some (_, rem) => checkMinimalPushesBounded budget rem.data.toList
 
-def isValidBolosOpReturnScript (script : ByteArray) : Bool :=
+def isValidOpReturnScript (script : ByteArray) : Bool :=
   script.size ≤ MAX_STANDARD_OP_RETURN_LEN &&
     match script.data.toList with
     | 0x6A :: tail => checkMinimalPushesBounded MAX_STANDARD_OP_RETURN_PUSHES tail
     | _ => false
+
+abbrev isValidBolosOpReturnScript : ByteArray → Bool := isValidOpReturnScript
+
+/-- Classified standard output script representations. -/
+inductive StandardScript where
+  /-- Pay-to-PubKey-Hash (`20`-byte `HASH160`). -/
+  | p2pkh (hash20 : ByteArray)
+  /-- Pay-to-Script-Hash (`20`-byte `HASH160`). -/
+  | p2sh (hash20 : ByteArray)
+  /-- Pay-to-Witness-PubKey-Hash (`v0`, `20`-byte `HASH160`). -/
+  | p2wpkh (hash20 : ByteArray)
+  /-- Pay-to-Witness-Script-Hash (`v0`, `32`-byte `SHA256`). -/
+  | p2wsh (hash32 : ByteArray)
+  /-- Pay-to-Taproot (`v1`, `32`-byte x-only Tweaked PubKey). -/
+  | p2tr (key32 : ByteArray)
+  /-- Forward-compatible witness program (`v0..v16`, `2..40` bytes, excluding `P2WPKH`/`P2WSH`/`P2TR`). -/
+  | unknownWitness (version : UInt8) (program : ByteArray)
+  /-- Unspendable `OP_RETURN` script carrying raw tail bytes after `0x6a`. -/
+  | opReturn (rawTail : ByteArray)
+  deriving DecidableEq, Inhabited
+
+/-- Structural and `MINIMALDATA` validity of each `StandardScript` constructor:
+    for `.opReturn rawTail`, requires `isValidOpReturnScript ([OP_RETURN] ++ rawTail)`
+    (enforcing `≤ 83` bytes, `≤ 5` pushes, and canonical `MINIMALDATA` pushes). -/
+def StandardScript.WellFormed : StandardScript → Prop
+  | .p2pkh h => Bytes20 h
+  | .p2sh h => Bytes20 h
+  | .p2wpkh h => Bytes20 h
+  | .p2wsh h => Bytes32 h
+  | .p2tr k => Bytes32 k
+  | .unknownWitness v prog =>
+      v.toNat ≤ 16 ∧
+      2 ≤ prog.size ∧ prog.size ≤ 40 ∧
+      ¬ (v = 0 ∧ (prog.size = 20 ∨ prog.size = 32)) ∧
+      ¬ (v = 1 ∧ prog.size = 32)
+  | .opReturn rawTail =>
+      isValidOpReturnScript (ByteArray.mk #[OP_RETURN] ++ rawTail) = true
+
+instance (s : StandardScript) : Decidable s.WellFormed :=
+  match s with
+  | .p2pkh h => inferInstanceAs (Decidable (Bytes20 h))
+  | .p2sh h => inferInstanceAs (Decidable (Bytes20 h))
+  | .p2wpkh h => inferInstanceAs (Decidable (Bytes20 h))
+  | .p2wsh h => inferInstanceAs (Decidable (Bytes32 h))
+  | .p2tr k => inferInstanceAs (Decidable (Bytes32 k))
+  | .unknownWitness v prog =>
+      inferInstanceAs (Decidable
+        (v.toNat ≤ 16 ∧ 2 ≤ prog.size ∧ prog.size ≤ 40 ∧
+         ¬ (v = 0 ∧ (prog.size = 20 ∨ prog.size = 32)) ∧ ¬ (v = 1 ∧ prog.size = 32)))
+  | .opReturn rawTail =>
+      inferInstanceAs (Decidable (isValidOpReturnScript (ByteArray.mk #[OP_RETURN] ++ rawTail) = true))
+
+/-- Serialize a `StandardScript` into its raw `scriptPubKey` bytes. -/
+def StandardScript.toScriptPubKey : StandardScript → ByteArray
+  | .p2pkh h => mkP2PKH h
+  | .p2sh h => mkP2SH h
+  | .p2wpkh h => mkP2WPKH h
+  | .p2wsh h => mkP2WSH h
+  | .p2tr k => mkP2TR k
+  | .unknownWitness v prog =>
+      let op := if v = 0 then OP_0 else 0x50 + v
+      ByteArray.mk #[op, UInt8.ofNat prog.size] ++ prog
+  | .opReturn tail =>
+      ByteArray.mk #[OP_RETURN] ++ tail
+
+/-- Classify an arbitrary `scriptPubKey` byte array into `StandardScript`
+    (matching BOLOS `get_script_type` in `app-bitcoin/src/common/script.c` plus `OP_RETURN`). -/
+def classifyScript? (script : ByteArray) : Option StandardScript :=
+  let bytes := script.data.toList
+  match bytes with
+  | 0x6A :: tail =>
+      some (.opReturn (ByteArray.mk tail.toArray))
+  | 0x76 :: 0xA9 :: 0x14 :: rest =>
+      if rest.length = 22 then
+        let hash20 := rest.take 20
+        let suffix := rest.drop 20
+        if suffix = [0x88, 0xAC] then
+          some (.p2pkh (ByteArray.mk hash20.toArray))
+        else
+          none
+      else
+        none
+  | 0xA9 :: 0x14 :: rest =>
+      if rest.length = 21 then
+        let hash20 := rest.take 20
+        let suffix := rest.drop 20
+        if suffix = [0x87] then
+          some (.p2sh (ByteArray.mk hash20.toArray))
+        else
+          none
+      else
+        none
+  | op :: pushLen :: prog =>
+      match decodeWitnessVersionOpcode? op with
+      | none => none
+      | some ver =>
+          if pushLen.toNat = prog.length ∧ 2 ≤ prog.length ∧ prog.length ≤ 40 then
+            let progBytes := ByteArray.mk prog.toArray
+            if ver = 0 ∧ prog.length = 20 then
+              some (.p2wpkh progBytes)
+            else if ver = 0 ∧ prog.length = 32 then
+              some (.p2wsh progBytes)
+            else if ver = 1 ∧ prog.length = 32 then
+              some (.p2tr progBytes)
+            else
+              some (.unknownWitness ver progBytes)
+          else
+            none
+  | _ => none
+
+theorem classifyScript?_mkP2PKH {h : ByteArray} (h20 : Bytes20 h) :
+    classifyScript? (mkP2PKH h) = some (.p2pkh h) := by
+  unfold classifyScript? mkP2PKH
+  cases h with
+  | mk arr =>
+      have hl : arr.toList.length = 20 := h20
+      have htake : List.take 20 (arr.toList ++ [136, 172]) = arr.toList := by
+        rw [List.take_append_of_le_length (by omega), ← hl, List.take_length]
+      have hdrop : List.drop 20 (arr.toList ++ [136, 172]) = [136, 172] := by
+        rw [List.drop_append_of_le_length (by omega), ← hl, List.drop_length]
+        rfl
+      simp only [ByteArray.data_append, OP_DUP, OP_HASH160, OP_EQUALVERIFY, OP_CHECKSIG]
+      simp [htake, hdrop]
+      exact h20
+
+theorem classifyScript?_mkP2SH {h : ByteArray} (h20 : Bytes20 h) :
+    classifyScript? (mkP2SH h) = some (.p2sh h) := by
+  unfold classifyScript? mkP2SH
+  cases h with
+  | mk arr =>
+      have hl : arr.toList.length = 20 := h20
+      have htake : List.take 20 (arr.toList ++ [135]) = arr.toList := by
+        rw [List.take_append_of_le_length (by omega), ← hl, List.take_length]
+      have hdrop : List.drop 20 (arr.toList ++ [135]) = [135] := by
+        rw [List.drop_append_of_le_length (by omega), ← hl, List.drop_length]
+        rfl
+      simp only [ByteArray.data_append, OP_HASH160, OP_EQUAL]
+      simp [htake, hdrop]
+      exact h20
+
+theorem classifyScript?_mkP2WPKH {h : ByteArray} (h20 : Bytes20 h) :
+    classifyScript? (mkP2WPKH h) = some (.p2wpkh h) := by
+  unfold classifyScript? mkP2WPKH
+  cases h with
+  | mk arr =>
+      have hl : arr.toList.length = 20 := h20
+      simp [ByteArray.data_append, OP_0, decodeWitnessVersionOpcode?, hl]
+
+theorem classifyScript?_mkP2WSH {h : ByteArray} (h32 : Bytes32 h) :
+    classifyScript? (mkP2WSH h) = some (.p2wsh h) := by
+  unfold classifyScript? mkP2WSH
+  cases h with
+  | mk arr =>
+      have hl : arr.toList.length = 32 := h32
+      simp [ByteArray.data_append, OP_0, decodeWitnessVersionOpcode?, hl]
+
+theorem classifyScript?_mkP2TR {k : ByteArray} (h32 : Bytes32 k) :
+    classifyScript? (mkP2TR k) = some (.p2tr k) := by
+  unfold classifyScript? mkP2TR
+  have hdec : decodeWitnessVersionOpcode? 81 = some 1 := rfl
+  cases k with
+  | mk arr =>
+      have hl : arr.toList.length = 32 := h32
+      simp [ByteArray.data_append, OP_1, hdec, hl]
+
+/-! ## 2b. `MINIMALDATA` & `OP_RETURN` Sanity Theorems -/
 
 /-- Non-minimal 1-byte push `[0x01, 0x05]` is rejected (must use `OP_5 = 0x55`). -/
 theorem minimalPush_rejects_direct_small_int :
@@ -518,6 +540,37 @@ private def natToBytesBEAux : Nat → Nat → List UInt8 → List UInt8
   | 0, _, acc => acc
   | _ + 1, 0, acc => acc
   | fuel + 1, n, acc => natToBytesBEAux fuel (n / 256) (UInt8.ofNat (n % 256) :: acc)
+
+/-- Convert a natural number to big-endian Base58 digits (`0..57`) of minimum non-zero width. -/
+private def natToDigits58Aux : Nat → Nat → List Nat → List Nat
+  | 0, _, acc => acc
+  | _ + 1, 0, acc => acc
+  | fuel + 1, n, acc => natToDigits58Aux fuel (n / 58) ((n % 58) :: acc)
+
+/-- Canonical Bitcoin Base58 encoder (preserving leading `0x00` bytes as `'1'`). -/
+def encodeBase58? (raw : ByteArray) : Option String :=
+  let bytes := raw.data.toList
+  let leadingZeros := countLeading (fun b => decide (b = 0)) bytes
+  let val := bytesToNatBE bytes
+  let magDigits := natToDigits58Aux (2 * bytes.length + 1) val []
+  match magDigits.mapM base58DigitToChar? with
+  | none => none
+  | some magChars =>
+      let prefixOnes := List.replicate leadingZeros '1'
+      some (String.ofList (prefixOnes ++ magChars))
+
+/-- Canonical **Base58Check** encoder over `(version, payload)` using `doubleSha256`. -/
+def encodeBase58Check?
+    (doubleSha256 : ByteArray → ByteArray)
+    (version : ByteArray)
+    (payload : ByteArray) : Option String :=
+  let body := version ++ payload
+  let digest := doubleSha256 body
+  if digest.size < 4 then
+    none
+  else
+    let checksum4 := ByteArray.mk (digest.data.toList.take 4).toArray
+    encodeBase58? (body ++ checksum4)
 
 /-- Decode a Base58 string into raw bytes, enforcing canonical leading-`'1'` preservation. -/
 def decodeBase58? (encoded : String) : Option ByteArray :=
@@ -675,9 +728,14 @@ private def lastIndexOfOneAux : Nat → Option Nat → List Char → Option Nat
 def lastSeparatorOneIndex? (chars : List Char) : Option Nat :=
   lastIndexOfOneAux 0 none chars
 
+/-- Minimum and maximum BIP-173 human-readable part (`hrp`) lengths (`1..83`). -/
+def BECH32_MIN_HRP_LEN : Nat := 1
+def BECH32_MAX_HRP_LEN : Nat := 83
+
 /-- Decode a Bech32 or Bech32m string (up to `maxLen` characters), enforcing:
     - Printable ASCII (`33..126`), no mixed case (`!(hasLower && hasUpper)`), `length ≤ maxLen`
-    - Non-empty HRP before the last `'1'` separator, ≥ 6 checksum characters after `'1'`
+    - BIP-173 HRP length bounds `1 ≤ hrp.length ≤ 83` before the last `'1'` separator,
+      and `≥ 6` checksum characters after `'1'`
     - Valid `Bech32` (`1`) or `Bech32m` (`0x2bc830a3`) polymod residue.
     Returns `(encoding, lowercaseHrp, data5WithoutChecksum)`. -/
 def decodeBech32Raw? (maxLen : Nat) (input : String) : Option (Bech32Encoding × String × List UInt8) :=
@@ -698,7 +756,8 @@ def decodeBech32Raw? (maxLen : Nat) (input : String) : Option (Bech32Encoding ×
           match lastSeparatorOneIndex? lowerChars with
           | none => none
           | some sepIdx =>
-              if sepIdx < 1 || sepIdx + 7 > lowerChars.length then
+              if sepIdx < BECH32_MIN_HRP_LEN || sepIdx > BECH32_MAX_HRP_LEN ||
+                 sepIdx + 7 > lowerChars.length then
                 none
               else
                 let hrpChars := lowerChars.take sepIdx
@@ -712,12 +771,16 @@ def decodeBech32Raw? (maxLen : Nat) (input : String) : Option (Bech32Encoding ×
                         let payload5 := full5.take (full5.length - 6)
                         some (enc, String.ofList hrpChars, payload5)
 
-/-- Encode `(enc, hrp, data5)` as a lowercase Bech32 / Bech32m string (up to `maxLen` characters). -/
+/-- Encode `(enc, hrp, data5)` as a lowercase Bech32 / Bech32m string (up to `maxLen` characters),
+    enforcing BIP-173 `1 ≤ hrp.length ≤ 83`.
+    Uses `asciiCharsOfString? hrp` (rather than `hrp.length`, which decodes UTF-8 codepoints via
+    `Classical.choice` in Lean 4's standard library) so the definition stays strictly constructive. -/
 def encodeBech32Raw? (maxLen : Nat) (enc : Bech32Encoding) (hrp : String) (data5 : List UInt8) : Option String :=
   match asciiCharsOfString? hrp with
   | none => none
   | some hrpChars =>
-      if hrpChars.isEmpty || !(hrpChars.all isValidHrpCharLower) then
+      if hrpChars.length < BECH32_MIN_HRP_LEN || hrpChars.length > BECH32_MAX_HRP_LEN ||
+         !(hrpChars.all isValidHrpCharLower) then
         none
       else if !(data5.all (fun v => v < 32)) then
         none
@@ -866,6 +929,81 @@ def decodeSegwitAddr? (expectedHrp : String) (addr : String) : Option (UInt8 × 
                     some (witver, witprog)
                   else
                     none
+
+/-! ### Target-Aware Script-to-Address Conversion (`scriptToAddress?`) -/
+
+/-- Target implementation profile for `scriptToAddress?`:
+    - `bolos`: BOLOS C app (`get_script_address` policy rejecting forward SegWit `v2..v16`
+      witness programs and non-20/32 `v0` / non-32 `v1` unknown witness scripts; only defined
+      standard `P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, and `P2TR` scripts format to an address).
+    - `vanadium`: Vanadium Rust app / BIP-350 (`Address::from_script`), encoding `v0` (20/32B)
+      as Bech32 and `v1..v16` (2..40B, including forward SegWit `v2..v16` programs) as Bech32m. -/
+inductive AddressTarget where
+  | bolos
+  | vanadium
+  deriving Repr, DecidableEq, Inhabited
+
+/-- Format a classified `StandardScript` into a Bitcoin address string for `(target, net)`:
+    - `.p2pkh` / `.p2sh`: Base58Check using `doubleSha256` and `net.params.p2pkhVersion` / `p2shVersion`
+    - `.p2wpkh` / `.p2wsh`: BIP-173 Bech32 (`v0`, `net.params.bech32Hrp`)
+    - `.p2tr`: BIP-350 Bech32m (`v1`, `net.params.bech32Hrp`)
+    - `.unknownWitness v prog`: rejected (`none`) on `.bolos` (including SegWit `v2..v16`),
+      whereas `.vanadium` encodes valid BIP-350 witness programs (`v1` non-32B and `v2..v16` `2..40B`)
+      as Bech32m via `encodeSegwitAddr?`
+    - `.opReturn _`: `none` (provably unspendable data-carrier output has no address). -/
+def standardScriptToAddress?
+    (target : AddressTarget)
+    (doubleSha256 : ByteArray → ByteArray)
+    (net : Network)
+    (sc : StandardScript) : Option String :=
+  match sc with
+  | .p2pkh hash20 =>
+      if hash20.size = 20 then
+        encodeBase58Check? doubleSha256 (ByteArray.mk #[net.params.p2pkhVersion]) hash20
+      else
+        none
+  | .p2sh hash20 =>
+      if hash20.size = 20 then
+        encodeBase58Check? doubleSha256 (ByteArray.mk #[net.params.p2shVersion]) hash20
+      else
+        none
+  | .p2wpkh hash20 =>
+      if hash20.size = 20 then
+        encodeSegwitAddr? net.params.bech32Hrp 0 hash20
+      else
+        none
+  | .p2wsh hash32 =>
+      if hash32.size = 32 then
+        encodeSegwitAddr? net.params.bech32Hrp 0 hash32
+      else
+        none
+  | .p2tr key32 =>
+      if key32.size = 32 then
+        encodeSegwitAddr? net.params.bech32Hrp 1 key32
+      else
+        none
+  | .unknownWitness ver prog =>
+      match target with
+      | .bolos =>
+          if 2 ≤ ver.toNat then
+            none
+          else
+            none
+      | .vanadium =>
+          encodeSegwitAddr? net.params.bech32Hrp ver prog
+  | .opReturn _ => none
+
+/-- Target-aware `scriptPubKey` → address encoder (`scriptToAddress?`).
+    On `.bolos`, SegWit `v2..v16` witness scripts return `none`, whereas on `.vanadium` (BIP-350)
+    valid `v2..v16` witness scripts (`2..40` bytes) encode as Bech32m. -/
+def scriptToAddress?
+    (target : AddressTarget)
+    (doubleSha256 : ByteArray → ByteArray)
+    (net : Network)
+    (script : ByteArray) : Option String :=
+  match classifyScript? script with
+  | none => none
+  | some sc => standardScriptToAddress? target doubleSha256 net sc
 
 /-! ## 5. Security & Sanity Theorems for Script & Bech32/Bech32m (`0 sorryAx`) -/
 
@@ -1050,6 +1188,47 @@ theorem bip350_v1_vector_and_bech32_rejection :
       some (1, key32) ∧
     (encodeBech32Raw? 90 .bech32 "bc" (1 :: convertBits8to5 key32)).map (decodeSegwitAddr? "bc") =
       some none := by
+  decide
+
+/-- Remediation Theorem (m-02a): `StandardScript.WellFormed` on `.opReturn` enforces
+    `isValidOpReturnScript`, accepting canonical pushes while rejecting non-minimal 1-byte pushes
+    `0x01 0x01..0x10` and `0x01 0x81`, non-minimal `OP_PUSHDATA1`, `> 5` pushes, and non-push opcodes. -/
+theorem opReturn_wellFormed_rejects_nonminimal :
+    (StandardScript.opReturn ByteArray.empty).WellFormed ∧
+    (StandardScript.opReturn (ByteArray.mk #[0x55])).WellFormed ∧
+    (StandardScript.opReturn (ByteArray.mk #[OP_1NEGATE])).WellFormed ∧
+    ¬ (StandardScript.opReturn (ByteArray.mk #[0x01, 0x01])).WellFormed ∧
+    ¬ (StandardScript.opReturn (ByteArray.mk #[0x01, 0x10])).WellFormed ∧
+    ¬ (StandardScript.opReturn (ByteArray.mk #[0x01, 0x81])).WellFormed ∧
+    ¬ (StandardScript.opReturn (ByteArray.mk #[OP_PUSHDATA1, 0x01, 0x81])).WellFormed ∧
+    ¬ (StandardScript.opReturn (ByteArray.mk #[OP_1, OP_1, OP_1, OP_1, OP_1, OP_1])).WellFormed := by
+  decide
+
+set_option maxRecDepth 32768 in
+/-- Remediation Theorem (m-02b): `encodeBech32Raw?` and `decodeBech32Raw?` strictly enforce
+    BIP-173 HRP length bounds (`1 ≤ hrp.length ≤ 83`), rejecting empty HRPs (`""`) and `> 83`-char HRPs
+    even when `maxLen = 1023`. -/
+theorem bech32Raw_enforces_bip173_hrp_bounds :
+    encodeBech32Raw? 1023 .bech32m "" [0] = none ∧
+    encodeBech32Raw? 1023 .bech32m (String.ofList (List.replicate 83 'a')) [0] ≠ none ∧
+    encodeBech32Raw? 1023 .bech32m (String.ofList (List.replicate 84 'a')) [0] = none ∧
+    decodeBech32Raw? 1023 ("1qqqqqqqq") = none ∧
+    decodeBech32Raw? 1023 (String.ofList (List.replicate 84 'a' ++ ['1', 'q', 'q', 'q', 'q', 'q', 'q'])) = none := by
+  decide
+
+set_option maxRecDepth 32768 in
+/-- Remediation Theorem (m-02c): Target-aware `scriptToAddress?` rejects SegWit `v2..v16` scripts
+    under `AddressTarget.bolos` while encoding them as BIP-350 Bech32m under `AddressTarget.vanadium`. -/
+theorem scriptToAddress?_bolos_vs_vanadium_segwit_v2 :
+    let dummyDSha := fun (_ : ByteArray) => ByteArray.mk (List.replicate 32 0).toArray
+    let v2Script := ByteArray.mk #[0x52, 0x02, 0x00, 0x01] -- OP_2 PUSHBYTES_2 0001
+    let v16Script := ByteArray.mk (#[0x60, 0x14] ++ (List.replicate 20 0x11).toArray)
+    scriptToAddress? .bolos dummyDSha .mainnet v2Script = none ∧
+    scriptToAddress? .bolos dummyDSha .mainnet v16Script = none ∧
+    (scriptToAddress? .vanadium dummyDSha .mainnet v2Script).bind (decodeSegwitAddr? "bc") =
+      some (2, ByteArray.mk #[0x00, 0x01]) ∧
+    (scriptToAddress? .vanadium dummyDSha .mainnet v16Script).bind (decodeSegwitAddr? "bc") =
+      some (16, ByteArray.mk (List.replicate 20 0x11).toArray) := by
   decide
 
 end Spec
