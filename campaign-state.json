@@ -1,6 +1,7 @@
 {
   "campaign": "lean-ledger-bitcoin",
   "created_at": "2026-11-10T15:55:00Z",
+  "last_updated": "2026-11-10T16:02:00Z",
   "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
   "allowed_providers_policy": {
     "allowed": [
@@ -8,6 +9,7 @@
         "family": "gemini-carbon-4",
         "backend": "antigravity",
         "model_effort": "low",
+        "note": "Requires pre-provisioned spawn_managed_machine VM (not auto-managed) so Core injects SANDBOXED_NODE_ANTIGRAVITY_HOME",
         "cap": "unlimited"
       },
       {
@@ -23,6 +25,7 @@
     "forbidden": "All other LLM providers are strictly prohibited per operator directive."
   },
   "reference_pins": {
+    "lean_ledger_bitcoin_base_sha": "9e4ada610ee506ea246e74bbe4ac65dace220e46",
     "turbo_lean_base_sha": "82a940653812ad7552ae7087f2c5a3164e56e7ff",
     "turbo_lean_branch": "feat/ledger-32bit-llvm",
     "ledger_app_bitcoin_sha": "f010982d3050e02813cd7129bebd68cf2d1f2099",
@@ -35,8 +38,172 @@
     "spec_sha": null,
     "spec_cards": []
   },
-  "ownership_ledger": {},
-  "machines": {},
-  "missions": {},
+  "ownership_ledger": {
+    "turbo-lean:feat/ledger-32bit-llvm": {
+      "owner_mission_id": "8010b4c6-0db0-4741-996d-f1435ed35697",
+      "track": "llb-w1-c1-compiler",
+      "repo": "Th0rgal/turbo-lean",
+      "branch": "feat/ledger-32bit-llvm",
+      "owned_paths": [
+        "lean/LeanNative/IR/Types.lean",
+        "lean/LeanNative/IR/RealLCNFBridge.lean",
+        "lean/LeanNative/Backend/LLVM.lean",
+        "lean/LeanNative/Driver/CAbiEmit.lean",
+        "lean/LeanNative/Driver/CoreCLI.lean",
+        "lean/LeanNative/Proofs/LedgerEmbedded32Proofs.lean"
+      ],
+      "last_pushed_sha": "82a940653812ad7552ae7087f2c5a3164e56e7ff"
+    },
+    "Spec/{Basic,Bip32,Script}.lean": {
+      "owner_mission_id": "9c34d5a7-f593-4a60-bc9d-d3a816434ea3",
+      "supersedes_mission_id": "c81de392-0027-40ab-b25c-3d7b1db25a95",
+      "track": "llb-w1-s1-primitives",
+      "repo": "Th0rgal/lean-ledger-bitcoin",
+      "branch": "wave1/spec-s1-primitives",
+      "owned_paths": [
+        "Spec/Basic.lean",
+        "Spec/Bip32.lean",
+        "Spec/Script.lean",
+        "docs/spec-cards/s1-notes.md"
+      ],
+      "last_pushed_sha": null
+    },
+    "Spec/WalletPolicy.lean": {
+      "owner_mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
+      "track": "llb-w1-s2-wallet-policy",
+      "repo": "Th0rgal/lean-ledger-bitcoin",
+      "branch": "wave1/spec-s2-wallet-policy",
+      "owned_paths": [
+        "Spec/WalletPolicy.lean",
+        "docs/spec-cards/s2-notes.md"
+      ],
+      "last_pushed_sha": null
+    },
+    "Spec/{Psbt,MerkleProtocol}.lean": {
+      "owner_mission_id": "601ee597-407b-4eef-ad76-0ded33b213a8",
+      "supersedes_mission_id": "3d3ed7b8-599e-4e29-a9bb-a82ddf664c34",
+      "track": "llb-w1-s3-psbt-merkle",
+      "repo": "Th0rgal/lean-ledger-bitcoin",
+      "branch": "wave1/spec-s3-psbt-merkle",
+      "owned_paths": [
+        "Spec/Psbt.lean",
+        "Spec/MerkleProtocol.lean",
+        "docs/spec-cards/s3-notes.md"
+      ],
+      "last_pushed_sha": null
+    },
+    "Spec/{Musig2,SilentPayments,AppStateMachine}.lean": {
+      "owner_mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
+      "track": "llb-w1-s4-musig-sp-state",
+      "repo": "Th0rgal/lean-ledger-bitcoin",
+      "branch": "wave1/spec-s4-musig-sp-state",
+      "owned_paths": [
+        "Spec/Musig2.lean",
+        "Spec/SilentPayments.lean",
+        "Spec/AppStateMachine.lean",
+        "docs/spec-cards/s4-notes.md"
+      ],
+      "last_pushed_sha": null
+    }
+  },
+  "machines": {
+    "mmrk373cy4": {
+      "name": "xlarge-d",
+      "size": "xlarge",
+      "provider": "boat",
+      "role": "Track C1 turbo-lean 32-bit compiler",
+      "state": "online"
+    },
+    "mm92ac92z6": {
+      "name": "xlarge-c",
+      "size": "xlarge",
+      "provider": "boat",
+      "role": "Track H1 golden BOLOS Speculos + Vanadium harness builder",
+      "state": "online"
+    },
+    "mm2bpd28zm": {
+      "name": "large-e",
+      "size": "large",
+      "provider": "boat",
+      "role": "Track S1 spec primitives",
+      "state": "online"
+    },
+    "mmqap8yqxj": {
+      "name": "large-c",
+      "size": "large",
+      "provider": "boat",
+      "role": "Track S2 spec wallet policy",
+      "state": "online"
+    },
+    "mmmnn6k4bn": {
+      "name": "large-f",
+      "size": "large",
+      "provider": "boat",
+      "role": "Track S3 spec PSBT + Merkle",
+      "state": "online"
+    },
+    "mmf6rpx5qb": {
+      "name": "large-d",
+      "size": "large",
+      "provider": "boat",
+      "role": "Track S4 spec MuSig2 + Silent Payments + AppStateMachine",
+      "state": "online"
+    }
+  },
+  "missions": {
+    "W1_C1_compiler": {
+      "mission_id": "8010b4c6-0db0-4741-996d-f1435ed35697",
+      "requested_backend": "antigravity",
+      "effective_backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mmrk373cy4",
+      "status": "active"
+    },
+    "W1_H1_harness": {
+      "mission_id": "35221f84-c557-4be7-9f00-dcb37cc0897e",
+      "requested_backend": "opencode",
+      "effective_backend": "opencode",
+      "requested_model": "ethereumfoundation/glm-5.3",
+      "effective_model": "ethereumfoundation/glm-5.3",
+      "remote_node_id": "managed-mm92ac92z6",
+      "status": "active"
+    },
+    "W1_S1_primitives": {
+      "mission_id": "9c34d5a7-f593-4a60-bc9d-d3a816434ea3",
+      "supersedes_mission_id": "c81de392-0027-40ab-b25c-3d7b1db25a95",
+      "requested_backend": "antigravity",
+      "effective_backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mm2bpd28zm",
+      "status": "active"
+    },
+    "W1_S2_wallet_policy": {
+      "mission_id": "437c3ced-40fd-4f9b-81bd-e96d7b134a2d",
+      "requested_backend": "opencode",
+      "effective_backend": "opencode",
+      "requested_model": "ethereumfoundation/glm-5.3",
+      "effective_model": "ethereumfoundation/glm-5.3",
+      "remote_node_id": "managed-mmqap8yqxj",
+      "status": "active"
+    },
+    "W1_S3_psbt_merkle": {
+      "mission_id": "601ee597-407b-4eef-ad76-0ded33b213a8",
+      "supersedes_mission_id": "3d3ed7b8-599e-4e29-a9bb-a82ddf664c34",
+      "requested_backend": "antigravity",
+      "effective_backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mmmnn6k4bn",
+      "status": "active"
+    },
+    "W1_S4_musig_sp_state": {
+      "mission_id": "9e09fad5-6fa3-4fbe-ab82-51a9b56b414b",
+      "requested_backend": "opencode",
+      "effective_backend": "opencode",
+      "requested_model": "ethereumfoundation/glm-5.3",
+      "effective_model": "ethereumfoundation/glm-5.3",
+      "remote_node_id": "managed-mmf6rpx5qb",
+      "status": "active"
+    }
+  },
   "quorum_log": []
 }
