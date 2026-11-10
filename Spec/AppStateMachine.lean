@@ -83,7 +83,19 @@ def TargetProfile.musigAggPkMode : TargetProfile → NonceAggPkMode
   | .bolos _ => .untweakedBolos
   | .vanadium _ => .tweakedVanadium
 
-/-- Application semantic version (`2.4.1`). -/
+/-- Derive BIP-392 `spscan` / `tspscan` Bech32m HRP from the target profile's `coinType`
+    (`0` => mainnet `.spscan`, non-zero => testnet/regtest/signet `.tspscan`). -/
+def TargetProfile.spScanHrp (p : TargetProfile) : SpScanHrp :=
+  if decide (p.coinType = 0) then .spscan else .tspscan
+
+/-- Initialize an empty `MusigSessionStore` with target-faithful capacity and session-ID match width:
+    - BOLOS (`musig_sessions.h:15-17`): `capacity = some 32, idMatchBytes = 28`
+    - Vanadium (`musig_signing.rs:42`): `capacity = some 1, idMatchBytes = 32` -/
+def _root_.Spec.Musig2.MusigSessionStore.emptyForProfile : TargetProfile → MusigSessionStore
+  | .bolos _ => MusigSessionStore.bolosDefault
+  | .vanadium _ => MusigSessionStore.vanadiumDefault
+
+/-- Application semantic version on BOLOS (`Makefile`: `APPVERSION = 2.6.0`). -/
 structure AppVersion where
   major : UInt8
   minor : UInt8
@@ -91,7 +103,7 @@ structure AppVersion where
   deriving Repr, DecidableEq, Inhabited
 
 def targetAppVersion : AppVersion :=
-  { major := 2, minor := 4, patch := 1 }
+  { major := 2, minor := 6, patch := 0 }
 
 /-- Pure kernel-reducible `ByteArray` concatenation. -/
 def appendBytes (a b : ByteArray) : ByteArray :=
@@ -198,7 +210,7 @@ def CompactSigHeaderBase.baseByte : CompactSigHeaderBase → UInt8
   | .p2wpkh => 39
 
 /-- Construct the 65-byte Bitcoin compact recoverable signature `(base + recId) || r (32B) || s (32B)`
-    for `recId ∈ {0, 1, 2, 3}` (BOLOS emits `base = 31`, `recId = parity ∈ {0, 1}`). -/
+    for `recId ∈ {0, 1, 2, 3}`. -/
 def formatCompactRecoverableSig (headerBase : CompactSigHeaderBase) (recId : UInt8)
     (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
   if recId > 3 then
@@ -206,6 +218,20 @@ def formatCompactRecoverableSig (headerBase : CompactSigHeaderBase) (recId : UIn
   else
     let hdr : Spec.SilentPayments.SizedBytes 1 :=
       ⟨ByteArray.mk #[headerBase.baseByte + recId], rfl⟩
+    let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
+    let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
+    some (Spec.SilentPayments.SizedBytes.append hdr (Spec.SilentPayments.SizedBytes.append r32 s32))
+
+/-- BOLOS `sign_message.c:186` compact signature encoding:
+    `result[0] = 27 + 4 + ((info & CX_ECCINFO_PARITY_ODD) ? 1 : 0)` (`31` or `32` for compressed keys). -/
+def formatBolosSignMessageSig (recId : UInt8)
+    (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
+  if recId > 3 then
+    none
+  else
+    let parity : UInt8 := recId &&& 1
+    let hdr : Spec.SilentPayments.SizedBytes 1 :=
+      ⟨ByteArray.mk #[31 + parity], rfl⟩
     let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
     let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
     some (Spec.SilentPayments.SizedBytes.append hdr (Spec.SilentPayments.SizedBytes.append r32 s32))
@@ -441,11 +467,20 @@ structure PsbtSignRequest (Affine : Type) where
   nExternalInputs : Nat
   missingNonWitnessUtxo : Bool
   nonDefaultSighash : Bool
+  sighashInputsOpen : Bool := false
+  sighashOutputsOpen : Bool := false
   externalOutputs : List ExternalOutputView
   standardSignTasks : List StandardInputSigRequest
   musigPlan : PsbtMusigPlan
-  silentPaymentTx : Option PsbtSpTx
+  silentPaymentTx : Option (PsbtSpTx Affine)
   deriving DecidableEq
+
+/-- Whether `porOpt` denotes a default (unregistered) BOLOS wallet (`none` or 32 zero bytes,
+    matching `is_array_all_zeros(wallet_hmac, 32)` in `get_wallet_address.c:124` and `sign_psbt.c`). -/
+def isDefaultPor (porOpt : Option Spec.Musig2.Bytes32) : Bool :=
+  match porOpt with
+  | none => true
+  | some por => por.isAllZeros
 
 /-- Validate all BOLOS `execute_swap_checks` + `sign_psbt.c:55` invariants for bypassing interactive UI
     under a pre-approved `SwapLock`. -/
@@ -453,7 +488,7 @@ def validSwapPsbt {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
     (lock : SwapLock) (req : PsbtSignRequest Affine) : Bool :=
   let isDefaultWallet :=
     match req.account with
-    | .walletPolicy wp => wp.isDefaultPolicy && req.por.isNone
+    | .walletPolicy wp => wp.isDefaultPolicy && isDefaultPor req.por
     | .silentPayment _ _ _ => false
   if !isDefaultWallet then
     false
@@ -461,7 +496,7 @@ def validSwapPsbt {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
     false
   else if req.nExternalInputs > 0 then
     false
-  else if req.missingNonWitnessUtxo || req.nonDefaultSighash then
+  else if req.missingNonWitnessUtxo || req.nonDefaultSighash || req.sighashInputsOpen || req.sighashOutputsOpen then
     false
   else if req.inputsTotalAmount < req.outputsTotalAmount then
     false
@@ -537,7 +572,6 @@ def classifyBolosApdu (inSwapMode : Bool) (hdr : BolosApduHeader) : BolosWireCom
     .unexpectedContinue
   else if decide (hdr.cla = bolosClaApp) then
     if decide (hdr.ins = bolosInsGetExtendedPubkey) then .getExtendedPubkey
-    else if decide (hdr.ins = bolosInsGetVersion) then .getVersion
     else if decide (hdr.ins = bolosInsRegisterWallet) then .registerWallet
     else if decide (hdr.ins = bolosInsGetWalletAddress) then .getWalletAddress
     else if decide (hdr.ins = bolosInsSignPsbt) then .signPsbt
@@ -546,6 +580,16 @@ def classifyBolosApdu (inSwapMode : Bool) (hdr : BolosApduHeader) : BolosWireCom
     else .insNotSupported
   else
     .claNotSupported
+
+/-- Forward-compatibility guarantee (`test_protocol.py:11-24`): on `CLA = 0xE1` with
+    `hdr.p2 ≤ CURRENT_PROTOCOL_VERSION`, `classifyBolosApdu` accepts ANY `hdr.p1 : UInt8`
+    without rejecting with `.wrongP1P2`. -/
+theorem classifyBolosApdu_allows_arbitrary_p1
+    (inSwapMode : Bool) (ins p1 p1' p2 : UInt8) :
+    classifyBolosApdu inSwapMode { cla := bolosClaApp, ins := ins, p1 := p1, p2 := p2 } =
+    classifyBolosApdu inSwapMode { cla := bolosClaApp, ins := ins, p1 := p1', p2 := p2 } := by
+  have hClaNeDef : decide (bolosClaApp = bolosClaDefault) = false := by decide
+  cases inSwapMode <;> simp [classifyBolosApdu, hClaNeDef]
 
 /-- Vanadium CBOR `Request` variant indices (`common/src/message/mod.rs:139-233`). -/
 inductive VanadiumRequestTag where
@@ -648,6 +692,7 @@ inductive AppError where
   | incorrectData                       -- SW_INCORRECT_DATA (0x6A80) / InvalidParameter / InvalidRequest
   | notSupported                        -- SW_NOT_SUPPORTED (0x6A82) / DefaultAccountsNotSupported
   | wrongP1P2                           -- SW_WRONG_P1P2 (0x6A86)
+  | wrongDataLength                     -- SW_WRONG_DATA_LENGTH (0x6A87)
   | insNotSupported                     -- SW_INS_NOT_SUPPORTED (0x6D00)
   | claNotSupported                     -- SW_CLA_NOT_SUPPORTED (0x6E00)
   | failSwap                            -- SW_FAIL_SWAP (0x6B00)
@@ -663,15 +708,22 @@ inductive AppError where
 
 /-- Persistent application state across commands (`AppPersistentState`):
     - `registeredAccounts`: logical registry of device-registered `(accountId, hmac)` pairs
-    - `musigSessions`: persistent BIP-327 MuSig2 session store (tracking active `randRoot`s & consumed IDs)
+    - `musigSessions`: persistent BIP-327 MuSig2 session store (tracking active `(sid, randRoot)`s & consumed `randRoot`s)
     - `swapLock`: optional pre-approved BOLOS Exchange `SwapLock`
+    - `swapAborted`: set to `true` when `.failSwap` (`finalize_exchange_sign_transaction(false)`) occurs in Swap mode,
+      causing any subsequent Swap retry APDUs to be rejected immediately
     - `residentKeys`: optional 32-byte Vanadium resident seed (`KeyTree::Resident`) -/
 structure AppPersistentState where
   registeredAccounts : List (Spec.Musig2.Bytes32 × Spec.Musig2.Bytes32) := []
   musigSessions : MusigSessionStore := {}
   swapLock : Option SwapLock := none
+  swapAborted : Bool := false
   residentKeys : Option Spec.Musig2.Bytes32 := none
   deriving Repr, DecidableEq
+
+/-- Canonical empty `AppPersistentState` initialized with the target-specific `MusigSessionStore`. -/
+def AppPersistentState.emptyForProfile (profile : TargetProfile) : AppPersistentState :=
+  { musigSessions := MusigSessionStore.emptyForProfile profile }
 
 instance : Inhabited AppPersistentState :=
   ⟨{}⟩
@@ -719,6 +771,14 @@ structure HardwareOracle (Affine : Type) where
   freshMusigRandRoot : RandRoot
   /-- Fresh 32-byte CSPRNG draw for BIP-374 DLEQ proof generation. -/
   freshDleqAuxRand : Spec.SilentPayments.Bytes32
+  /-- Whether Vanadium enforces self-pubnonce byte-equality in MuSig2 Round 2
+      (`true` on BOLOS `musig_sessions.c`, configurable on Vanadium `musig_signing.rs:463-466`). -/
+  vanadiumCheckSelfPubnonce : Bool := false
+
+/-- Effective MuSig2 Round-2 self-pubnonce check flag (`true` on BOLOS, `hw.vanadiumCheckSelfPubnonce` on Vanadium). -/
+def HardwareOracle.checkSelfPubnonce {Affine : Type} (hw : HardwareOracle Affine) : TargetProfile → Bool
+  | .bolos _ => true
+  | .vanadium _ => hw.vanadiumCheckSelfPubnonce
 
 /-! ## 7. Helper Validation Routines -/
 
@@ -763,7 +823,7 @@ def validateAccountAuth {Affine : Type} (profile : TargetProfile) (hw : Hardware
         match porOpt with
         | none => .error .notSupported
         | some por =>
-          if hw.computePorHmac accId == por && spAcc.accountIndex < bip32HardenedBit then
+          if hw.computePorHmac accId == por && spAcc.accountIndex < hardenedFlag then
             .ok ()
           else
             .error .signatureFail
@@ -788,12 +848,17 @@ def maybeSignIdentityObject {Affine : Type} (profile : TargetProfile) (hw : Hard
           | some sig => .ok (some sig)
           | none => .error .badState
 
-/-- Verify registered cosigner identity PoRs and optional per-key xpub signatures in `RegisterAccount`. -/
+/-- Verify registered cosigner identity PoRs and optional per-key xpub signatures in `RegisterAccount`
+    (`register_account.rs:231-267`):
+    - Every entry in `entries` must have a valid compressed SEC1 pubkey, non-empty name ≤ 255B, and valid PoR HMAC.
+    - Every present `sig` in `keySigs` must have a valid compressed SEC1 `identityPubkey` and valid BIP-340 Schnorr
+      signature over `build_identity_message("XPUB", keyPayload)` — an unregistered cosigner identity key simply has
+      `keyAuthName = none` rather than failing registration! -/
 def verifyRegisteredIdentityAuth {Affine : Type} (hw : HardwareOracle Affine)
     (entries : List RegisteredIdentityEntry)
     (keyInfos : List ByteArray)
     (keySigs : List (Option IdentitySignature)) : Except AppError Unit := do
-  let validPubkeys ← entries.mapM (fun entry => do
+  let _validPubkeys ← entries.mapM (fun entry => do
     if !isValidCompressedSec1Prefix entry.pubkey then
       .error .signatureFail
     let regId ← match computeIdentityRegistrationId hw.musigCrypto.sha256 entry.name entry.pubkey with
@@ -806,7 +871,7 @@ def verifyRegisteredIdentityAuth {Affine : Type} (hw : HardwareOracle Affine)
     match sigOpt with
     | none => pure ()
     | some sig =>
-      if !listMem sig.identityPubkey validPubkeys then
+      if !isValidCompressedSec1Prefix sig.identityPubkey then
         .error .signatureFail
       let msg ← match buildIdentityMessage identityMsgTypeXpub keyPayload with
         | some m => .ok m
@@ -816,8 +881,43 @@ def verifyRegisteredIdentityAuth {Affine : Type} (hw : HardwareOracle Affine)
 
 /-! ## 8. Unified Command Step Function (`stepAppCommand`) -/
 
-/-- Sign all standard (non-MuSig2) PSBT inputs via `hw.signPsbtInput`, failing atomically with
-    `.badState` if any input signature fails. -/
+/-- Helper: check whether BOLOS open-sighash underfunded inputs are permitted. -/
+def allowUnderfundedInputs {Affine : Type} (profile : TargetProfile) (inSwap : Bool)
+    (psbt : PsbtSignRequest Affine) : Bool :=
+  match profile with
+  | .bolos _ => !inSwap && (psbt.sighashInputsOpen || psbt.sighashOutputsOpen)
+  | .vanadium _ => false
+
+/-- Helper: check whether MuSig2 Round-1-only requires explicit user approval (`C-06`). -/
+def round1NeedsApproval (profile : TargetProfile) (spShares : List SilentPaymentShareOut) : Bool :=
+  (match profile with | .vanadium _ => true | .bolos _ => false) || !spShares.isEmpty
+
+/-- Helper: check SwapLock match OR user approval for standard / hybrid / Round-2 PSBT signing. -/
+def authorizePsbtStep {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+    (swapLock : Option SwapLock) (ui : UserApprovalOracle Affine)
+    (psbt : PsbtSignRequest Affine) : Except AppError Bool :=
+  match swapLock with
+  | some lock =>
+    if validSwapPsbt sha256 lock psbt then .ok true
+    else .error .failSwap
+  | none =>
+    if ui.approve (.confirmSignPsbt psbt) then .ok false
+    else .error .userRejected
+
+/-- Helper lemma: compute `(spShares, spScripts)` in `.signPsbt` without an inline `let`. -/
+def computePsbtSpOutputs {Affine : Type} [DecidableEq Affine]
+    (profile : TargetProfile) (hw : HardwareOracle Affine)
+    (spTxOpt : Option (PsbtSpTx Affine)) :
+    Except AppError (List SilentPaymentShareOut × List SilentPaymentOutputScriptOut) :=
+  match spTxOpt with
+  | none => Except.ok ([], [])
+  | some spTx =>
+    match profile with
+    | .bolos _ => Except.error .notSupported
+    | .vanadium _ =>
+      match finalizePsbtSilentPayments hw.spCrypto spTx hw.freshDleqAuxRand with
+      | .error spErr => Except.error (.silentPaymentError spErr)
+      | .ok pair => Except.ok pair
 def signStandardInputs {Affine : Type} (hw : HardwareOracle Affine)
     (tasks : List StandardInputSigRequest) : Except AppError (List StandardInputSignature) :=
   tasks.mapM (fun req =>
@@ -831,10 +931,18 @@ def signStandardInputs {Affine : Type} (hw : HardwareOracle Affine)
       }
     | none => Except.error AppError.badState)
 
+/-- Mark `swapAborted := true` whenever `.failSwap` (`finalize_exchange_sign_transaction(false)`)
+    is returned while `s.swapLock.isSome = true`. -/
+def abortSwapIfFailed (e : AppError) (s : AppPersistentState) : AppError × AppPersistentState :=
+  if s.swapLock.isSome && decide (e = .failSwap) then
+    (e, { s with swapAborted := true })
+  else
+    (e, s)
+
 /-- Execute one top-level `AppCommand`, returning either `.error (err, postState)` or `.ok (resp, postState)`.
-    Making `postState` explicit on both `.ok` and `.error` captures both atomic rollback of persistent
-    accounts/swap/resident keys AND irreversible MuSig2 Round-2 nonce consumption even if a downstream
-    signing check aborts mid-pass! -/
+    Making `postState` explicit on both `.ok` and `.error` captures atomic rollback of persistent
+    accounts/swapLock/resident keys, `swapAborted` latching on `.failSwap`, AND irreversible MuSig2
+    Round-2 nonce consumption even if a downstream signing check aborts mid-pass! -/
 def stepAppCommand {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
     (hw : HardwareOracle Affine)
@@ -842,8 +950,11 @@ def stepAppCommand {Affine : Type} [DecidableEq Affine]
     (cmd : AppCommand Affine)
     (s : AppPersistentState) :
     Except (AppError × AppPersistentState) (AppResponse × AppPersistentState) :=
+  -- Aborted Swap terminal latch (`finalize_exchange_sign_transaction(false)` never returns to APDU loop)
+  if s.swapLock.isSome && s.swapAborted then
+    .error (.failSwap, s)
   -- Swap-mode top-level command whitelist (`main.c:152-165`)
-  if s.swapLock.isSome && !isAllowedInSwap cmd then
+  else if s.swapLock.isSome && !isAllowedInSwap cmd then
     .error (.insNotSupported, s)
   else
     match cmd with
@@ -851,7 +962,9 @@ def stepAppCommand {Affine : Type} [DecidableEq Affine]
       .error (.badState, s)
 
     | .getVersion =>
-      .ok (.version targetAppVersion, s)
+      match profile with
+      | .bolos _ => .ok (.version targetAppVersion, s)
+      | .vanadium _ => .error (.notSupported, s)
 
     | .getMasterFingerprint tree =>
       match profile, tree with
@@ -900,13 +1013,13 @@ def stepAppCommand {Affine : Type} [DecidableEq Affine]
 
     | .getAddress display account porOpt coordinates identityIndex =>
       match validateAccountAuth profile hw s.swapLock.isSome account porOpt with
-      | .error e => .error (e, s)
+      | .error e => .error (abortSwapIfFailed e s)
       | .ok () =>
         match account, coordinates with
         | .walletPolicy wp, .walletPolicy isChange addrIdx =>
           if addrIdx >= hardenedFlag then
             .error (.incorrectData, s)
-          else if porOpt.isNone && addrIdx > maxDefaultAddressIndex then
+          else if isDefaultPor porOpt && addrIdx > maxDefaultAddressIndex then
             .error (.incorrectData, s)
           else
             match hw.deriveWalletPolicyOutput wp isChange addrIdx with
@@ -999,21 +1112,23 @@ def stepAppCommand {Affine : Type} [DecidableEq Affine]
               let hmac := hw.computePorHmac keyId
               .ok (.identityKeyRegistered keyId hmac, s)
 
-    | .exportSpScanKey hrp accountIndex =>
+    | .exportSpScanKey _callerHrp accountIndex =>
       match profile with
       | .bolos _ => .error (.notSupported, s)
       | .vanadium _ =>
         let approved := ui.approve (.confirmExportSpScanKey accountIndex)
-        match exportSpScanKey hw.spCrypto hw.bech32m hrp hw.deriveSpAccount accountIndex approved with
+        match exportSpScanKey hw.spCrypto hw.bech32m profile.spScanHrp hw.deriveSpAccount accountIndex approved with
         | .error .userRejected => .error (.userRejected, s)
         | .error spErr => .error (.silentPaymentError spErr, s)
         | .ok encoded => .ok (.spScanKeyExported encoded, s)
 
-    | .signMessage path message headerBase =>
+    | .signMessage path message _headerBase =>
       match profile with
       | .vanadium _ => .error (.notSupported, s)
       | .bolos _ =>
-        if path.length > bolosMaxBip32PathSteps || message.size >= maxSignMessageLength then
+        if path.length > bolosMaxBip32PathSteps then
+          .error (.wrongDataLength, s)
+        else if message.size >= maxSignMessageLength then
           .error (.incorrectData, s)
         else
           let dispForm : MessageDisplayForm :=
@@ -1028,125 +1143,98 @@ def stepAppCommand {Affine : Type} [DecidableEq Affine]
             match hw.signRecoverableEcdsa path bsmDigest with
             | none => .error (.badState, s)
             | some (recId, r, sScalar) =>
-              match formatCompactRecoverableSig headerBase recId r sScalar with
+              match formatBolosSignMessageSig recId r sScalar with
               | none => .error (.badState, s)
               | some compact65 => .ok (.messageSigned compact65, s)
 
     | .signPsbt psbt =>
-      match validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
-      | .error e => .error (e, s)
-      | .ok () =>
-        if psbt.inputsTotalAmount < psbt.outputsTotalAmount ||
-           psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount then
-          .error (.incorrectData, s)
-        else
-          -- BIP-375 Silent Payment analysis & output/DLEQ computation (Vanadium)
-          let spResult : Except AppError (List SilentPaymentShareOut × List SilentPaymentOutputScriptOut) :=
-            match psbt.silentPaymentTx with
-            | none => .ok ([], [])
-            | some spTx =>
-              match profile with
-              | .bolos _ => .error .notSupported
-              | .vanadium _ =>
-                match finalizePsbtSilentPayments hw.spCrypto spTx hw.freshDleqAuxRand with
-                | .error spErr => .error (.silentPaymentError spErr)
-                | .ok pair => .ok pair
-          match spResult with
-          | .error e => .error (e, s)
-          | .ok (spShares, spScripts) =>
-            match psbt.musigPlan with
-            | .round1Only sid r1Tasks =>
-              -- Pure MuSig2 Round 1: emits ONLY public nonces (zero signatures!) and commits session
-              if !psbt.standardSignTasks.isEmpty || s.swapLock.isSome then
-                .error (.incorrectData, s)
-              else
-                match executeRound1Pass hw.musigCrypto profile.musigAggPkMode
-                        s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
-                | .error (mErr, ms') =>
-                  -- On Round-1 error, do NOT commit changes to persistent state (except any consumed tombstones, which are unchanged)
-                  .error (.musigError mErr, { s with musigSessions := ms' })
-                | .ok (pubnonces, msCommitted) =>
-                  .ok (.psbtSigned [] pubnonces [] spShares spScripts false,
-                       { s with musigSessions := msCommitted })
-
-            | .none =>
-              -- Standard (non-MuSig) PSBT signing: requires SwapLock match OR explicit user consent!
-              let authorized : Except AppError Bool :=
-                match s.swapLock with
-                | some lock =>
-                  if validSwapPsbt hw.musigCrypto.sha256 lock psbt then .ok true
-                  else .error .failSwap
-                | none =>
-                  if ui.approve (.confirmSignPsbt psbt) then .ok false
-                  else .error .userRejected
-              match authorized with
-              | .error e => .error (e, s)
-              | .ok isSwap =>
-                match signStandardInputs hw psbt.standardSignTasks with
-                | .error e => .error (e, s)
-                | .ok stdSigs =>
-                  let nextSwap := if isSwap then none else s.swapLock
-                  .ok (.psbtSigned stdSigs [] [] spShares spScripts isSwap,
-                       { s with swapLock := nextSwap })
-
-            | .round1AndStandard sid r1Tasks =>
-              -- Hybrid PSBT (Round 1 MuSig2 pubnonces + standard signatures): requires Swap/UI approval
-              let authorized : Except AppError Bool :=
-                match s.swapLock with
-                | some lock =>
-                  if validSwapPsbt hw.musigCrypto.sha256 lock psbt then .ok true
-                  else .error .failSwap
-                | none =>
-                  if ui.approve (.confirmSignPsbt psbt) then .ok false
-                  else .error .userRejected
-              match authorized with
-              | .error e => .error (e, s)
-              | .ok isSwap =>
-                match signStandardInputs hw psbt.standardSignTasks with
-                | .error e => .error (e, s)
-                | .ok stdSigs =>
+      -- BIP-322 message signing is explicitly forbidden in Swap mode (`sign_psbt.c:55-58`: `SW_NOT_SUPPORTED`)
+      if s.swapLock.isSome && psbt.isBip322MessageSigning then
+        .error (.notSupported, s)
+      else
+        match validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+        | .error e => .error (abortSwapIfFailed e s)
+        | .ok () =>
+          -- On BOLOS outside Swap mode, `preprocess_outputs.c:196-197` permits `inputsTotalAmount < outputsTotalAmount`
+          -- when an open sighash (`sighashInputsOpen || sighashOutputsOpen`) is used.
+          if (!allowUnderfundedInputs profile s.swapLock.isSome psbt &&
+              psbt.inputsTotalAmount < psbt.outputsTotalAmount) ||
+             psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount then
+            .error (.incorrectData, s)
+          else
+            -- BIP-375 Silent Payment analysis & output/DLEQ computation (Vanadium)
+            match computePsbtSpOutputs profile hw psbt.silentPaymentTx with
+            | .error e => .error (e, s)
+            | .ok (spShares, spScripts) =>
+              match psbt.musigPlan with
+              | .round1Only sid r1Tasks =>
+                -- Pure MuSig2 Round 1: on BOLOS without SP shares, emits ONLY public nonces;
+                -- on Vanadium OR whenever `!spShares.isEmpty` (C-06), requires explicit user approval!
+                if !psbt.standardSignTasks.isEmpty || s.swapLock.isSome then
+                  .error (.incorrectData, s)
+                else if round1NeedsApproval profile spShares && !ui.approve (.confirmSignPsbt psbt) then
+                  .error (.userRejected, s)
+                else
                   match executeRound1Pass hw.musigCrypto profile.musigAggPkMode
                           s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
                   | .error (mErr, ms') =>
                     .error (.musigError mErr, { s with musigSessions := ms' })
                   | .ok (pubnonces, msCommitted) =>
-                    let nextSwap := if isSwap then none else s.swapLock
-                    .ok (.psbtSigned stdSigs pubnonces [] spShares spScripts isSwap,
-                         { s with musigSessions := msCommitted, swapLock := nextSwap })
+                    .ok (.psbtSigned [] pubnonces [] spShares spScripts false,
+                         { s with musigSessions := msCommitted })
 
-            | .round2 sid r2Inputs =>
-              -- MuSig2 Round 2: verify session is unconsumed & active, gate on Swap/UI consent,
-              -- then atomically consume the nonce session and produce partial signatures!
-              if s.musigSessions.lookupActive sid |>.isNone then
-                let errCode : MusigError :=
-                  if s.musigSessions.isConsumed sid then .sessionAlreadyConsumed else .missingSession
-                .error (.musigError errCode, s)
-              else
-                let authorized : Except AppError Bool :=
-                  match s.swapLock with
-                  | some lock =>
-                    if validSwapPsbt hw.musigCrypto.sha256 lock psbt then .ok true
-                    else .error .failSwap
-                  | none =>
-                    if ui.approve (.confirmSignPsbt psbt) then .ok false
-                    else .error .userRejected
-                match authorized with
-                | .error e => .error (e, s)
+              | .none =>
+                -- Standard (non-MuSig) PSBT signing: requires SwapLock match OR explicit user consent!
+                match authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                | .error e => .error (abortSwapIfFailed e s)
                 | .ok isSwap =>
-                  -- Consume MuSig2 session BEFORE/DURING Round-2 signing so even if standard signing
-                  -- or partial signing fails mid-way, the secret nonce session is irreversibly consumed!
-                  match executeRound2Pass hw.musigCrypto profile.musigAggPkMode
-                          s.musigSessions sid r2Inputs with
-                  | .error (mErr, msConsumed) =>
-                    .error (.musigError mErr, { s with musigSessions := msConsumed })
-                  | .ok (partialSigs, msConsumed) =>
-                    match signStandardInputs hw psbt.standardSignTasks with
-                    | .error e =>
-                      .error (e, { s with musigSessions := msConsumed })
-                    | .ok stdSigs =>
+                  match signStandardInputs hw psbt.standardSignTasks with
+                  | .error e => .error (e, s)
+                  | .ok stdSigs =>
+                    let nextSwap := if isSwap then none else s.swapLock
+                    .ok (.psbtSigned stdSigs [] [] spShares spScripts isSwap,
+                         { s with swapLock := nextSwap })
+
+              | .round1AndStandard sid r1Tasks =>
+                -- Hybrid PSBT (Round 1 MuSig2 pubnonces + standard signatures): requires Swap/UI approval
+                match authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                | .error e => .error (abortSwapIfFailed e s)
+                | .ok isSwap =>
+                  match signStandardInputs hw psbt.standardSignTasks with
+                  | .error e => .error (e, s)
+                  | .ok stdSigs =>
+                    match executeRound1Pass hw.musigCrypto profile.musigAggPkMode
+                            s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
+                    | .error (mErr, ms') =>
+                      .error (.musigError mErr, { s with musigSessions := ms' })
+                    | .ok (pubnonces, msCommitted) =>
                       let nextSwap := if isSwap then none else s.swapLock
-                      .ok (.psbtSigned stdSigs [] partialSigs spShares spScripts isSwap,
-                           { s with musigSessions := msConsumed, swapLock := nextSwap })
+                      .ok (.psbtSigned stdSigs pubnonces [] spShares spScripts isSwap,
+                           { s with musigSessions := msCommitted, swapLock := nextSwap })
+
+              | .round2 sid r2Inputs =>
+                -- MuSig2 Round 2: verify session is active, gate on Swap/UI consent,
+                -- then atomically pop & consume the nonce session and produce partial signatures!
+                if s.musigSessions.lookupActive sid |>.isNone then
+                  .error (.musigError .missingSession, s)
+                else
+                  match authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                  | .error e => .error (abortSwapIfFailed e s)
+                  | .ok isSwap =>
+                    -- Consume MuSig2 session BEFORE/DURING Round-2 signing so even if standard signing
+                    -- or partial signing fails mid-way, the secret nonce session is irreversibly consumed!
+                    match executeRound2Pass hw.musigCrypto profile.musigAggPkMode
+                            s.musigSessions sid r2Inputs (hw.checkSelfPubnonce profile) with
+                    | .error (mErr, msConsumed) =>
+                      .error (.musigError mErr, { s with musigSessions := msConsumed })
+                    | .ok (partialSigs, msConsumed) =>
+                      match signStandardInputs hw psbt.standardSignTasks with
+                      | .error e =>
+                        .error (e, { s with musigSessions := msConsumed })
+                      | .ok stdSigs =>
+                        let nextSwap := if isSwap then none else s.swapLock
+                        .ok (.psbtSigned stdSigs [] partialSigs spShares spScripts isSwap,
+                             { s with musigSessions := msConsumed, swapLock := nextSwap })
 
 /-! ## 9. Multi-Step Trace Execution -/
 
@@ -1189,174 +1277,340 @@ def runAppTrace {Affine : Type} [DecidableEq Affine]
       let (tail, sFinal) := runAppTrace profile hw ui rest s'
       (.error cmd err :: tail, sFinal)
 
-/-- Whether a trace step successfully emitted Round-2 partial signatures for MuSig2 session `sid`. -/
-def outcomeProducedMusigRound2For {Affine : Type} (sid : PsbtSessionId) : AppTraceOutcome Affine → Bool
-  | .ok (.signPsbt psbt) (.psbtSigned _ _ _ _ _ _) =>
+/-- Helper predicate: did `stepAppCommand` on `cmd` from state `s` succeed in Round 2 using `rr`? -/
+def stepUsedMusigRandRoot {Affine : Type} [DecidableEq Affine]
+    (cmd : AppCommand Affine)
+    (res : Except (AppError × AppPersistentState) (AppResponse × AppPersistentState))
+    (s : AppPersistentState) (rr : RandRoot) : Bool :=
+  match cmd, res with
+  | .signPsbt psbt, .ok (.psbtSigned _ _ _ _ _ _, _) =>
     match psbt.musigPlan with
-    | .round2 sid' _ => sid' == sid
+    | .round2 sid _ => decide (s.musigSessions.lookupActive sid = some rr)
     | _ => false
-  | _ => false
+  | _, _ => false
 
-/-- Count how many steps in a multi-step trace successfully produced Round-2 signatures for `sid`. -/
-def countMusigRound2Steps {Affine : Type} (sid : PsbtSessionId) : List (AppTraceOutcome Affine) → Nat
-  | [] => 0
-  | ev :: rest =>
-    (if outcomeProducedMusigRound2For sid ev then 1 else 0) + countMusigRound2Steps sid rest
+/-- Count how many steps in a multi-step trace `[cmd_1, ..., cmd_k]` from initial state `s`
+    successfully emit Round-2 partial signatures using MuSig2 session randomness `rr : RandRoot`. -/
+def countMusigRound2StepsForRandRoot {Affine : Type} [DecidableEq Affine]
+    (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
+    (rr : RandRoot) : List (AppCommand Affine) → AppPersistentState → Nat
+  | [], _ => 0
+  | cmd :: rest, s =>
+    let usedHere := stepUsedMusigRandRoot cmd (stepAppCommand profile hw ui cmd s) s rr
+    let s' := stepPostState profile hw ui cmd s
+    (if usedHere then 1 else 0) + countMusigRound2StepsForRandRoot profile hw ui rr rest s'
 
 /-! ## 10. Core Security Theorems (`0 sorryAx`, `0 native_decide`) -/
 
-/-- Helper lemma: when `cmd.isReadOnly = true`, `stepAppCommand` leaves `s` identically unchanged
-    on BOTH `.ok` and `.error` outcomes. -/
-theorem readOnly_step_postState_eq {Affine : Type} [DecidableEq Affine]
+/-- Helper lemma: when `cmd.isReadOnly = true` and `(cmd, e)` is NOT a Swap-mode `.failSwap` abort,
+    `stepAppCommand` leaves `s` identically unchanged (`s' = s`).
+    (Note: in Swap mode, passing a non-default wallet to `GetAddress` triggers `SW_FAIL_SWAP` +
+    `finalize_exchange_sign_transaction(false)`, which sets `swapAborted := true` while still
+    preserving `registeredAccounts`, `musigSessions`, `swapLock`, and `residentKeys`!) -/
+theorem readOnly_step_preserves_core {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (cmd : AppCommand Affine) (s : AppPersistentState)
     (hRO : cmd.isReadOnly = true) :
-    stepPostState profile hw ui cmd s = s := by
-  unfold stepPostState stepAppCommand
-  by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
-  · simp [hSwap]
-  · simp only [hSwap, Bool.false_eq_true, ↓reduceIte]
-    cases cmd with
-    | getVersion => rfl
-    | getMasterFingerprint tree =>
-      cases profile <;> cases tree <;> simp
-      all_goals (cases hw.masterFingerprint _ s.residentKeys <;> rfl)
-    | getExtendedPubkey tree display path identityIndex =>
-      by_cases hLen : path.length > profile.maxPathSteps
-      · simp [hLen]
-      · simp only [hLen, ↓reduceIte]
+    (stepPostState profile hw ui cmd s).registeredAccounts = s.registeredAccounts ∧
+    (stepPostState profile hw ui cmd s).musigSessions = s.musigSessions ∧
+    (stepPostState profile hw ui cmd s).swapLock = s.swapLock ∧
+    (stepPostState profile hw ui cmd s).residentKeys = s.residentKeys ∧
+    (s.swapLock = none → stepPostState profile hw ui cmd s = s) := by
+  unfold stepPostState stepAppCommand abortSwapIfFailed
+  split
+  · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+  · split
+    · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+    · cases cmd with
+      | getVersion =>
+        cases profile <;> exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+      | getMasterFingerprint tree =>
         cases profile with
-        | bolos ct =>
+        | bolos _ =>
           cases tree with
-          | resident => rfl
+          | resident => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
           | standard =>
-            have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
-            simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
-            split
-            · rfl
-            · cases hw.deriveExtendedPubkey .standard s.residentKeys path with
-              | none => rfl
-              | some pair =>
-                rcases pair with ⟨xpub, _pk⟩
-                simp only
-                split
-                · rfl
-                · cases maybeSignIdentityObject (.bolos ct) hw identityIndex identityMsgTypeXpub xpub <;> rfl
-        | vanadium ct =>
-          cases tree with
-          | resident =>
-            have hTreeTrue : (KeyTree.resident != KeyTree.standard) = true := rfl
-            simp only [hTreeTrue, Bool.and_true]
-            by_cases hId : identityIndex.isSome = true
-            · simp [hId]
-            · simp only [hId, Bool.false_eq_true, ↓reduceIte]
-              cases hw.deriveExtendedPubkey .resident s.residentKeys path with
-              | none => rfl
-              | some pair =>
-                rcases pair with ⟨xpub, _pk⟩
-                simp only
-                split
-                · rfl
-                · cases maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub <;> rfl
-          | standard =>
-            have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
-            simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
-            by_cases hStdLen : path.length > vanadiumStandardMaxBip32PathSteps
-            · simp [hStdLen]
-            · simp only [hStdLen, decide_false, Bool.false_eq_true, ↓reduceIte]
-              cases hw.deriveExtendedPubkey .standard s.residentKeys path with
-              | none => rfl
-              | some pair =>
-                rcases pair with ⟨xpub, _pk⟩
-                simp only
-                cases classifyIdentityPath path <;> (
+            dsimp only
+            cases hw.masterFingerprint .standard s.residentKeys <;> exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+        | vanadium _ =>
+          dsimp only
+          cases hw.masterFingerprint tree s.residentKeys <;> exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+      | getExtendedPubkey tree display path identityIndex =>
+        dsimp only
+        split
+        · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+        · cases profile with
+          | bolos ct =>
+            cases tree with
+            | resident => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+            | standard =>
+              have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
+              simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
+              split
+              · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+              · cases hw.deriveExtendedPubkey .standard s.residentKeys path with
+                | none => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                | some pair =>
+                  rcases pair with ⟨xpub, _pk⟩
                   simp only
                   split
-                  · rfl
-                  · cases maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub <;> rfl)
-    | getAddress display account porOpt coordinates identityIndex =>
-      simp only
-      cases validateAccountAuth profile hw s.swapLock.isSome account porOpt with
-      | error e => rfl
-      | ok _ =>
-        cases account with
-        | walletPolicy wp =>
-          cases coordinates with
-          | silentPayment _ => rfl
-          | walletPolicy isChange addrIdx =>
-            simp only
-            split
-            · rfl
-            · split
-              · rfl
-              · cases hw.deriveWalletPolicyOutput wp isChange addrIdx with
-                | none => rfl
+                  · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                  · cases maybeSignIdentityObject (.bolos ct) hw identityIndex identityMsgTypeXpub xpub <;>
+                      exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+          | vanadium ct =>
+            cases tree with
+            | resident =>
+              have hTreeTrue : (KeyTree.resident != KeyTree.standard) = true := rfl
+              simp only [hTreeTrue, Bool.and_true]
+              split
+              · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+              · simp only [Bool.false_eq_true, ↓reduceIte]
+                cases hw.deriveExtendedPubkey .resident s.residentKeys path with
+                | none => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
                 | some pair =>
-                  rcases pair with ⟨addr, scriptBytes⟩
-                  simp only
-                  cases maybeSignIdentityObject profile hw identityIndex identityMsgTypeOutput scriptBytes with
-                  | error _ => rfl
-                  | ok _ =>
+                  rcases pair with ⟨xpub, _pk⟩
+                  dsimp only
+                  split
+                  · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                  · cases maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub <;>
+                      exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+            | standard =>
+              have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
+              simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
+              split
+              · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+              · cases hw.deriveExtendedPubkey .standard s.residentKeys path with
+                | none => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                | some pair =>
+                  rcases pair with ⟨xpub, _pk⟩
+                  dsimp only
+                  cases classifyIdentityPath path <;> (
+                    dsimp only
+                    split
+                    · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                    · cases maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub <;>
+                        exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩)
+      | getAddress display account porOpt coordinates identityIndex =>
+        simp only
+        cases validateAccountAuth profile hw s.swapLock.isSome account porOpt with
+        | error e =>
+          simp only
+          split
+          · rename_i hAbortCond
+            refine ⟨rfl, rfl, rfl, rfl, ?_⟩
+            intro hNoLock
+            simp [hNoLock] at hAbortCond
+          · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+        | ok _ =>
+          cases account with
+          | walletPolicy wp =>
+            cases coordinates with
+            | silentPayment _ => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+            | walletPolicy isChange addrIdx =>
+              simp only
+              split
+              · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+              · split
+                · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                · cases hw.deriveWalletPolicyOutput wp isChange addrIdx with
+                  | none => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                  | some pair =>
+                    rcases pair with ⟨addr, scriptBytes⟩
                     simp only
-                    split <;> rfl
-        | silentPayment name spAcc accId =>
-          cases coordinates with
-          | walletPolicy _ _ => rfl
-          | silentPayment spCoords =>
-            simp only
-            split
-            · rfl
-            · cases deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide (profile.coinType = 0) then .sp else .tsp) spAcc spCoords with
-              | error _ => rfl
-              | ok _ =>
-                simp only
-                split <;> rfl
-    | registerAccount _ _ _ _ => simp [AppCommand.isReadOnly] at hRO
-    | signMessage _ _ _ => simp [AppCommand.isReadOnly] at hRO
-    | signPsbt _ => simp [AppCommand.isReadOnly] at hRO
-    | exportSpScanKey _ _ => simp [AppCommand.isReadOnly] at hRO
-    | registerIdentityKey _ _ => simp [AppCommand.isReadOnly] at hRO
-    | unexpectedContinue => simp [AppCommand.isReadOnly] at hRO
+                    cases maybeSignIdentityObject profile hw identityIndex identityMsgTypeOutput scriptBytes with
+                    | error _ => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                    | ok _ =>
+                      simp only
+                      split <;> exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+          | silentPayment name spAcc accId =>
+            cases coordinates with
+            | walletPolicy _ _ => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+            | silentPayment spCoords =>
+              simp only
+              split
+              · exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+              · cases deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide (profile.coinType = 0) then .sp else .tsp) spAcc spCoords with
+                | error _ => exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+                | ok _ =>
+                  simp only
+                  split <;> exact ⟨rfl, rfl, rfl, rfl, fun _ => rfl⟩
+      | registerAccount _ _ _ _ => simp [AppCommand.isReadOnly] at hRO
+      | signMessage _ _ _ => simp [AppCommand.isReadOnly] at hRO
+      | signPsbt _ => simp [AppCommand.isReadOnly] at hRO
+      | exportSpScanKey _ _ => simp [AppCommand.isReadOnly] at hRO
+      | registerIdentityKey _ _ => simp [AppCommand.isReadOnly] at hRO
+      | unexpectedContinue => simp [AppCommand.isReadOnly] at hRO
 
 /-- **Theorem 1 — Read-Only Purity**:
-    `GetVersion`, `GetMasterFingerprint`, `GetExtendedPubkey`, and `GetAddress` leave
-    `AppPersistentState` (`registeredAccounts`, `musigSessions`, `swapLock`, `residentKeys`)
-    identically equal (`s' = s`) on success AND on error. -/
+    - Every `.ok` execution of `GetVersion`, `GetMasterFingerprint`, `GetExtendedPubkey`, or `GetAddress`
+      leaves the entire `AppPersistentState` identically equal (`s' = s`).
+    - Every `.error` execution preserves `registeredAccounts`, `musigSessions`, `swapLock`, and `residentKeys`
+      (and outside Swap mode, `s' = s`). -/
 theorem readOnly_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (cmd : AppCommand Affine) (s s' : AppPersistentState)
     (hRO : cmd.isReadOnly = true) :
-    ((∃ resp, stepAppCommand profile hw ui cmd s = .ok (resp, s')) ∨
-     (∃ err, stepAppCommand profile hw ui cmd s = .error (err, s'))) →
-    s' = s := by
-  intro hOut
-  have hPost := readOnly_step_postState_eq profile hw ui cmd s hRO
-  unfold stepPostState at hPost
-  rcases hOut with ⟨resp, hOk⟩ | ⟨err, hErr⟩
-  · rw [hOk] at hPost
-    exact hPost
-  · rw [hErr] at hPost
-    exact hPost
+    ((∃ resp, stepAppCommand profile hw ui cmd s = .ok (resp, s')) → s' = s) ∧
+    ((∃ err, stepAppCommand profile hw ui cmd s = .error (err, s')) →
+      s'.registeredAccounts = s.registeredAccounts ∧
+      s'.musigSessions = s.musigSessions ∧
+      s'.swapLock = s.swapLock ∧
+      s'.residentKeys = s.residentKeys) := by
+  refine ⟨?_, ?_⟩
+  · rintro ⟨resp, hOk⟩
+    unfold stepAppCommand abortSwapIfFailed at hOk
+    by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+    · simp [hAborted] at hOk
+    · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hOk
+      by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
+      · simp [hSwap] at hOk
+      · simp only [hSwap, Bool.false_eq_true, ↓reduceIte] at hOk
+        cases cmd with
+        | getVersion =>
+          cases profile with
+          | bolos _ => injection hOk with hP; exact (congrArg Prod.snd hP).symm
+          | vanadium _ => simp at hOk
+        | getMasterFingerprint tree =>
+          cases profile with
+          | bolos _ =>
+            cases tree with
+            | resident => simp at hOk
+            | standard =>
+              cases hFpr : hw.masterFingerprint .standard s.residentKeys with
+              | none => simp [hFpr] at hOk
+              | some _ => simp [hFpr] at hOk; exact hOk.2.symm
+          | vanadium _ =>
+            cases hFpr : hw.masterFingerprint tree s.residentKeys with
+            | none => simp [hFpr] at hOk
+            | some _ => simp [hFpr] at hOk; exact hOk.2.symm
+        | getExtendedPubkey tree display path identityIndex =>
+          by_cases hLen : path.length > profile.maxPathSteps
+          · simp [hLen] at hOk
+          · simp only [hLen, ↓reduceIte] at hOk
+            cases profile with
+            | bolos ct =>
+              cases tree with
+              | resident => simp at hOk
+              | standard =>
+                have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
+                simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte] at hOk
+                split at hOk
+                · simp at hOk
+                · cases hDer : hw.deriveExtendedPubkey .standard s.residentKeys path with
+                  | none => simp [hDer] at hOk
+                  | some pair =>
+                    rcases pair with ⟨xpub, _pk⟩
+                    simp only [hDer] at hOk
+                    split at hOk
+                    · simp at hOk
+                    · cases hSig : maybeSignIdentityObject (.bolos ct) hw identityIndex identityMsgTypeXpub xpub with
+                      | error _ => simp [hSig] at hOk
+                      | ok _ => simp [hSig] at hOk; exact hOk.2.symm
+            | vanadium ct =>
+              cases tree with
+              | resident =>
+                have hTreeTrue : (KeyTree.resident != KeyTree.standard) = true := rfl
+                simp only [hTreeTrue, Bool.and_true] at hOk
+                split at hOk
+                · simp at hOk
+                · simp only [Bool.false_eq_true, ↓reduceIte] at hOk
+                  cases hDer : hw.deriveExtendedPubkey .resident s.residentKeys path with
+                  | none => simp [hDer] at hOk
+                  | some pair =>
+                    rcases pair with ⟨xpub, _pk⟩
+                    simp only [hDer] at hOk
+                    split at hOk
+                    · simp at hOk
+                    · cases hSig : maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub with
+                      | error _ => simp [hSig] at hOk
+                      | ok _ => simp [hSig] at hOk; exact hOk.2.symm
+              | standard =>
+                have hTreeFalse : (KeyTree.standard != KeyTree.standard) = false := rfl
+                simp only [hTreeFalse, Bool.and_false, Bool.false_eq_true, ↓reduceIte] at hOk
+                split at hOk
+                · simp at hOk
+                · cases hDer : hw.deriveExtendedPubkey .standard s.residentKeys path with
+                  | none => simp [hDer] at hOk
+                  | some pair =>
+                    rcases pair with ⟨xpub, _pk⟩
+                    simp only [hDer] at hOk
+                    cases hIdKind : classifyIdentityPath path <;> (
+                      rw [hIdKind] at hOk
+                      dsimp only at hOk
+                      split at hOk
+                      · simp at hOk
+                      · cases hSig : maybeSignIdentityObject (.vanadium ct) hw identityIndex identityMsgTypeXpub xpub with
+                        | error _ => rw [hSig] at hOk; simp at hOk
+                        | ok _ => rw [hSig] at hOk; injection hOk with hP; exact (congrArg Prod.snd hP).symm)
+        | getAddress display account porOpt coordinates identityIndex =>
+          cases hVal : validateAccountAuth profile hw s.swapLock.isSome account porOpt with
+          | error _ => simp [hVal] at hOk
+          | ok _ =>
+            simp only [hVal] at hOk
+            cases account with
+            | walletPolicy wp =>
+              cases coordinates with
+              | silentPayment _ => simp at hOk
+              | walletPolicy isChange addrIdx =>
+                simp only at hOk
+                split at hOk
+                · simp at hOk
+                · split at hOk
+                  · simp at hOk
+                  · cases hOut : hw.deriveWalletPolicyOutput wp isChange addrIdx with
+                    | none => simp [hOut] at hOk
+                    | some pair =>
+                      rcases pair with ⟨addr, scriptBytes⟩
+                      simp only [hOut] at hOk
+                      cases hSig : maybeSignIdentityObject profile hw identityIndex identityMsgTypeOutput scriptBytes with
+                      | error _ => simp [hSig] at hOk
+                      | ok _ =>
+                        simp only [hSig] at hOk
+                        split at hOk
+                        · simp at hOk
+                        · injection hOk with hP; exact (congrArg Prod.snd hP).symm
+            | silentPayment name spAcc accId =>
+              cases coordinates with
+              | walletPolicy _ _ => simp at hOk
+              | silentPayment spCoords =>
+                simp only at hOk
+                split at hOk
+                · simp at hOk
+                · cases hAddr : deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide (profile.coinType = 0) then .sp else .tsp) spAcc spCoords with
+                  | error _ => rw [hAddr] at hOk; simp at hOk
+                  | ok _ =>
+                    rw [hAddr] at hOk
+                    simp only at hOk
+                    split at hOk
+                    · simp at hOk
+                    · injection hOk with hP; exact (congrArg Prod.snd hP).symm
+        | registerAccount _ _ _ _ | signMessage _ _ _ | signPsbt _ | exportSpScanKey _ _ | registerIdentityKey _ _ | unexpectedContinue =>
+          simp [AppCommand.isReadOnly] at hRO
+  · rintro ⟨err, hErr⟩
+    have hCore := readOnly_step_preserves_core profile hw ui cmd s hRO
+    unfold stepPostState at hCore
+    rw [hErr, extractPostState_error] at hCore
+    exact ⟨hCore.1, hCore.2.1, hCore.2.2.1, hCore.2.2.2.1⟩
 
 /-- Explicit corollaries of `readOnly_purity` for each of the four read-only commands. -/
 theorem getVersion_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (s s' : AppPersistentState) (resp : AppResponse)
     (h : stepAppCommand profile hw ui .getVersion s = .ok (resp, s')) : s' = s :=
-  readOnly_purity profile hw ui .getVersion s s' rfl (Or.inl ⟨resp, h⟩)
+  (readOnly_purity profile hw ui .getVersion s s' rfl).1 ⟨resp, h⟩
 
 theorem getMasterFingerprint_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (tree : KeyTree) (s s' : AppPersistentState) (resp : AppResponse)
     (h : stepAppCommand profile hw ui (.getMasterFingerprint tree) s = .ok (resp, s')) : s' = s :=
-  readOnly_purity profile hw ui (.getMasterFingerprint tree) s s' rfl (Or.inl ⟨resp, h⟩)
+  (readOnly_purity profile hw ui (.getMasterFingerprint tree) s s' rfl).1 ⟨resp, h⟩
 
 theorem getExtendedPubkey_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (tree : KeyTree) (display : Bool) (path : List UInt32) (idIdx : Option UInt32)
     (s s' : AppPersistentState) (resp : AppResponse)
     (h : stepAppCommand profile hw ui (.getExtendedPubkey tree display path idIdx) s = .ok (resp, s')) : s' = s :=
-  readOnly_purity profile hw ui (.getExtendedPubkey tree display path idIdx) s s' rfl (Or.inl ⟨resp, h⟩)
+  (readOnly_purity profile hw ui (.getExtendedPubkey tree display path idIdx) s s' rfl).1 ⟨resp, h⟩
 
 theorem getAddress_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
@@ -1364,165 +1618,177 @@ theorem getAddress_purity {Affine : Type} [DecidableEq Affine]
     (coords : AddressCoordinates) (idIdx : Option UInt32)
     (s s' : AppPersistentState) (resp : AppResponse)
     (h : stepAppCommand profile hw ui (.getAddress display acc por coords idIdx) s = .ok (resp, s')) : s' = s :=
-  readOnly_purity profile hw ui (.getAddress display acc por coords idIdx) s s' rfl (Or.inl ⟨resp, h⟩)
+  (readOnly_purity profile hw ui (.getAddress display acc por coords idIdx) s s' rfl).1 ⟨resp, h⟩
 
-/-- **Monotonicity of Consumed MuSig2 Sessions Across Every Command**:
-    No command execution (whether `.ok` or `.error`) ever resurrects a consumed MuSig2 session ID. -/
-theorem stepAppCommand_preserves_consumed {Affine : Type} [DecidableEq Affine]
+/-- **Monotonicity of Consumed MuSig2 `RandRoot`s Across Every Command**:
+    No command execution (whether `.ok` or `.error`) ever resurrects a consumed MuSig2 `RandRoot`. -/
+theorem stepAppCommand_preserves_randRoot_consumed {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
-    (cmd : AppCommand Affine) (s : AppPersistentState) (target : PsbtSessionId)
-    (hCons : s.musigSessions.isConsumed target = true) :
-    (stepPostState profile hw ui cmd s).musigSessions.isConsumed target = true := by
+    (cmd : AppCommand Affine) (s : AppPersistentState) (target : RandRoot)
+    (hCons : s.musigSessions.isRandRootConsumed target = true) :
+    (stepPostState profile hw ui cmd s).musigSessions.isRandRootConsumed target = true := by
   by_cases hRO : cmd.isReadOnly = true
-  · rw [readOnly_step_postState_eq profile hw ui cmd s hRO]
+  · have hCore := readOnly_step_preserves_core profile hw ui cmd s hRO
+    rw [hCore.2.1]
     exact hCons
-  · unfold stepPostState stepAppCommand
-    by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
-    · simp [hSwap, hCons]
-    · simp only [hSwap, Bool.false_eq_true, ↓reduceIte]
-      cases cmd with
-      | getVersion | getMasterFingerprint _ | getExtendedPubkey _ _ _ _ | getAddress _ _ _ _ _ =>
-        simp [AppCommand.isReadOnly] at hRO
-      | unexpectedContinue => exact hCons
-      | registerIdentityKey name pubkey =>
-        cases profile with
-        | bolos _ => exact hCons
-        | vanadium _ =>
-          simp only
-          split
-          · exact hCons
-          · cases computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey with
-            | none => exact hCons
-            | some _ => simp only; split <;> exact hCons
-      | exportSpScanKey hrp accIdx =>
-        cases profile with
-        | bolos _ => exact hCons
-        | vanadium _ =>
-          simp only
-          cases exportSpScanKey hw.spCrypto hw.bech32m hrp hw.deriveSpAccount accIdx (ui.approve (.confirmExportSpScanKey accIdx)) with
-          | error e => cases e <;> exact hCons
-          | ok _ => exact hCons
-      | signMessage path msg hdrBase =>
-        cases profile with
-        | vanadium _ => exact hCons
-        | bolos _ =>
-          simp only
-          split
-          · exact hCons
-          · by_cases hApp : (!ui.approve (.confirmSignMessage path
-              (if isPrintableAsciiMessage msg then .cleartextAscii msg else .sha256Digest (hw.musigCrypto.sha256 msg)))) = true
-            · simp [hApp, hCons]
-            · simp only [hApp, Bool.false_eq_true, ↓reduceIte]
-              cases hw.signRecoverableEcdsa path (bitcoinSignedMessageDigest hw.musigCrypto.sha256 msg) with
-              | none => exact hCons
-              | some triple =>
-                rcases triple with ⟨recId, r, sScalar⟩
-                simp only
-                cases formatCompactRecoverableSig hdrBase recId r sScalar <;> exact hCons
-      | registerAccount account regIds keySigs showCt =>
-        cases account with
-        | walletPolicy wp =>
-          simp only
-          split
-          · exact hCons
-          · split
+  · unfold stepPostState stepAppCommand abortSwapIfFailed
+    by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+    · simp [hAborted, hCons]
+    · simp only [hAborted, Bool.false_eq_true, ↓reduceIte]
+      by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
+      · simp [hSwap, hCons]
+      · simp only [hSwap, Bool.false_eq_true, ↓reduceIte]
+        cases cmd with
+        | getVersion | getMasterFingerprint _ | getExtendedPubkey _ _ _ _ | getAddress _ _ _ _ _ =>
+          simp [AppCommand.isReadOnly] at hRO
+        | unexpectedContinue => exact hCons
+        | registerIdentityKey name pubkey =>
+          cases profile with
+          | bolos _ => exact hCons
+          | vanadium _ =>
+            simp only
+            split
             · exact hCons
-            · split
-              · exact hCons
-              · split <;> exact hCons
-        | silentPayment name spAcc accId =>
+            · cases computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey with
+              | none => exact hCons
+              | some _ => simp only; split <;> exact hCons
+        | exportSpScanKey _hrp accIdx =>
           cases profile with
           | bolos _ => exact hCons
           | vanadium ct =>
             simp only
+            cases exportSpScanKey hw.spCrypto hw.bech32m (TargetProfile.vanadium ct).spScanHrp hw.deriveSpAccount accIdx (ui.approve (.confirmExportSpScanKey accIdx)) with
+            | error e => cases e <;> exact hCons
+            | ok _ => exact hCons
+        | signMessage path msg _hdrBase =>
+          cases profile with
+          | vanadium _ => exact hCons
+          | bolos _ =>
+            simp only
             split
             · exact hCons
-            · cases hw.deriveSpAccount spAcc.accountIndex with
-              | error _ => exact hCons
-              | ok derivedAcc =>
-                simp only
-                split
-                · exact hCons
-                · cases deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide ((TargetProfile.vanadium ct).coinType = 0) then .sp else .tsp) spAcc (.code none) with
-                  | error _ => exact hCons
-                  | ok _ =>
+            · split
+              · exact hCons
+              · by_cases hApp : (!ui.approve (.confirmSignMessage path
+                  (if isPrintableAsciiMessage msg then .cleartextAscii msg else .sha256Digest (hw.musigCrypto.sha256 msg)))) = true
+                · simp [hApp, hCons]
+                · simp only [hApp, Bool.false_eq_true, ↓reduceIte]
+                  cases hw.signRecoverableEcdsa path (bitcoinSignedMessageDigest hw.musigCrypto.sha256 msg) with
+                  | none => exact hCons
+                  | some triple =>
+                    rcases triple with ⟨recId, r, sScalar⟩
                     simp only
-                    split <;> exact hCons
-      | signPsbt psbt =>
-        simp only
-        cases validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
-        | error _ => exact hCons
-        | ok _ =>
+                    cases formatBolosSignMessageSig recId r sScalar <;> exact hCons
+        | registerAccount account regIds keySigs showCt =>
+          cases account with
+          | walletPolicy wp =>
+            simp only
+            split
+            · exact hCons
+            · split
+              · exact hCons
+              · split
+                · exact hCons
+                · split <;> exact hCons
+          | silentPayment name spAcc accId =>
+            cases profile with
+            | bolos _ => exact hCons
+            | vanadium ct =>
+              simp only
+              split
+              · exact hCons
+              · cases hw.deriveSpAccount spAcc.accountIndex with
+                | error _ => exact hCons
+                | ok derivedAcc =>
+                  simp only
+                  split
+                  · exact hCons
+                  · cases deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide ((TargetProfile.vanadium ct).coinType = 0) then .sp else .tsp) spAcc (.code none) with
+                    | error _ => exact hCons
+                    | ok _ =>
+                      simp only
+                      split <;> exact hCons
+        | signPsbt psbt =>
           simp only
           split
           · exact hCons
-          · split
-            · exact hCons
-            · cases hPlan : psbt.musigPlan with
-              | round1Only sid r1Tasks =>
-                simp only
-                split
+          · cases validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+            | error _ =>
+              simp only
+              split <;> exact hCons
+            | ok _ =>
+              simp only
+              split
+              · exact hCons
+              · split
                 · exact hCons
-                · have hR1 := executeRound1Pass_preserves_consumed hw.musigCrypto profile.musigAggPkMode
-                    s.musigSessions sid target hw.freshMusigRandRoot r1Tasks hCons
-                  cases hEx : executeRound1Pass hw.musigCrypto profile.musigAggPkMode
-                      s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
-                  | error p =>
-                    rcases p with ⟨mErr, ms'⟩
-                    rw [hEx] at hR1
-                    exact hR1
-                  | ok p =>
-                    rcases p with ⟨pubnonces, msCommitted⟩
-                    rw [hEx] at hR1
-                    exact hR1
-              | none =>
-                simp only
-                split
-                · exact hCons
-                · cases signStandardInputs hw psbt.standardSignTasks <;> exact hCons
-              | round1AndStandard sid r1Tasks =>
-                simp only
-                split
-                · exact hCons
-                · cases signStandardInputs hw psbt.standardSignTasks with
-                  | error _ => exact hCons
-                  | ok _ =>
-                    have hR1 := executeRound1Pass_preserves_consumed hw.musigCrypto profile.musigAggPkMode
-                      s.musigSessions sid target hw.freshMusigRandRoot r1Tasks hCons
-                    cases hEx : executeRound1Pass hw.musigCrypto profile.musigAggPkMode
-                        s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
-                    | error p =>
-                      rcases p with ⟨mErr, ms'⟩
-                      rw [hEx] at hR1
-                      exact hR1
-                    | ok p =>
-                      rcases p with ⟨pubnonces, msCommitted⟩
-                      rw [hEx] at hR1
-                      exact hR1
-              | round2 sid r2Inputs =>
-                simp only
-                split
-                · exact hCons
-                · split
-                  · exact hCons
-                  · have hR2 := executeRound2Pass_preserves_consumed hw.musigCrypto profile.musigAggPkMode
-                      s.musigSessions sid target r2Inputs hCons
-                    cases hEx : executeRound2Pass hw.musigCrypto profile.musigAggPkMode
-                        s.musigSessions sid r2Inputs with
-                    | error p =>
-                      rcases p with ⟨mErr, msConsumed⟩
-                      rw [hEx] at hR2
-                      exact hR2
-                    | ok p =>
-                      rcases p with ⟨partialSigs, msConsumed⟩
-                      rw [hEx] at hR2
-                      cases signStandardInputs hw psbt.standardSignTasks <;> exact hR2
+                · cases hPlan : psbt.musigPlan with
+                  | round1Only sid r1Tasks =>
+                    simp only
+                    split
+                    · exact hCons
+                    · split
+                      · exact hCons
+                      · have hR1 := executeRound1Pass_preserves_randRoot_consumed hw.musigCrypto profile.musigAggPkMode
+                          s.musigSessions sid hw.freshMusigRandRoot target r1Tasks hCons
+                        cases hEx : executeRound1Pass hw.musigCrypto profile.musigAggPkMode
+                            s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
+                        | error p =>
+                          rcases p with ⟨mErr, ms'⟩
+                          rw [hEx] at hR1
+                          exact hR1
+                        | ok p =>
+                          rcases p with ⟨pubnonces, msCommitted⟩
+                          rw [hEx] at hR1
+                          exact hR1
+                  | none =>
+                    simp only
+                    split
+                    · split <;> exact hCons
+                    · cases signStandardInputs hw psbt.standardSignTasks <;> exact hCons
+                  | round1AndStandard sid r1Tasks =>
+                    simp only
+                    split
+                    · split <;> exact hCons
+                    · cases signStandardInputs hw psbt.standardSignTasks with
+                      | error _ => exact hCons
+                      | ok _ =>
+                        have hR1 := executeRound1Pass_preserves_randRoot_consumed hw.musigCrypto profile.musigAggPkMode
+                          s.musigSessions sid hw.freshMusigRandRoot target r1Tasks hCons
+                        cases hEx : executeRound1Pass hw.musigCrypto profile.musigAggPkMode
+                            s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
+                        | error p =>
+                          rcases p with ⟨mErr, ms'⟩
+                          rw [hEx] at hR1
+                          exact hR1
+                        | ok p =>
+                          rcases p with ⟨pubnonces, msCommitted⟩
+                          rw [hEx] at hR1
+                          exact hR1
+                  | round2 sid r2Inputs =>
+                    simp only
+                    split
+                    · exact hCons
+                    · split
+                      · split <;> exact hCons
+                      · have hR2 := executeRound2Pass_preserves_randRoot_consumed hw.musigCrypto profile.musigAggPkMode
+                          s.musigSessions sid target r2Inputs (hw.checkSelfPubnonce profile) hCons
+                        cases hEx : executeRound2Pass hw.musigCrypto profile.musigAggPkMode
+                            s.musigSessions sid r2Inputs (hw.checkSelfPubnonce profile) with
+                        | error p =>
+                          rcases p with ⟨mErr, msConsumed⟩
+                          rw [hEx] at hR2
+                          exact hR2
+                        | ok p =>
+                          rcases p with ⟨partialSigs, msConsumed⟩
+                          rw [hEx] at hR2
+                          cases signStandardInputs hw psbt.standardSignTasks <;> exact hR2
 
 /-- **Theorem 2 — Atomic Error Rollback**:
     Any command returning `.error (e, s')` leaves `registeredAccounts`, `swapLock`, and
     `residentKeys` identically unchanged (`s'.registeredAccounts = s.registeredAccounts`,
     `s'.swapLock = s.swapLock`, `s'.residentKeys = s.residentKeys`), AND never resurrects
-    a consumed MuSig2 nonce session. -/
+    a consumed MuSig2 `RandRoot`. -/
 theorem atomic_error_rollback {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (cmd : AppCommand Affine) (s s' : AppPersistentState) (e : AppError)
@@ -1530,10 +1796,10 @@ theorem atomic_error_rollback {Affine : Type} [DecidableEq Affine]
     s'.registeredAccounts = s.registeredAccounts ∧
     s'.swapLock = s.swapLock ∧
     s'.residentKeys = s.residentKeys ∧
-    (∀ sid, s.musigSessions.isConsumed sid = true → s'.musigSessions.isConsumed sid = true) := by
-  have hConsMono : ∀ sid, s.musigSessions.isConsumed sid = true → s'.musigSessions.isConsumed sid = true := by
-    intro sid hC
-    have hPost := stepAppCommand_preserves_consumed profile hw ui cmd s sid hC
+    (∀ rr, s.musigSessions.isRandRootConsumed rr = true → s'.musigSessions.isRandRootConsumed rr = true) := by
+  have hConsMono : ∀ rr, s.musigSessions.isRandRootConsumed rr = true → s'.musigSessions.isRandRootConsumed rr = true := by
+    intro rr hC
+    have hPost := stepAppCommand_preserves_randRoot_consumed profile hw ui cmd s rr hC
     unfold stepPostState at hPost
     rw [hErr, extractPostState_error] at hPost
     exact hPost
@@ -1542,154 +1808,174 @@ theorem atomic_error_rollback {Affine : Type} [DecidableEq Affine]
       s'.swapLock = s.swapLock ∧
       s'.residentKeys = s.residentKeys := by
     by_cases hRO : cmd.isReadOnly = true
-    · have hEq := readOnly_purity profile hw ui cmd s s' hRO (Or.inr ⟨e, hErr⟩)
-      rw [hEq]
-      exact ⟨rfl, rfl, rfl⟩
-    · unfold stepAppCommand at hErr
-      by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
-      · simp [hSwap] at hErr
+    · have hCore := (readOnly_purity profile hw ui cmd s s' hRO).2 ⟨e, hErr⟩
+      exact ⟨hCore.1, hCore.2.2.1, hCore.2.2.2⟩
+    · unfold stepAppCommand abortSwapIfFailed at hErr
+      by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+      · simp [hAborted] at hErr
         rcases hErr with ⟨_, rfl⟩
         exact ⟨rfl, rfl, rfl⟩
-      · simp only [hSwap, Bool.false_eq_true, ↓reduceIte] at hErr
-        cases cmd with
-        | getVersion | getMasterFingerprint _ | getExtendedPubkey _ _ _ _ | getAddress _ _ _ _ _ =>
-          simp [AppCommand.isReadOnly] at hRO
-        | unexpectedContinue =>
-          injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-        | registerIdentityKey name pubkey =>
-          cases profile with
-          | bolos _ =>
+      · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hErr
+        by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap cmd) = true
+        · simp [hSwap] at hErr
+          rcases hErr with ⟨_, rfl⟩
+          exact ⟨rfl, rfl, rfl⟩
+        · simp only [hSwap, Bool.false_eq_true, ↓reduceIte] at hErr
+          cases cmd with
+          | getVersion | getMasterFingerprint _ | getExtendedPubkey _ _ _ _ | getAddress _ _ _ _ _ =>
+            simp [AppCommand.isReadOnly] at hRO
+          | unexpectedContinue =>
             injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-          | vanadium _ =>
-            simp only at hErr
-            split at hErr
-            · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-            · cases hId : computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey <;> simp [hId] at hErr
-              · rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-              · split at hErr
-                · rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-                · contradiction
-        | exportSpScanKey hrp accIdx =>
-          cases profile with
-          | bolos _ =>
-            injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-          | vanadium _ =>
-            simp only at hErr
-            cases hExp : exportSpScanKey hw.spCrypto hw.bech32m hrp hw.deriveSpAccount accIdx (ui.approve (.confirmExportSpScanKey accIdx)) with
-            | ok _ => simp [hExp] at hErr
-            | error spErr =>
-              cases spErr <;> (simp [hExp] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩)
-        | signMessage path msg hdrBase =>
-          cases profile with
-          | vanadium _ =>
-            injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-          | bolos _ =>
-            simp only at hErr
-            split at hErr
-            · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-            · by_cases hApp : (!ui.approve (.confirmSignMessage path
-                (if isPrintableAsciiMessage msg then .cleartextAscii msg else .sha256Digest (hw.musigCrypto.sha256 msg)))) = true
-              · simp [hApp] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-              · simp only [hApp, Bool.false_eq_true, ↓reduceIte] at hErr
-                cases hSig : hw.signRecoverableEcdsa path (bitcoinSignedMessageDigest hw.musigCrypto.sha256 msg) with
-                | none => simp [hSig] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-                | some triple =>
-                  rcases triple with ⟨recId, r, sScalar⟩
-                  simp only [hSig] at hErr
-                  cases hFmt : formatCompactRecoverableSig hdrBase recId r sScalar with
-                  | none => simp [hFmt] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-                  | some _ => simp [hFmt] at hErr
-        | registerAccount account regIds keySigs showCt =>
-          cases account with
-          | walletPolicy wp =>
-            simp only at hErr
-            split at hErr
-            · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-            · split at hErr
+          | registerIdentityKey name pubkey =>
+            cases profile with
+            | bolos _ =>
+              injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+            | vanadium _ =>
+              simp only at hErr
+              split at hErr
               · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-              · split at hErr
-                · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+              · cases hId : computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey <;> simp [hId] at hErr
+                · rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
                 · split at hErr
-                  · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · simp at hErr
-          | silentPayment name spAcc accId =>
+                  · rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
+                  · contradiction
+          | exportSpScanKey _hrp accIdx =>
             cases profile with
             | bolos _ =>
               injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
             | vanadium ct =>
               simp only at hErr
+              cases hExp : exportSpScanKey hw.spCrypto hw.bech32m (TargetProfile.vanadium ct).spScanHrp hw.deriveSpAccount accIdx (ui.approve (.confirmExportSpScanKey accIdx)) with
+              | ok _ => simp [hExp] at hErr
+              | error spErr =>
+                cases spErr <;> (simp [hExp] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩)
+          | signMessage path msg _hdrBase =>
+            cases profile with
+            | vanadium _ =>
+              injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+            | bolos _ =>
+              simp only at hErr
               split at hErr
               · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-              · cases hDer : hw.deriveSpAccount spAcc.accountIndex with
-                | error _ => simp [hDer] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-                | ok derivedAcc =>
-                  simp only [hDer] at hErr
-                  split at hErr
+              · split at hErr
+                · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                · by_cases hApp : (!ui.approve (.confirmSignMessage path
+                    (if isPrintableAsciiMessage msg then .cleartextAscii msg else .sha256Digest (hw.musigCrypto.sha256 msg)))) = true
+                  · simp [hApp] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
+                  · simp only [hApp, Bool.false_eq_true, ↓reduceIte] at hErr
+                    cases hSig : hw.signRecoverableEcdsa path (bitcoinSignedMessageDigest hw.musigCrypto.sha256 msg) with
+                    | none => simp [hSig] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
+                    | some triple =>
+                      rcases triple with ⟨recId, r, sScalar⟩
+                      simp only [hSig] at hErr
+                      cases hFmt : formatBolosSignMessageSig recId r sScalar with
+                      | none => simp [hFmt] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
+                      | some _ => simp [hFmt] at hErr
+          | registerAccount account regIds keySigs showCt =>
+            cases account with
+            | walletPolicy wp =>
+              simp only at hErr
+              split at hErr
+              · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+              · split at hErr
+                · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                · split at hErr
                   · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · cases hAddr : deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide ((TargetProfile.vanadium ct).coinType = 0) then .sp else .tsp) spAcc (.code none) with
-                    | error _ =>
-                      rw [hAddr] at hErr
-                      injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                    | ok _ =>
-                      rw [hAddr] at hErr
-                      simp only at hErr
-                      split at hErr
-                      · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                      · simp at hErr
-        | signPsbt psbt =>
-          cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
-          | error _ => simp [hVal] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
-          | ok _ =>
-            simp only [hVal] at hErr
+                  · split at hErr
+                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                    · simp at hErr
+            | silentPayment name spAcc accId =>
+              cases profile with
+              | bolos _ =>
+                injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+              | vanadium ct =>
+                simp only at hErr
+                split at hErr
+                · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                · cases hDer : hw.deriveSpAccount spAcc.accountIndex with
+                  | error _ => simp [hDer] at hErr; rcases hErr with ⟨_, rfl⟩; exact ⟨rfl, rfl, rfl⟩
+                  | ok derivedAcc =>
+                    simp only [hDer] at hErr
+                    split at hErr
+                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                    · cases hAddr : deriveAccountSpAddress hw.spCrypto hw.bech32m (if decide ((TargetProfile.vanadium ct).coinType = 0) then .sp else .tsp) spAcc (.code none) with
+                      | error _ =>
+                        rw [hAddr] at hErr
+                        injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                      | ok _ =>
+                        rw [hAddr] at hErr
+                        simp only at hErr
+                        split at hErr
+                        · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                        · simp at hErr
+          | signPsbt psbt =>
+            simp only at hErr
             split at hErr
             · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-            · split at hErr
-              · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-              · cases hPlan : psbt.musigPlan <;> simp only [hPlan] at hErr
-                · -- none
-                  split at hErr
+            · cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+              | error _ =>
+                simp only [hVal] at hErr
+                split at hErr <;> (injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩)
+              | ok _ =>
+                simp only [hVal] at hErr
+                split at hErr
+                · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                · split at hErr
                   · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · split at hErr
-                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                    · simp at hErr
-                · -- round1Only
-                  split at hErr
-                  · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · split at hErr
-                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                    · simp at hErr
-                · -- round1AndStandard
-                  split at hErr
-                  · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · split at hErr
-                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                    · split at hErr
-                      · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                      · simp at hErr
-                · -- round2
-                  split at hErr
-                  · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                  · split at hErr
-                    · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
-                    · split at hErr
-                      · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                  · cases hPlan : psbt.musigPlan <;> simp only [hPlan] at hErr
+                    · -- none
+                      split at hErr
+                      · split at hErr <;> (injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩)
                       · split at hErr
                         · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
                         · simp at hErr
+                    · -- round1Only
+                      split at hErr
+                      · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                      · split at hErr
+                        · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                        · split at hErr
+                          · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                          · simp at hErr
+                    · -- round1AndStandard
+                      split at hErr
+                      · split at hErr <;> (injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩)
+                      · split at hErr
+                        · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                        · split at hErr
+                          · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                          · simp at hErr
+                    · -- round2
+                      split at hErr
+                      · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                      · split at hErr
+                        · split at hErr <;> (injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩)
+                        · split at hErr
+                          · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                          · split at hErr
+                            · injection hErr with hPair; cases hPair; exact ⟨rfl, rfl, rfl⟩
+                            · simp at hErr
   exact ⟨hFields.1, hFields.2.1, hFields.2.2, hConsMono⟩
 
-/-- Predicate expressing that a `AppResponse` carries at least one cryptographic signature
-    from `SignMessage` or `SignPsbt`. -/
-def responseEmitsSignature : AppResponse → Bool
+/-- Predicate expressing that an `AppResponse` emits secret-key-derived cryptographic material:
+    - a compact message signature (`SignMessage`),
+    - at least one standard ECDSA/Schnorr PSBT signature,
+    - at least one MuSig2 Round-2 partial signature, OR
+    - at least one BIP-375 Silent Payment ECDH share (`spShares`). -/
+def responseEmitsSecretDerivedMaterial : AppResponse → Bool
   | .messageSigned _ => true
-  | .psbtSigned stdSigs _ musigPartialSigs _ _ _ =>
-    !stdSigs.isEmpty || !musigPartialSigs.isEmpty
+  | .psbtSigned stdSigs _ musigPartialSigs spShares _ _ =>
+    !stdSigs.isEmpty || !musigPartialSigs.isEmpty || !spShares.isEmpty
   | _ => false
 
-/-- **Theorem 3 — User Consent Gate**:
+abbrev responseEmitsSignature : AppResponse → Bool :=
+  responseEmitsSecretDerivedMaterial
+
+/-- **Theorem 3 — User Consent Gate (`C-06`)**:
     When `UserApprovalOracle` returns `false` (`ui.approve p = false`),
     - `SignMessage` NEVER succeeds;
-    - `SignPsbt` NEVER emits any standard or MuSig2 partial signature unless `s.swapLock = some lock`
+    - `SignPsbt` NEVER emits any standard signature, MuSig2 partial signature, OR Silent Payment
+      ECDH share (`responseEmitsSecretDerivedMaterial resp = true`) unless `s.swapLock = some lock`
       and `validSwapPsbt hw.musigCrypto.sha256 lock psbt = true`. -/
 theorem user_consent_gate_signMessage {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
@@ -1699,203 +1985,301 @@ theorem user_consent_gate_signMessage {Affine : Type} [DecidableEq Affine]
     stepAppCommand profile hw ui (.signMessage path msg hdrBase) s ≠ .ok (resp, s') := by
   intro hOk
   unfold stepAppCommand at hOk
-  by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap (@AppCommand.signMessage Affine path msg hdrBase)) = true
-  · simp [hSwap] at hOk
-  · simp only [hSwap, Bool.false_eq_true, ↓reduceIte] at hOk
-    cases profile with
-    | vanadium _ => simp at hOk
-    | bolos _ =>
-      simp only [hDeny] at hOk
-      split at hOk <;> simp at hOk
+  by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+  · simp [hAborted] at hOk
+  · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hOk
+    by_cases hSwap : (s.swapLock.isSome && !isAllowedInSwap (@AppCommand.signMessage Affine path msg hdrBase)) = true
+    · simp [hSwap] at hOk
+    · simp only [hSwap, Bool.false_eq_true, ↓reduceIte] at hOk
+      cases profile with
+      | vanadium _ => simp at hOk
+      | bolos _ =>
+        simp only [hDeny] at hOk
+        split at hOk
+        · simp at hOk
+        · split at hOk <;> simp at hOk
 
 theorem user_consent_gate_signPsbt {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (psbt : PsbtSignRequest Affine) (s s' : AppPersistentState) (resp : AppResponse)
     (hDeny : ∀ p, ui.approve p = false)
     (hOk : stepAppCommand profile hw ui (.signPsbt psbt) s = .ok (resp, s'))
-    (hSig : responseEmitsSignature resp = true) :
+    (hSig : responseEmitsSecretDerivedMaterial resp = true) :
     ∃ lock : SwapLock, s.swapLock = some lock ∧ validSwapPsbt hw.musigCrypto.sha256 lock psbt = true := by
-  unfold stepAppCommand at hOk
-  by_cases hSwapGate : (s.swapLock.isSome && !isAllowedInSwap (.signPsbt psbt)) = true
-  · simp [hSwapGate] at hOk
-  · simp only [hSwapGate, Bool.false_eq_true, ↓reduceIte] at hOk
-    cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
-    | error _ => simp [hVal] at hOk
-    | ok _ =>
-      simp only [hVal] at hOk
+  unfold stepAppCommand authorizePsbtStep at hOk
+  by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+  · simp [hAborted] at hOk
+  · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hOk
+    by_cases hSwapGate : (s.swapLock.isSome && !isAllowedInSwap (.signPsbt psbt)) = true
+    · simp [hSwapGate] at hOk
+    · simp only [hSwapGate, Bool.false_eq_true, ↓reduceIte] at hOk
+      by_cases hBip322Swap : (s.swapLock.isSome && psbt.isBip322MessageSigning) = true
+      · simp [hBip322Swap] at hOk
+      · simp only [hBip322Swap, Bool.false_eq_true, ↓reduceIte] at hOk
+        cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+        | error _ => simp [hVal] at hOk
+        | ok _ =>
+          simp only [hVal] at hOk
+          split at hOk
+          · simp at hOk
+          · split at hOk
+            · simp at hOk
+            · rename_i spShares spScripts _
+              cases hPlan : psbt.musigPlan <;> simp only [hPlan] at hOk
+              · -- .none
+                cases hLock : s.swapLock with
+                | none =>
+                  simp [hLock, hDeny] at hOk
+                | some lock =>
+                  simp only [hLock] at hOk
+                  cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
+                  · simp [hValid] at hOk
+                  · exact ⟨lock, rfl, hValid⟩
+              · -- .round1Only: if `profile = .vanadium _` OR `!spShares.isEmpty = true`, `hDeny` rejects!
+                split at hOk
+                · simp at hOk
+                · simp only [hDeny, Bool.not_false, Bool.and_true] at hOk
+                  by_cases hNeed : round1NeedsApproval profile spShares = true
+                  · simp [hNeed] at hOk
+                  · simp only [hNeed, Bool.false_eq_true, ↓reduceIte] at hOk
+                    split at hOk
+                    · simp at hOk
+                    · injection hOk with hPair
+                      have hResp : _ = resp := congrArg Prod.fst hPair
+                      subst hResp
+                      simp [responseEmitsSecretDerivedMaterial] at hSig
+                      unfold round1NeedsApproval at hNeed
+                      simp [hSig] at hNeed
+              · -- .round1AndStandard
+                cases hLock : s.swapLock with
+                | none =>
+                  simp [hLock, hDeny] at hOk
+                | some lock =>
+                  simp only [hLock] at hOk
+                  cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
+                  · simp [hValid] at hOk
+                  · exact ⟨lock, rfl, hValid⟩
+              · -- .round2
+                split at hOk
+                · simp at hOk
+                · cases hLock : s.swapLock with
+                  | none =>
+                    simp [hLock, hDeny] at hOk
+                  | some lock =>
+                    simp only [hLock] at hOk
+                    cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
+                    · simp [hValid] at hOk
+                    · exact ⟨lock, rfl, hValid⟩
+
+/-- Also prove that Vanadium pure MuSig2 Round 1 NEVER succeeds without user approval (`C-06`). -/
+theorem vanadium_round1Only_requires_user_consent {Affine : Type} [DecidableEq Affine]
+    (ct : UInt32) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
+    (psbt : PsbtSignRequest Affine) (sid : PsbtSessionId) (r1Tasks : List MusigSignTask)
+    (s s' : AppPersistentState) (resp : AppResponse)
+    (hPlan : psbt.musigPlan = .round1Only sid r1Tasks)
+    (hDeny : ∀ p, ui.approve p = false) :
+    stepAppCommand (.vanadium ct) hw ui (.signPsbt psbt) s ≠ .ok (resp, s') := by
+  intro hOk
+  unfold stepAppCommand round1NeedsApproval at hOk
+  by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+  · simp [hAborted] at hOk
+  · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hOk
+    by_cases hSwapGate : (s.swapLock.isSome && !isAllowedInSwap (.signPsbt psbt)) = true
+    · simp [hSwapGate] at hOk
+    · simp only [hSwapGate, Bool.false_eq_true, ↓reduceIte] at hOk
       split at hOk
       · simp at hOk
-      · split at hOk
-        · simp at hOk
-        · cases hPlan : psbt.musigPlan <;> simp only [hPlan] at hOk
-          · -- .none
-            cases hLock : s.swapLock with
-            | none =>
-              simp [hLock, hDeny] at hOk
-            | some lock =>
-              simp only [hLock] at hOk
-              cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
-              · simp [hValid] at hOk
-              · exact ⟨lock, rfl, hValid⟩
-          · -- .round1Only: emits `stdSigs = []` and `musigPartialSigs = []`, contradicting `hSig`!
-            split at hOk
+      · cases hVal : validateAccountAuth (.vanadium ct) hw s.swapLock.isSome psbt.account psbt.por with
+        | error _ => simp [hVal] at hOk
+        | ok _ =>
+          simp only [hVal] at hOk
+          split at hOk
+          · simp at hOk
+          · split at hOk
             · simp at hOk
-            · split at hOk
-              · simp at hOk
-              · injection hOk with hPair
-                cases hPair
-                simp [responseEmitsSignature] at hSig
-          · -- .round1AndStandard
-            cases hLock : s.swapLock with
-            | none =>
-              simp [hLock, hDeny] at hOk
-            | some lock =>
-              simp only [hLock] at hOk
-              cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
-              · simp [hValid] at hOk
-              · exact ⟨lock, rfl, hValid⟩
-          · -- .round2
-            split at hOk
-            · simp at hOk
-            · cases hLock : s.swapLock with
-              | none =>
-                simp [hLock, hDeny] at hOk
-              | some lock =>
-                simp only [hLock] at hOk
-                cases hValid : validSwapPsbt hw.musigCrypto.sha256 lock psbt
-                · simp [hValid] at hOk
-                · exact ⟨lock, rfl, hValid⟩
+            · simp only [hPlan, hDeny] at hOk
+              split at hOk <;> simp at hOk
 
 /-- Lemma: if `stepAppCommand` succeeds on `.signPsbt psbt` with `psbt.musigPlan = .round2 sid inputs`,
-    then `sid` was NOT consumed in `s` and IS consumed in `s'`. -/
-theorem stepAppCommand_musigRound2_ok_consumes {Affine : Type} [DecidableEq Affine]
+    then `s.musigSessions.lookupActive sid = some rr` for an unconsumed `rr` that becomes consumed
+    in `s'`, and `s'.musigSessions.lookupActive sid = none`. -/
+theorem stepAppCommand_musigRound2_ok_consumes_randRoot {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (psbt : PsbtSignRequest Affine) (sid : PsbtSessionId) (r2Inputs : List MusigRound2TaskInput)
     (s s' : AppPersistentState) (resp : AppResponse)
     (hPlan : psbt.musigPlan = .round2 sid r2Inputs)
     (hOk : stepAppCommand profile hw ui (.signPsbt psbt) s = .ok (resp, s')) :
-    s.musigSessions.isConsumed sid = false ∧
-    s'.musigSessions.isConsumed sid = true ∧
-    (∃ a b c d e f, resp = .psbtSigned a b c d e f) := by
+    ∃ rr : RandRoot,
+      s.musigSessions.lookupActive sid = some rr ∧
+      s.musigSessions.isRandRootConsumed rr = false ∧
+      s'.musigSessions.isRandRootConsumed rr = true ∧
+      s'.musigSessions.lookupActive sid = none ∧
+      (∃ a b c d e f, resp = .psbtSigned a b c d e f) := by
   unfold stepAppCommand at hOk
-  by_cases hSwapGate : (s.swapLock.isSome && !isAllowedInSwap (.signPsbt psbt)) = true
-  · simp [hSwapGate] at hOk
-  · simp only [hSwapGate, Bool.false_eq_true, ↓reduceIte] at hOk
-    cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
-    | error _ => simp [hVal] at hOk
-    | ok _ =>
-      simp only [hVal] at hOk
-      split at hOk
-      · simp at hOk
-      · split at hOk
-        · simp at hOk
-        · simp only [hPlan] at hOk
+  by_cases hAborted : (s.swapLock.isSome && s.swapAborted) = true
+  · simp [hAborted] at hOk
+  · simp only [hAborted, Bool.false_eq_true, ↓reduceIte] at hOk
+    by_cases hSwapGate : (s.swapLock.isSome && !isAllowedInSwap (.signPsbt psbt)) = true
+    · simp [hSwapGate] at hOk
+    · simp only [hSwapGate, Bool.false_eq_true, ↓reduceIte] at hOk
+      by_cases hBip322 : (s.swapLock.isSome && psbt.isBip322MessageSigning) = true
+      · simp [hBip322] at hOk
+      · simp only [hBip322, Bool.false_eq_true, ↓reduceIte] at hOk
+        cases hVal : validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+        | error _ => simp [hVal] at hOk
+        | ok _ =>
+          simp only [hVal] at hOk
           split at hOk
           · simp at hOk
           · split at hOk
             · simp at hOk
-            · cases hEx : executeRound2Pass hw.musigCrypto profile.musigAggPkMode s.musigSessions sid r2Inputs with
-              | error p => simp [hEx] at hOk
-              | ok p =>
-                rcases p with ⟨partialSigs, msConsumed⟩
-                rw [hEx] at hOk
-                simp only at hOk
-                cases hStd : signStandardInputs hw psbt.standardSignTasks with
-                | error _ => simp [hStd] at hOk
-                | ok stdSigs =>
-                  rw [hStd] at hOk
-                  injection hOk with hPair
-                  cases hPair
-                  have ⟨hNotCons, hNowCons⟩ := executeRound2Pass_ok_consumes hw.musigCrypto profile.musigAggPkMode
-                    s.musigSessions msConsumed sid r2Inputs partialSigs hEx
-                  exact ⟨hNotCons, hNowCons, ⟨_, _, _, _, _, _, rfl⟩⟩
+            · simp only [hPlan] at hOk
+              split at hOk
+              · simp at hOk
+              · split at hOk
+                · simp at hOk
+                · cases hEx : executeRound2Pass hw.musigCrypto profile.musigAggPkMode
+                      s.musigSessions sid r2Inputs (hw.checkSelfPubnonce profile) with
+                  | error p => simp [hEx] at hOk
+                  | ok p =>
+                    rcases p with ⟨partialSigs, msConsumed⟩
+                    rw [hEx] at hOk
+                    simp only at hOk
+                    cases hStd : signStandardInputs hw psbt.standardSignTasks with
+                    | error _ => simp [hStd] at hOk
+                    | ok stdSigs =>
+                      rw [hStd] at hOk
+                      injection hOk with hPair
+                      have hResp : _ = resp := congrArg Prod.fst hPair
+                      have hSt : _ = s' := congrArg Prod.snd hPair
+                      subst hResp
+                      subst hSt
+                      obtain ⟨rr, hLook, hNotCons, hNowCons, hGone⟩ :=
+                        executeRound2Pass_ok_consumes_randRoot hw.musigCrypto profile.musigAggPkMode
+                          s.musigSessions msConsumed sid r2Inputs (hw.checkSelfPubnonce profile) partialSigs hEx
+                      exact ⟨rr, hLook, hNotCons, hNowCons, hGone, ⟨_, _, _, _, _, _, rfl⟩⟩
 
-/-- Once `sid` is consumed in `s.musigSessions`, no subsequent multi-step trace `cmds` can ever
-    emit Round-2 partial signatures for `sid`. -/
-theorem countMusigRound2Steps_zero_of_consumed {Affine : Type} [DecidableEq Affine]
+/-- **Immediate Round-2 Replay Fails with `.musigError .missingSession` (`C-02`)**:
+    After a successful `.signPsbt` Round-2 pass on `sid` (outside Swap mode, or when Swap has cleared),
+    any immediate Round-2 replay on `sid` without an intervening Round 1 fails with `.musigError .missingSession`! -/
+theorem app_musig2_immediate_replay_missingSession {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
-    (sid : PsbtSessionId) :
+    (psbt1 psbt2 : PsbtSignRequest Affine) (sid : PsbtSessionId)
+    (r2Inputs1 r2Inputs2 : List MusigRound2TaskInput)
+    (s s' : AppPersistentState) (resp : AppResponse)
+    (hNoSwap : s'.swapLock = none)
+    (hPlan1 : psbt1.musigPlan = .round2 sid r2Inputs1)
+    (hPlan2 : psbt2.musigPlan = .round2 sid r2Inputs2)
+    (hAuth2 : validateAccountAuth profile hw false psbt2.account psbt2.por = .ok ())
+    (hAmt2 : ((!allowUnderfundedInputs profile false psbt2 &&
+               psbt2.inputsTotalAmount < psbt2.outputsTotalAmount) ||
+              psbt2.outputsTotalAmount < psbt2.changeOutputsTotalAmount) = false)
+    (hSp2 : psbt2.silentPaymentTx = none)
+    (hOk1 : stepAppCommand profile hw ui (.signPsbt psbt1) s = .ok (resp, s')) :
+    stepAppCommand profile hw ui (.signPsbt psbt2) s' = .error (.musigError .missingSession, s') := by
+  obtain ⟨_rr, _hLook, _hNotC, _hNowC, hGone, _⟩ :=
+    stepAppCommand_musigRound2_ok_consumes_randRoot profile hw ui psbt1 sid r2Inputs1 s s' resp hPlan1 hOk1
+  unfold stepAppCommand computePsbtSpOutputs
+  simp [hNoSwap, hAuth2, hAmt2, hSp2, hPlan2, hGone]
+
+/-- Once `rr` is consumed in `s.musigSessions`, no subsequent multi-step trace `cmds` can ever
+    emit Round-2 partial signatures using `rr`. -/
+theorem countMusigRound2StepsForRandRoot_zero_of_consumed {Affine : Type} [DecidableEq Affine]
+    (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
+    (rr : RandRoot) :
     ∀ (cmds : List (AppCommand Affine)) (s : AppPersistentState),
-      s.musigSessions.isConsumed sid = true →
-      countMusigRound2Steps sid (runAppTrace profile hw ui cmds s).1 = 0
+      s.musigSessions.isRandRootConsumed rr = true →
+      countMusigRound2StepsForRandRoot profile hw ui rr cmds s = 0
   | [], _, _ => rfl
   | cmd :: rest, s, hCons => by
-    unfold runAppTrace
-    have hPres := stepAppCommand_preserves_consumed profile hw ui cmd s sid hCons
-    unfold stepPostState at hPres
-    cases hStep : stepAppCommand profile hw ui cmd s with
-    | error pair =>
-      rcases pair with ⟨err, s'⟩
-      rw [hStep] at hPres
-      have ih := countMusigRound2Steps_zero_of_consumed profile hw ui sid rest s' hPres
-      simp [countMusigRound2Steps, outcomeProducedMusigRound2For, ih]
-    | ok pair =>
-      rcases pair with ⟨resp, s'⟩
-      rw [hStep] at hPres
-      have ih := countMusigRound2Steps_zero_of_consumed profile hw ui sid rest s' hPres
-      have hHeadFalse : outcomeProducedMusigRound2For sid (.ok cmd resp) = false := by
-        cases cmd with
-        | signPsbt psbt =>
+    unfold countMusigRound2StepsForRandRoot
+    have hPres := stepAppCommand_preserves_randRoot_consumed profile hw ui cmd s rr hCons
+    have ih := countMusigRound2StepsForRandRoot_zero_of_consumed profile hw ui rr rest
+      (stepPostState profile hw ui cmd s) hPres
+    have hHeadFalse : stepUsedMusigRandRoot cmd (stepAppCommand profile hw ui cmd s) s rr = false := by
+      cases cmd with
+      | signPsbt psbt =>
+        cases hStep : stepAppCommand profile hw ui (.signPsbt psbt) s with
+        | error _ => rfl
+        | ok pair =>
+          rcases pair with ⟨resp, s'⟩
           cases resp with
           | psbtSigned a b c d e f =>
+            unfold stepUsedMusigRandRoot
+            dsimp only
             cases hPlan : psbt.musigPlan with
-            | round2 sid' r2Inputs =>
-              simp only [outcomeProducedMusigRound2For, hPlan]
-              by_cases hEq : sid' = sid
-              · subst hEq
-                have ⟨hNotC, _, _⟩ := stepAppCommand_musigRound2_ok_consumes profile hw ui
-                  psbt sid' r2Inputs s s' (.psbtSigned a b c d e f) hPlan hStep
+            | round2 sid r2Inputs =>
+              dsimp only
+              by_cases hEq : s.musigSessions.lookupActive sid = some rr
+              · obtain ⟨rr', hLook', hNotC, _, _, _⟩ :=
+                  stepAppCommand_musigRound2_ok_consumes_randRoot profile hw ui
+                    psbt sid r2Inputs s s' (.psbtSigned a b c d e f) hPlan hStep
+                rw [hEq] at hLook'
+                injection hLook' with hRrEq
+                subst hRrEq
                 rw [hCons] at hNotC
                 contradiction
-              · exact beq_false_of_ne hEq
-            | none => simp [outcomeProducedMusigRound2For, hPlan]
-            | round1Only _ _ => simp [outcomeProducedMusigRound2For, hPlan]
-            | round1AndStandard _ _ => simp [outcomeProducedMusigRound2For, hPlan]
+              · exact decide_eq_false hEq
+            | none | round1Only _ _ | round1AndStandard _ _ => rfl
           | _ => rfl
-        | _ => rfl
-      simp [countMusigRound2Steps, hHeadFalse, ih]
+      | _ => rfl
+    dsimp only
+    rw [hHeadFalse, ih]
+    rfl
 
-/-- **Theorem 4 — MuSig2 Nonce Anti-Replay Across Arbitrary Multi-Step Traces**:
+/-- **Theorem 4 — MuSig2 Nonce Anti-Replay Across Arbitrary Multi-Step Traces (`C-02`)**:
     For ANY target profile, hardware oracle, user oracle, initial `AppPersistentState`, and
-    arbitrary command sequence `cmds = [cmd_1, ..., cmd_k]`, a MuSig2 session ID `sid` produces
-    Round-2 partial signatures in **at most one** command step (`countMusigRound2Steps sid ≤ 1`). -/
+    arbitrary command sequence `cmds = [cmd_1, ..., cmd_k]`, a MuSig2 session randomness root `rr`
+    produces Round-2 partial signatures in **at most one** command step
+    (`countMusigRound2StepsForRandRoot profile hw ui rr cmds s ≤ 1`), even when the same
+    `psbt_session_id` is subsequently re-registered in a fresh Round-1 pass! -/
 theorem musig2_nonce_anti_replay {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
-    (sid : PsbtSessionId) :
+    (rr : RandRoot) :
     ∀ (cmds : List (AppCommand Affine)) (s : AppPersistentState),
-      countMusigRound2Steps sid (runAppTrace profile hw ui cmds s).1 ≤ 1
-  | [], _ => by simp [runAppTrace, countMusigRound2Steps]
+      countMusigRound2StepsForRandRoot profile hw ui rr cmds s ≤ 1
+  | [], _ => by simp [countMusigRound2StepsForRandRoot]
   | cmd :: rest, s => by
-    unfold runAppTrace
-    cases hStep : stepAppCommand profile hw ui cmd s with
-    | error pair =>
-      rcases pair with ⟨err, s'⟩
-      simp [countMusigRound2Steps, outcomeProducedMusigRound2For,
-        musig2_nonce_anti_replay profile hw ui sid rest s']
-    | ok pair =>
-      rcases pair with ⟨resp, s'⟩
-      by_cases hProd : outcomeProducedMusigRound2For sid (.ok cmd resp) = true
-      · -- Head step produced Round-2 partial signatures for `sid` => `sid` is now consumed in `s'`!
-        have hNowCons : s'.musigSessions.isConsumed sid = true := by
-          cases cmd with
-          | signPsbt psbt =>
+    unfold countMusigRound2StepsForRandRoot
+    dsimp only
+    by_cases hUsed : stepUsedMusigRandRoot cmd (stepAppCommand profile hw ui cmd s) s rr = true
+    · have hNowCons : (stepPostState profile hw ui cmd s).musigSessions.isRandRootConsumed rr = true := by
+        cases cmd with
+        | signPsbt psbt =>
+          cases hStep : stepAppCommand profile hw ui (.signPsbt psbt) s with
+          | error _ => rw [hStep] at hUsed; contradiction
+          | ok pair =>
+            rcases pair with ⟨resp, s'⟩
+            rw [hStep] at hUsed
             cases resp with
             | psbtSigned a b c d e f =>
+              unfold stepUsedMusigRandRoot at hUsed
+              dsimp only at hUsed
               cases hPlan : psbt.musigPlan with
-              | round2 sid' r2Inputs =>
-                simp [outcomeProducedMusigRound2For, hPlan] at hProd
-                subst hProd
-                exact (stepAppCommand_musigRound2_ok_consumes profile hw ui
-                  psbt sid' r2Inputs s s' (.psbtSigned a b c d e f) hPlan hStep).2.1
-              | none => simp [outcomeProducedMusigRound2For, hPlan] at hProd
-              | round1Only _ _ => simp [outcomeProducedMusigRound2For, hPlan] at hProd
-              | round1AndStandard _ _ => simp [outcomeProducedMusigRound2For, hPlan] at hProd
-            | _ => simp [outcomeProducedMusigRound2For] at hProd
-          | _ => simp [outcomeProducedMusigRound2For] at hProd
-        have hZero := countMusigRound2Steps_zero_of_consumed profile hw ui sid rest s' hNowCons
-        simp [countMusigRound2Steps, hProd, hZero]
-      · simp only [Bool.not_eq_true] at hProd
-        simp [countMusigRound2Steps, hProd, musig2_nonce_anti_replay profile hw ui sid rest s']
+              | round2 sid r2Inputs =>
+                rw [hPlan] at hUsed
+                dsimp only at hUsed
+                have hLookEq : s.musigSessions.lookupActive sid = some rr := of_decide_eq_true hUsed
+                obtain ⟨rr', hLook', _, hNowC, _, _⟩ :=
+                  stepAppCommand_musigRound2_ok_consumes_randRoot profile hw ui
+                    psbt sid r2Inputs s s' (.psbtSigned a b c d e f) hPlan hStep
+                rw [hLookEq] at hLook'
+                injection hLook' with hRrEq
+                subst hRrEq
+                unfold stepPostState
+                rw [hStep, extractPostState_ok]
+                exact hNowC
+              | none | round1Only _ _ | round1AndStandard _ _ =>
+                rw [hPlan] at hUsed; contradiction
+            | _ => contradiction
+        | _ => contradiction
+      have hZero := countMusigRound2StepsForRandRoot_zero_of_consumed profile hw ui rr rest
+        (stepPostState profile hw ui cmd s) hNowCons
+      rw [hUsed, hZero]
+      exact Nat.le_refl 1
+    · simp only [Bool.not_eq_true] at hUsed
+      rw [hUsed]
+      simp [musig2_nonce_anti_replay profile hw ui rr rest (stepPostState profile hw ui cmd s)]
 
 /-! ## 11. Concrete Non-Vacuity Witnesses -/
 
@@ -1919,12 +2303,13 @@ def toyHardwareOracle : HardwareOracle Unit :=
     freshDleqAuxRand := spFiveByte32 }
 
 /-- **Non-Vacuity Witness 1**: `SIGN_MESSAGE` succeeds on BOLOS when `UserApprovalOracle` approves,
-    returning a 65-byte compact recoverable signature with header `32` (`31 + parity 1`). -/
+    returning a 65-byte compact recoverable signature with header `32` (`31 + parity 1`), even when
+    an alternative `headerBase` (e.g. `.p2wpkh`) is passed — matching `sign_message.c:186`! -/
 theorem nonvacuous_bolos_signMessage_ok :
     ∃ (resp : AppResponse) (s' : AppPersistentState),
       stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => true⟩
         (.signMessage [84 ||| hardenedFlag, 0 ||| hardenedFlag, 0 ||| hardenedFlag, 0, 0]
-          (ByteArray.mk #[0x48, 0x69]) .compressedP2pkh) {} = .ok (resp, s') ∧
+          (ByteArray.mk #[0x48, 0x69]) .p2wpkh) {} = .ok (resp, s') ∧
       responseEmitsSignature resp = true := by
   let hdr : Spec.SilentPayments.SizedBytes 1 := ⟨ByteArray.mk #[32], rfl⟩
   let r32 : Spec.SilentPayments.Bytes32 := ⟨oneByte32.bytes, oneByte32.size_eq⟩
@@ -1933,8 +2318,90 @@ theorem nonvacuous_bolos_signMessage_ok :
   refine ⟨.messageSigned expectedSig, {}, ?_, rfl⟩
   have hPathOk : ¬(bolosMaxBip32PathSteps < 5) := by decide
   have hSizeOk : ¬(maxSignMessageLength ≤ (ByteArray.mk #[0x48, 0x69]).size) := by decide
-  simp [stepAppCommand, toyHardwareOracle, formatCompactRecoverableSig, CompactSigHeaderBase.baseByte,
+  simp [stepAppCommand, toyHardwareOracle, formatBolosSignMessageSig,
     hPathOk, hSizeOk, expectedSig, hdr, r32, s32]
+
+/-- **Protocol Fidelity Theorem (`SIGN_MESSAGE` path length > 10)**:
+    Passing a BIP-32 path of length `11 > 10` to `SIGN_MESSAGE` returns `.wrongDataLength` (`0x6A87`). -/
+theorem bolos_signMessage_rejects_long_path_wrongDataLength :
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => true⟩
+      (.signMessage (List.replicate 11 0) (ByteArray.mk #[0x48]) .compressedP2pkh) {} =
+      .error (.wrongDataLength, {}) := rfl
+
+/-- **Protocol Fidelity Theorem (`GET_VERSION` on BOLOS vs Vanadium)**:
+    `GetVersion` returns `(2, 6, 0)` on BOLOS and `.notSupported` on Vanadium (`main.rs:26`). -/
+theorem getVersion_bolos_vs_vanadium :
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => false⟩ .getVersion {} =
+      .ok (.version { major := 2, minor := 6, patch := 0 }, {}) ∧
+    stepAppCommand (.vanadium 1) toyHardwareOracle ⟨fun _ => false⟩ .getVersion {} =
+      .error (.notSupported, {}) :=
+  ⟨rfl, rfl⟩
+
+/-- **Protocol Fidelity Theorem (`isDefaultPor` zero-HMAC cap enforcement)**:
+    Passing `por = some (SizedBytes.zeros 32)` on a default BOLOS wallet cannot bypass the
+    `maxDefaultAddressIndex = 50,000` cap in `GetAddress` (`get_wallet_address.c:124-142`). -/
+theorem bolos_getAddress_zero_por_enforces_default_index_cap :
+    let defaultWp : WalletPolicySpec := {
+      name := ""
+      version := 2
+      descriptorTemplate := "wpkh(@0/**)"
+      nKeys := 1
+      nInternalKeys := 1
+      isDefaultPolicy := true
+      isSignable := true
+      walletId := oneByte32
+      keysInfoPayloads := []
+    }
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => true⟩
+      (.getAddress false (.walletPolicy defaultWp) (some (Spec.Musig2.SizedBytes.zeros 32))
+        (.walletPolicy false 50001) none) {} =
+      .error (.incorrectData, {}) := by
+  intro defaultWp
+  have hEmpty : "".isEmpty = true := by decide
+  have hZeros : (Spec.Musig2.SizedBytes.zeros 32).isAllZeros = true := by decide
+  have hUnhard : ¬((50001 : UInt32) ≥ hardenedFlag) := by decide
+  have hOverCap : (50001 : UInt32) > maxDefaultAddressIndex := by decide
+  unfold stepAppCommand validateAccountAuth isDefaultPor
+  simp [defaultWp, hEmpty, hZeros, hUnhard, hOverCap]
+
+/-- **Protocol Fidelity Theorem (`swapAborted` terminal latch & BIP-322 forbidden in Swap)**:
+    1. Attempting BIP-322 message signing in Swap mode returns `.notSupported` (`sign_psbt.c:55-58`).
+    2. Failing a Swap check sets `s'.swapAborted = true`, and any subsequent Swap retry APDU is
+       immediately rejected with `.failSwap` (`finalize_exchange_sign_transaction(false)`). -/
+theorem swap_bip322_rejected_and_abort_latches :
+    let lock : SwapLock := {
+      amount := 90000, fees := 1000, destinationAddress := "bc1qswapdest", mode := .standard
+    }
+    let defaultWp : WalletPolicySpec := {
+      name := "", version := 2, descriptorTemplate := "wpkh(@0/**)",
+      nKeys := 1, nInternalKeys := 1, isDefaultPolicy := true, isSignable := true,
+      walletId := oneByte32, keysInfoPayloads := []
+    }
+    let bip322Req : PsbtSignRequest Unit := {
+      account := .walletPolicy defaultWp, por := none, isBip322MessageSigning := true,
+      inputsTotalAmount := 100000, outputsTotalAmount := 99000, changeOutputsTotalAmount := 9000,
+      nExternalInputs := 0, missingNonWitnessUtxo := false, nonDefaultSighash := false,
+      externalOutputs := [], standardSignTasks := [], musigPlan := .none, silentPaymentTx := none
+    }
+    let wrongFeeReq : PsbtSignRequest Unit := {
+      bip322Req with isBip322MessageSigning := false, outputsTotalAmount := 98000
+    }
+    let s0 : AppPersistentState := { swapLock := some lock }
+    let sAborted : AppPersistentState := { swapLock := some lock, swapAborted := true }
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => false⟩ (.signPsbt bip322Req) s0 =
+      .error (.notSupported, s0) ∧
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => false⟩ (.signPsbt wrongFeeReq) s0 =
+      .error (.failSwap, sAborted) ∧
+    stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => false⟩ (.getMasterFingerprint .standard) sAborted =
+      .error (.failSwap, sAborted) := by
+  intro lock defaultWp bip322Req wrongFeeReq s0 sAborted
+  refine ⟨rfl, ?_, rfl⟩
+  have hEmpty : "".isEmpty = true := by decide
+  have hSwapFail : validSwapPsbt toyHardwareOracle.musigCrypto.sha256 lock wrongFeeReq = false := by decide
+  have hAmt1 : ¬(wrongFeeReq.inputsTotalAmount < wrongFeeReq.outputsTotalAmount) := by decide
+  have hAmt2 : ¬(wrongFeeReq.outputsTotalAmount < wrongFeeReq.changeOutputsTotalAmount) := by decide
+  unfold stepAppCommand validateAccountAuth computePsbtSpOutputs authorizePsbtStep abortSwapIfFailed
+  simp [s0, sAborted, wrongFeeReq, bip322Req, defaultWp, isAllowedInSwap, hEmpty, hAmt1, hAmt2, hSwapFail]
 
 /-- **Non-Vacuity Witness 2**: Pre-locked BOLOS Swap `SignPsbt` succeeds WITHOUT user approval
     (`ui.approve = fun _ => false`) when the PSBT matches `SwapLock`, and clears `swapLock` (`swapCompleted = true`). -/
@@ -1997,29 +2464,42 @@ theorem nonvacuous_swap_signPsbt_without_ui_consent :
   have hStdOk : signStandardInputs toyHardwareOracle [stdTask] = .ok [sigOut] := rfl
   have hAmt1 : ¬(psbt.inputsTotalAmount < psbt.outputsTotalAmount) := by decide
   have hAmt2 : ¬(psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount) := by decide
-  unfold stepAppCommand
+  unfold stepAppCommand computePsbtSpOutputs authorizePsbtStep
   simp [isAllowedInSwap, psbt, hAuthOk, hAmt1, hAmt2, hSwapOk, hStdOk]
 
-/-- **Non-Vacuity Witness 3**: Multi-step trace executing MuSig2 Round 1, a read-only `GetVersion`,
-    MuSig2 Round 2, and a Round-2 replay attempt produces `.ok` for steps 1..3 and rejects step 4
-    with `.musigError .sessionAlreadyConsumed`, with `countMusigRound2Steps sid = 1`. -/
+/-- **Non-Vacuity Witness 3 (`C-02`)**: Multi-step trace on `AppPersistentState.emptyForProfile (.bolos 0)`:
+    1. MuSig2 Round 1 on `sid` (`rr1`) -> `.ok`,
+    2. Read-only `GetVersion` -> `.ok (2.6.0)`,
+    3. MuSig2 Round 2 on `sid` -> `.ok` (consumes `rr1` and pops `sid`),
+    4. Immediate Round-2 replay on `sid` -> `.error (.musigError .missingSession)`,
+    5. Fresh Round 1 on the **same** `sid` (`rr2`) followed by Round 2 on `sid` -> `.ok`! -/
 theorem nonvacuous_multistep_musig_trace :
-    ∃ (sid : PsbtSessionId) (hw : HardwareOracle Unit)
-      (cmd1 cmd3 : AppCommand Unit) (r1Resp r2Resp : AppResponse),
-      let cmds := [cmd1, .getVersion, cmd3, cmd3]
-      let (outcomes, sFinal) := runAppTrace (.bolos 0) hw ⟨fun _ => true⟩ cmds {}
+    ∃ (_sid : PsbtSessionId) (rr1 _rr2 : RandRoot) (hw1 hw2 : HardwareOracle Unit)
+      (cmd1 cmd3 : AppCommand Unit) (r1Resp r2Resp r1Resp2 r2Resp2 : AppResponse)
+      (sAfter4 sAfter6 : AppPersistentState),
+      let s0 := AppPersistentState.emptyForProfile (.bolos 0)
+      let (outcomes, sMid) := runAppTrace (.bolos 0) hw1 ⟨fun _ => true⟩ [cmd1, .getVersion, cmd3, cmd3] s0
+      let (outcomes2, sEnd) := runAppTrace (.bolos 0) hw2 ⟨fun _ => true⟩ [cmd1, cmd3] sMid
       outcomes.length = 4 ∧
-      countMusigRound2Steps sid outcomes = 1 ∧
-      sFinal.musigSessions.isConsumed sid = true ∧
+      sMid = sAfter4 ∧
+      sEnd = sAfter6 ∧
+      countMusigRound2StepsForRandRoot (.bolos 0) hw1 ⟨fun _ => true⟩ rr1 [cmd1, .getVersion, cmd3, cmd3] s0 = 1 ∧
+      sMid.musigSessions.isRandRootConsumed rr1 = true ∧
       outcomes = [
         .ok cmd1 r1Resp,
         .ok .getVersion (.version targetAppVersion),
         .ok cmd3 r2Resp,
-        .error cmd3 (.musigError .sessionAlreadyConsumed)
+        .error cmd3 (.musigError .missingSession)
+      ] ∧
+      outcomes2 = [
+        .ok cmd1 r1Resp2,
+        .ok cmd3 r2Resp2
       ] := by
   rcases nonvacuous_round1_then_round2_and_replay_rejected with
-    ⟨sid, rr, t1, t2, r1Out, s1, r2Out, s2, hR1, _hLen1, hR2, _hLen2, _hReplay⟩
-  let hwTrace : HardwareOracle Unit := { toyHardwareOracle with freshMusigRandRoot := rr }
+    ⟨sid, rr1, rr2, t1, t2, r1Out, ms1, r2Out, ms2, r1Out2, ms3, r2Out2, ms4,
+     hR1, _hLen1, hR2, _hLen2, _hReplay, hR1Again, hR2Again, _hLen4⟩
+  let hw1 : HardwareOracle Unit := { toyHardwareOracle with freshMusigRandRoot := rr1 }
+  let hw2 : HardwareOracle Unit := { toyHardwareOracle with freshMusigRandRoot := rr2 }
   let defaultWp : WalletPolicySpec := {
     name := ""
     version := 2
@@ -2052,61 +2532,95 @@ theorem nonvacuous_multistep_musig_trace :
   let cmd1 : AppCommand Unit := .signPsbt psbtR1
   let cmd3 : AppCommand Unit := .signPsbt psbtR2
   have hEmpty : "".isEmpty = true := by decide
-  have hAuth : ∀ b, validateAccountAuth (.bolos 0) hwTrace b (.walletPolicy defaultWp) none = .ok () := by
-    intro b
+  have hAuth1 : validateAccountAuth (.bolos 0) hw1 false (.walletPolicy defaultWp) none = .ok () := by
+    simp [validateAccountAuth, defaultWp, hEmpty]
+  have hAuth2 : validateAccountAuth (.bolos 0) hw2 false (.walletPolicy defaultWp) none = .ok () := by
     simp [validateAccountAuth, defaultWp, hEmpty]
   have hAmt1 : ¬((50000 : UInt64) < (49000 : UInt64)) := by decide
   have hAmt2 : ¬((49000 : UInt64) < (0 : UInt64)) := by decide
-  have hS1Active : (s1.lookupActive sid).isNone = false := by
-    by_cases hNone : (s1.lookupActive sid).isNone = true
-    · have hEqNone : s1.lookupActive sid = none := Option.isNone_iff_eq_none.mp hNone
-      have hConsumeFail : ∃ err, s1.consumeRound2 sid = .error err := by
-        unfold MusigSessionStore.lookupActive at hEqNone
-        unfold MusigSessionStore.consumeRound2
-        split at hEqNone
-        · rename_i hC
-          simp [hC]
-        · rename_i hNotC
-          simp only [hNotC, Bool.false_eq_true, ↓reduceIte]
-          cases hFind : s1.activeEntries.find? (fun p => p.1 == sid) with
-          | none => exact ⟨.missingSession, rfl⟩
-          | some pair => simp [hFind] at hEqNone
-      rcases hConsumeFail with ⟨err, hCE⟩
-      unfold executeRound2Pass at hR2
-      rw [hCE] at hR2
-      contradiction
-    · simp only [Bool.not_eq_true] at hNone
-      exact hNone
-  have hS2Cons : s2.isConsumed sid = true :=
-    (executeRound2Pass_ok_consumes nonVacuousToyCrypto .untweakedBolos s1 s2 sid [t2] r2Out hR2).2
-  have hS2None : (s2.lookupActive sid).isNone = true := by
-    unfold MusigSessionStore.lookupActive
-    simp [hS2Cons]
-  have hAuthF : validateAccountAuth (.bolos 0) hwTrace false (.walletPolicy defaultWp) none = .ok () := hAuth false
-  have hStep1 : stepAppCommand (.bolos 0) hwTrace ⟨fun _ => true⟩ cmd1 {} =
-      .ok (.psbtSigned [] r1Out [] [] [] false, { musigSessions := s1 }) := by
-    unfold stepAppCommand
-    simp only [cmd1, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
-    rw [hAuthF]
-    simp [hAmt1, hAmt2, TargetProfile.musigAggPkMode, hwTrace, toyHardwareOracle, hR1]
-  have hStep2 : stepAppCommand (.bolos 0) hwTrace ⟨fun _ => true⟩ .getVersion { musigSessions := s1 } =
-      .ok (.version targetAppVersion, { musigSessions := s1 }) := rfl
-  have hStep3 : stepAppCommand (.bolos 0) hwTrace ⟨fun _ => true⟩ cmd3 { musigSessions := s1 } =
-      .ok (.psbtSigned [] [] r2Out [] [] false, { musigSessions := s2 }) := by
-    unfold stepAppCommand
+  have hLookR1 : ms1.lookupActive sid = some rr1 := by
+    unfold executeRound1Pass at hR1
+    split at hR1
+    · contradiction
+    · split at hR1
+      · contradiction
+      · dsimp only at hR1
+        split at hR1
+        · contradiction
+        · cases hReg : (MusigSessionStore.bolosDefault.evictUnconsumed sid).registerRound1 sid rr1 with
+          | error _ => rw [hReg] at hR1; contradiction
+          | ok committed =>
+            rw [hReg] at hR1
+            injection hR1 with hPair
+            have hMs1 : committed = ms1 := congrArg Prod.snd hPair
+            subst hMs1
+            unfold MusigSessionStore.registerRound1 at hReg
+            split at hReg
+            · contradiction
+            · injection hReg with hEq
+              subst hEq
+              unfold MusigSessionStore.lookupActive MusigSessionStore.evictUnconsumed MusigSessionStore.bolosDefault trimToCapacity
+              have hRefl : sessionIdPrefixEq bolosStoredIdPrefixLen sid sid = true :=
+                sessionIdPrefixEq_refl bolosStoredIdPrefixLen sid
+              simp [bolosMaxMusigSessions, hRefl]
+  obtain ⟨rr1Found, hLookMs1, _, hMs2Cons1, hMs2Gone⟩ :=
+    executeRound2Pass_ok_consumes_randRoot nonVacuousToyCrypto .untweakedBolos ms1 ms2 sid [t2] true r2Out hR2
+  have hRr1Eq : rr1Found = rr1 := by
+    rw [hLookR1] at hLookMs1
+    injection hLookMs1 with hVal
+    exact hVal.symm
+  rw [hRr1Eq] at hLookMs1 hMs2Cons1
+  have hMs1Active : (ms1.lookupActive sid).isNone = false := by
+    rw [hLookMs1]; rfl
+  have hMs2None : (ms2.lookupActive sid).isNone = true := by
+    rw [hMs2Gone]; rfl
+  obtain ⟨rr2Found, hLookMs3, _, _hMs4Cons2, _⟩ :=
+    executeRound2Pass_ok_consumes_randRoot nonVacuousToyCrypto .untweakedBolos ms3 ms4 sid [t2] true r2Out2 hR2Again
+  have hMs3Active : (ms3.lookupActive sid).isNone = false := by
+    rw [hLookMs3]; rfl
+  let s0 := AppPersistentState.emptyForProfile (.bolos 0)
+  have hStep1 : stepAppCommand (.bolos 0) hw1 ⟨fun _ => true⟩ cmd1 s0 =
+      .ok (.psbtSigned [] r1Out [] [] [] false, { musigSessions := ms1 }) := by
+    unfold stepAppCommand computePsbtSpOutputs round1NeedsApproval
+    simp only [s0, AppPersistentState.emptyForProfile, MusigSessionStore.emptyForProfile,
+      cmd1, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
+    rw [hAuth1]
+    simp [hAmt1, hAmt2, TargetProfile.musigAggPkMode, hw1, toyHardwareOracle, hR1]
+  have hStep2 : stepAppCommand (.bolos 0) hw1 ⟨fun _ => true⟩ .getVersion { musigSessions := ms1 } =
+      .ok (.version targetAppVersion, { musigSessions := ms1 }) := rfl
+  have hStep3 : stepAppCommand (.bolos 0) hw1 ⟨fun _ => true⟩ cmd3 { musigSessions := ms1 } =
+      .ok (.psbtSigned [] [] r2Out [] [] false, { musigSessions := ms2 }) := by
+    unfold stepAppCommand computePsbtSpOutputs authorizePsbtStep
     simp only [cmd3, psbtR2, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
-    rw [hAuthF]
-    simp [hAmt1, hAmt2, hS1Active, TargetProfile.musigAggPkMode,
-      hwTrace, toyHardwareOracle, hR2, signStandardInputs]
+    rw [hAuth1]
+    simp [hAmt1, hAmt2, hMs1Active, TargetProfile.musigAggPkMode, HardwareOracle.checkSelfPubnonce,
+      hw1, toyHardwareOracle, hR2, signStandardInputs]
     rfl
-  have hStep4 : stepAppCommand (.bolos 0) hwTrace ⟨fun _ => true⟩ cmd3 { musigSessions := s2 } =
-      .error (.musigError .sessionAlreadyConsumed, { musigSessions := s2 }) := by
-    unfold stepAppCommand
+  have hStep4 : stepAppCommand (.bolos 0) hw1 ⟨fun _ => true⟩ cmd3 { musigSessions := ms2 } =
+      .error (.musigError .missingSession, { musigSessions := ms2 }) := by
+    unfold stepAppCommand computePsbtSpOutputs
     simp only [cmd3, psbtR2, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
-    rw [hAuthF]
-    simp [hAmt1, hAmt2, hS2None, hS2Cons]
-  refine ⟨sid, hwTrace, cmd1, cmd3, .psbtSigned [] r1Out [] [] [] false, .psbtSigned [] [] r2Out [] [] false, ?_⟩
-  simp [runAppTrace, hStep1, hStep2, hStep3, hStep4, countMusigRound2Steps,
-    outcomeProducedMusigRound2For, cmd1, cmd3, psbtR1, psbtR2, hS2Cons]
+    rw [hAuth1]
+    simp [hAmt1, hAmt2, hMs2None]
+  have hStep5 : stepAppCommand (.bolos 0) hw2 ⟨fun _ => true⟩ cmd1 { musigSessions := ms2 } =
+      .ok (.psbtSigned [] r1Out2 [] [] [] false, { musigSessions := ms3 }) := by
+    unfold stepAppCommand computePsbtSpOutputs round1NeedsApproval
+    simp only [cmd1, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
+    rw [hAuth2]
+    simp [hAmt1, hAmt2, TargetProfile.musigAggPkMode, hw2, toyHardwareOracle, hR1Again]
+  have hStep6 : stepAppCommand (.bolos 0) hw2 ⟨fun _ => true⟩ cmd3 { musigSessions := ms3 } =
+      .ok (.psbtSigned [] [] r2Out2 [] [] false, { musigSessions := ms4 }) := by
+    unfold stepAppCommand computePsbtSpOutputs authorizePsbtStep
+    simp only [cmd3, psbtR2, psbtR1, Option.isSome_none, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
+    rw [hAuth2]
+    simp [hAmt1, hAmt2, hMs3Active, TargetProfile.musigAggPkMode, HardwareOracle.checkSelfPubnonce,
+      hw2, toyHardwareOracle, hR2Again, signStandardInputs]
+    rfl
+  refine ⟨sid, rr1, rr2, hw1, hw2, cmd1, cmd3,
+    .psbtSigned [] r1Out [] [] [] false, .psbtSigned [] [] r2Out [] [] false,
+    .psbtSigned [] r1Out2 [] [] [] false, .psbtSigned [] [] r2Out2 [] [] false,
+    { musigSessions := ms2 }, { musigSessions := ms4 }, ?_⟩
+  simp [s0, runAppTrace, countMusigRound2StepsForRandRoot, stepUsedMusigRandRoot, stepPostState,
+    hStep1, hStep2, hStep3, hStep4, hStep5, hStep6, hLookMs1, hMs2Cons1, cmd1, cmd3, psbtR1, psbtR2]
 
 end Spec.AppStateMachine
