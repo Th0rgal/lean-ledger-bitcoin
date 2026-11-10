@@ -1,0 +1,15 @@
+.lake/
+build/
+dist/
+*.olean
+*.ilean
+*.trace
+*.ll
+*.bc
+*.o
+*.a
+*.elf
+*.bin
+__pycache__/
+.pytest_cache/
+.venv/

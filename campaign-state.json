@@ -1,0 +1,42 @@
+{
+  "campaign": "lean-ledger-bitcoin",
+  "created_at": "2026-11-10T15:55:00Z",
+  "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
+  "allowed_providers_policy": {
+    "allowed": [
+      {
+        "family": "gemini-carbon-4",
+        "backend": "antigravity",
+        "model_effort": "low",
+        "cap": "unlimited"
+      },
+      {
+        "family": "ethereumfoundation",
+        "backend": "opencode",
+        "models": [
+          "ethereumfoundation/glm-5.3",
+          "ethereumfoundation/qwen3.8-27b"
+        ],
+        "cap": "unlimited"
+      }
+    ],
+    "forbidden": "All other LLM providers are strictly prohibited per operator directive."
+  },
+  "reference_pins": {
+    "turbo_lean_base_sha": "82a940653812ad7552ae7087f2c5a3164e56e7ff",
+    "turbo_lean_branch": "feat/ledger-32bit-llvm",
+    "ledger_app_bitcoin_sha": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "ledger_vanadium_sha": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
+    "lean_toolchain": "leanprover/lean4:v4.35.0"
+  },
+  "current_wave": "wave1_bootstrap_and_spec_deduction",
+  "spec_freeze": {
+    "frozen": false,
+    "spec_sha": null,
+    "spec_cards": []
+  },
+  "ownership_ledger": {},
+  "machines": {},
+  "missions": {},
+  "quorum_log": []
+}
