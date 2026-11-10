@@ -45,6 +45,32 @@ def bip328ChaincodeBytes : List UInt8 :=
 theorem bip328ChaincodeBytes_length : bip328ChaincodeBytes.length = 32 := by
   rfl
 
+/-- Pure recursive byte-list equality (avoids `Classical.choice` in `BEq` on `List UInt8`). -/
+def byteListEq : List UInt8 → List UInt8 → Bool
+  | [], [] => true
+  | a :: as, b :: bs => decide (a = b) && byteListEq as bs
+  | _, _ => false
+
+theorem byteListEq_refl (xs : List UInt8) : byteListEq xs xs = true := by
+  induction xs with
+  | nil => rfl
+  | cons x xs ih => simp [byteListEq, ih]
+
+theorem byteListEq_symm (xs ys : List UInt8) : byteListEq xs ys = byteListEq ys xs := by
+  induction xs generalizing ys with
+  | nil =>
+    cases ys <;> rfl
+  | cons x xs ih =>
+    cases ys with
+    | nil => rfl
+    | cons y ys =>
+      simp only [byteListEq]
+      by_cases hxy : x = y
+      · subst hxy
+        simp [ih ys]
+      · have hyx : y ≠ x := fun h => hxy h.symm
+        simp [hxy, hyx]
+
 /-- Exact-size byte sequence (`ByteArray` of length `n`). -/
 structure SizedBytes (n : Nat) where
   bytes : ByteArray
@@ -88,6 +114,27 @@ abbrev PsbtSessionId := Bytes32
 abbrev RandRoot := Bytes32
 abbrev PartialSig := Bytes32
 abbrev SchnorrSig := SizedBytes 64
+
+/-- Fixed BIP-328 synthetic aggregate xpub chaincode (`SHA256("MuSig2MuSig2MuSig2")`) as `Bytes32`. -/
+def bip328Chaincode : Bytes32 :=
+  ⟨ByteArray.mk bip328ChaincodeBytes.toArray, by
+    change bip328ChaincodeBytes.toArray.size = 32
+    rw [List.size_toArray, bip328ChaincodeBytes_length]⟩
+
+/-- Compare two `PsbtSessionId`s on their first `idMatchBytes` bytes
+    (`idMatchBytes = 28` on BOLOS NVRAM slots, `idMatchBytes = 32` on Vanadium). -/
+def sessionIdPrefixEq (idMatchBytes : Nat) (a b : PsbtSessionId) : Bool :=
+  byteListEq (a.bytes.data.toList.take idMatchBytes) (b.bytes.data.toList.take idMatchBytes)
+
+theorem sessionIdPrefixEq_refl (idMatchBytes : Nat) (a : PsbtSessionId) :
+    sessionIdPrefixEq idMatchBytes a a = true := by
+  unfold sessionIdPrefixEq
+  exact byteListEq_refl _
+
+theorem sessionIdPrefixEq_symm (idMatchBytes : Nat) (a b : PsbtSessionId) :
+    sessionIdPrefixEq idMatchBytes a b = sessionIdPrefixEq idMatchBytes b a := by
+  unfold sessionIdPrefixEq
+  exact byteListEq_symm _ _
 
 /-- Concatenate two exact-size byte arrays. -/
 def SizedBytes.append {m n : Nat} (a : SizedBytes m) (b : SizedBytes n) : SizedBytes (m + n) :=
@@ -445,6 +492,81 @@ def applyTweaks {Affine : Type} (c : MusigCrypto Affine)
     let ctx' ← applyTweak c ctx tw
     applyTweaks c ctx' rest
 
+/-! ### BIP-388 / BIP-328 Per-Input MuSig2 Key & Tweak Derivation -/
+
+/-- Taproot spend path for a `musig(...)` key expression (`keypath` vs `tapscript`). -/
+inductive MusigSpendPath where
+  | keypath (taptreeHash : Option Bytes32)
+  | tapscript (leafHash : Bytes32)
+  deriving Repr, DecidableEq
+
+/-- Derived per-`(input, placeholder)` MuSig2 keys and tweak stack
+    (mirroring `compute_musig_per_input_info` in C and `compute_per_input_info` in Vanadium). -/
+structure MusigPerInputInfo where
+  sortedPubkeys : List CompressedPubKey
+  untweakedAggPk : CompressedPubKey
+  preTapTweakAggPk : CompressedPubKey
+  tweakedAggPk : CompressedPubKey
+  tweaks : List MusigTweak
+  leafHash : Option Bytes32
+  deriving Repr, DecidableEq
+
+/-- First hardened BIP-32 child index (`2^31`). -/
+def bip32HardenedBit : UInt32 := 0x80000000
+
+/-- Derive sorted participant keys, BIP-328 synthetic aggregate xpub, two unhardened BIP-32
+    derivation tweaks `(changeStep, addressIndex)`, and conditional BIP-341 `TapTweak`. -/
+def deriveMusigPerInputInfo {Affine : Type} (c : MusigCrypto Affine)
+    (participantPubkeys : List CompressedPubKey)
+    (numFirst numSecond : UInt32)
+    (isChange : Bool)
+    (addressIndex : UInt32)
+    (spend : MusigSpendPath) : Except MusigError MusigPerInputInfo := do
+  if participantPubkeys.isEmpty then
+    .error .emptyPubkeyList
+  if participantPubkeys.length > maxPubkeysPerMusig then
+    .error .tooManyPubkeys
+  let changeStep : UInt32 := if isChange then numSecond else numFirst
+  if decide (bip32HardenedBit ≤ changeStep) || decide (bip32HardenedBit ≤ addressIndex) then
+    .error .derivationFailed
+  let sorted := keySort participantPubkeys
+  let baseCtx ← keyAgg c sorted
+  let untweakedAggPk := c.compress baseCtx.q
+  let (child1Pk, child1Cc, t0) ← match c.ckdPubUnhardened untweakedAggPk bip328Chaincode changeStep with
+    | some res => .ok res
+    | none => .error .derivationFailed
+  let (child2Pk, _child2Cc, t1) ← match c.ckdPubUnhardened child1Pk child1Cc addressIndex with
+    | some res => .ok res
+    | none => .error .derivationFailed
+  let tw0 : MusigTweak := { scalar := t0, isXOnly := false }
+  let tw1 : MusigTweak := { scalar := t1, isXOnly := false }
+  match spend with
+  | .tapscript lh =>
+    .ok {
+      sortedPubkeys := sorted
+      untweakedAggPk := untweakedAggPk
+      preTapTweakAggPk := child2Pk
+      tweakedAggPk := child2Pk
+      tweaks := [tw0, tw1]
+      leafHash := some lh
+    }
+  | .keypath treeOpt =>
+    let tapPayload := match treeOpt with
+      | none => child2Pk.xOnly.bytes
+      | some h => appendBytes child2Pk.xOnly.bytes h.bytes
+    let t2 := c.taggedHash "TapTweak" tapPayload
+    let tw2 : MusigTweak := { scalar := t2, isXOnly := true }
+    let child2Point ← cpoint c child2Pk
+    let tweakedCtx ← applyTweak c { q := child2Point, gacc := 1, tacc := 0 } tw2
+    .ok {
+      sortedPubkeys := sorted
+      untweakedAggPk := untweakedAggPk
+      preTapTweakAggPk := child2Pk
+      tweakedAggPk := c.compress tweakedCtx.q
+      tweaks := [tw0, tw1, tw2]
+      leafHash := none
+    }
+
 /-! ## 5. Nonce Generation, Nonce Aggregation & Partial Signing -/
 
 /-- Secret nonce `(k_1, k_2, pk)` generated in Round 1 and recomputed in Round 2. -/
@@ -604,20 +726,32 @@ def syntheticRandIJ {Affine : Type} (c : MusigCrypto Affine)
   c.sha256 (concatBytes [randRoot.bytes, encodeU32BE inputIndex, encodeU32BE placeholderIndex])
 
 /-- BOLOS (`app-bitcoin`) transaction-independent `psbt_session_id`:
-    `H_{"PsbtSessionId"}(descriptor_template_sha256 || keys_info_merkle_root || u8(len) || musig2_session_id)`. -/
+    `H_{"PsbtSessionId"}(descriptor_template_sha256 || keys_info_merkle_root || u8(len) || musig2_session_id)`.
+    - When `musig2SessionId = none` (field absent in PSBT), `len = 0` is hashed.
+    - When `musig2SessionId = some bs` (field present in PSBT), `psbt_get_global_musig2_session_id`
+      requires `1 ≤ bs.size ≤ 32` (rejecting empty `some #[]` as well as `> 32` bytes). -/
 def computeBolosPsbtSessionId {Affine : Type} (c : MusigCrypto Affine)
     (descriptorTemplateSha256 : Bytes32) (keysInfoMerkleRoot : Bytes32)
-    (proprietarySessionId : ByteArray) : Option PsbtSessionId :=
-  if proprietarySessionId.size > maxProprietarySessionIdLen then
-    none
-  else
+    (musig2SessionId : Option ByteArray) : Option PsbtSessionId :=
+  match musig2SessionId with
+  | none =>
     let payload := concatBytes [
       descriptorTemplateSha256.bytes,
       keysInfoMerkleRoot.bytes,
-      ByteArray.mk #[UInt8.ofNat proprietarySessionId.size],
-      proprietarySessionId
+      ByteArray.mk #[0]
     ]
     some (c.taggedHash "PsbtSessionId" payload)
+  | some bs =>
+    if decide (1 ≤ bs.size) && decide (bs.size ≤ maxProprietarySessionIdLen) then
+      let payload := concatBytes [
+        descriptorTemplateSha256.bytes,
+        keysInfoMerkleRoot.bytes,
+        ByteArray.mk #[UInt8.ofNat bs.size],
+        bs
+      ]
+      some (c.taggedHash "PsbtSessionId" payload)
+    else
+      none
 
 /-- Vanadium (`apps/bitcoin`) transaction-bound `psbt_session_id`:
     `H_{"PsbtSessionId"}(wallet_id || unsigned_tx_id)`. -/
@@ -646,44 +780,56 @@ def selectNonceAggPk (mode : NonceAggPkMode)
 inductive SessionLifecycle where
   | unseen
   | active (randRoot : RandRoot)
-  | consumed
   deriving Repr, DecidableEq
 
-/-- Canonical `MusigSessionStore`: tracks active Round-1 sessions (bounded by `capacity` if set)
-    and the monotonic set of consumed session IDs. -/
+/-- Canonical `MusigSessionStore`: tracks active Round-1 sessions (bounded by `capacity` if set,
+    matching session IDs on their `idMatchBytes` prefix: `28` on BOLOS, `32` on Vanadium)
+    and the ghost monotonic history `consumedRandRoots` of single-use Round-2 nonce roots.
+    Unlike a tombstone list on `PsbtSessionId`, Round 2 deletes `sid` from `activeEntries`,
+    allowing a fresh Round 1 with a fresh `RandRoot` to re-register the same `sid`
+    (as tested in `test_sign_psbt_musig.py:509`). -/
 structure MusigSessionStore where
   activeEntries : List (PsbtSessionId × RandRoot) := []
-  consumedIds : List PsbtSessionId := []
+  consumedRandRoots : List RandRoot := []
   capacity : Option Nat := none
+  idMatchBytes : Nat := 32
   deriving Repr, DecidableEq
 
 instance : Inhabited MusigSessionStore :=
   ⟨{}⟩
 
-/-- Whether `sid` has already been consumed by a Round 2 signing invocation. -/
-def MusigSessionStore.isConsumed (store : MusigSessionStore) (sid : PsbtSessionId) : Bool :=
-  listMem sid store.consumedIds
+/-- Default BOLOS MuSig2 NVRAM session store (`capacity := some 32, idMatchBytes := 28`). -/
+def MusigSessionStore.bolosDefault : MusigSessionStore :=
+  { activeEntries := []
+    consumedRandRoots := []
+    capacity := some bolosMaxMusigSessions
+    idMatchBytes := bolosStoredIdPrefixLen }
 
-/-- Look up an unconsumed active `randRoot` for `sid`. -/
+/-- Default Vanadium MuSig2 RAM session store (`capacity := some 1, idMatchBytes := 32`). -/
+def MusigSessionStore.vanadiumDefault : MusigSessionStore :=
+  { activeEntries := []
+    consumedRandRoots := []
+    capacity := some vanadiumMaxMusigSessions
+    idMatchBytes := 32 }
+
+/-- Whether a `RandRoot` has already been consumed by a Round-2 signing invocation. -/
+def MusigSessionStore.isRandRootConsumed (store : MusigSessionStore) (rr : RandRoot) : Bool :=
+  listMem rr store.consumedRandRoots
+
+/-- Look up an active `randRoot` for `sid` (matching on `store.idMatchBytes`). -/
 def MusigSessionStore.lookupActive (store : MusigSessionStore) (sid : PsbtSessionId) :
     Option RandRoot :=
-  if store.isConsumed sid then
-    none
-  else
-    match store.activeEntries.find? (fun p => p.1 == sid) with
-    | some (_, rr) => some rr
-    | none => none
+  match store.activeEntries.find? (fun p => sessionIdPrefixEq store.idMatchBytes p.1 sid) with
+  | some (_, rr) => some rr
+  | none => none
 
 /-- Query the logical `SessionLifecycle` of `sid`. -/
 def MusigSessionStore.status (store : MusigSessionStore) (sid : PsbtSessionId) : SessionLifecycle :=
-  if store.isConsumed sid then
-    .consumed
-  else
-    match store.activeEntries.find? (fun p => p.1 == sid) with
-    | some (_, rr) => .active rr
-    | none => .unseen
+  match store.lookupActive sid with
+  | some rr => .active rr
+  | none => .unseen
 
-/-- Enforce optional slot capacity by evicting oldest active entries if needed. -/
+/-- Enforce optional slot capacity by evicting oldest active entries (FIFO) if needed. -/
 def trimToCapacity (cap : Option Nat) (entries : List (PsbtSessionId × RandRoot)) :
     List (PsbtSessionId × RandRoot) :=
   match cap with
@@ -696,40 +842,47 @@ def trimToCapacity (cap : Option Nat) (entries : List (PsbtSessionId × RandRoot
       entries.drop (entries.length - maxSlots)
 
 /-- Register/commit a Round-1 MuSig2 session `(sid, randRoot)`.
-    - Rejects if `sid` is `0x00..00` (reserved sentinel) or already `.consumed`.
-    - Replaces any stale unconsumed `.active` entry for `sid` (matching C/Rust Round-1 retry). -/
+    - Rejects if `sid` or `randRoot` is `0x00..00` (reserved sentinel) or if a faulty RNG
+      re-supplies an already-consumed `randRoot`.
+    - Overwrites any existing matching `.active` entry for `sid` (on `idMatchBytes` prefix)
+      and evicts FIFO when `activeEntries` exceeds `capacity`. -/
 def MusigSessionStore.registerRound1 (store : MusigSessionStore)
     (sid : PsbtSessionId) (randRoot : RandRoot) : Except MusigError MusigSessionStore :=
-  if sid.isAllZeros then
+  if sid.isAllZeros || randRoot.isAllZeros || store.isRandRootConsumed randRoot then
     .error .nonceGenFailed
-  else if store.isConsumed sid then
-    .error .sessionAlreadyConsumed
   else
-    let filtered := store.activeEntries.filter (fun p => p.1 != sid)
+    let filtered := store.activeEntries.filter
+      (fun p => !sessionIdPrefixEq store.idMatchBytes p.1 sid)
     let updated := trimToCapacity store.capacity (filtered ++ [(sid, randRoot)])
     .ok { store with activeEntries := updated }
 
-/-- Atomically consume `sid` for Round 2, returning `(randRoot, updatedStore)`. -/
+/-- Atomically pop `sid` from `activeEntries` for Round 2, returning `(randRoot, updatedStore)`.
+    - Fails with `.missingSession` when no active entry matches `sid` (including on any
+      immediate Round-2 replay after `sid` was already popped!).
+    - Records `randRoot` in ghost `consumedRandRoots` so no `RandRoot` can ever sign twice. -/
 def MusigSessionStore.consumeRound2 (store : MusigSessionStore) (sid : PsbtSessionId) :
     Except MusigError (RandRoot × MusigSessionStore) :=
-  if store.isConsumed sid then
-    .error .sessionAlreadyConsumed
-  else
-    match store.activeEntries.find? (fun p => p.1 == sid) with
-    | none => .error .missingSession
-    | some (_, randRoot) =>
-      let remaining := store.activeEntries.filter (fun p => p.1 != sid)
+  match store.activeEntries.find? (fun p => sessionIdPrefixEq store.idMatchBytes p.1 sid) with
+  | none => .error .missingSession
+  | some (_, randRoot) =>
+    if store.isRandRootConsumed randRoot then
+      .error .sessionAlreadyConsumed
+    else
+      let remaining := store.activeEntries.filter
+        (fun p => !sessionIdPrefixEq store.idMatchBytes p.1 sid)
       let store' : MusigSessionStore := {
         store with
         activeEntries := remaining
-        consumedIds := sid :: store.consumedIds
+        consumedRandRoots := randRoot :: store.consumedRandRoots
       }
       .ok (randRoot, store')
 
-/-- Evict an unconsumed stale session (consumed tombstones are NEVER removed). -/
+/-- Evict an unconsumed active session matching `sid` (ghost `consumedRandRoots` are preserved). -/
 def MusigSessionStore.evictUnconsumed (store : MusigSessionStore) (sid : PsbtSessionId) :
     MusigSessionStore :=
-  { store with activeEntries := store.activeEntries.filter (fun p => p.1 != sid) }
+  { store with
+    activeEntries := store.activeEntries.filter
+      (fun p => !sessionIdPrefixEq store.idMatchBytes p.1 sid) }
 
 /-! ## 8. Round 1 & Round 2 PSBT Placeholder Operations -/
 
@@ -744,6 +897,18 @@ structure MusigSignTask where
   tweaks : List MusigTweak
   leafHash : Option Bytes32
   deriving Repr, DecidableEq
+
+/-- Construct a `MusigSignTask` from derived `MusigPerInputInfo`. -/
+def MusigPerInputInfo.toSignTask (info : MusigPerInputInfo)
+    (inputIndex placeholderIndex : UInt32) (internalPk : CompressedPubKey) : MusigSignTask :=
+  { inputIndex := inputIndex
+    placeholderIndex := placeholderIndex
+    internalPk := internalPk
+    untweakedAggPk := info.untweakedAggPk
+    tweakedAggPk := info.tweakedAggPk
+    sortedPubkeys := info.sortedPubkeys
+    tweaks := info.tweaks
+    leafHash := info.leafHash }
 
 /-- Round 1 output entry (`CCMD_YIELD_MUSIG_PUBNONCE_TAG` / `MuSig2Pubnonce`). -/
 structure MusigRound1Output where
@@ -772,8 +937,10 @@ structure MusigRound2Output where
   leafHash : Option Bytes32
   deriving Repr, DecidableEq
 
-/-- Check pairwise distinctness of `(inputIndex, placeholderIndex)` across tasks in a single pass. -/
-def distinctTaskCoordinates : List (UInt32 × UInt32) → Bool
+/-- Check pairwise distinctness of `(inputIndex, placeholderIndex, internalPk)` across tasks
+    in a single pass (allowing Vanadium multi-internal-key `musig(@0, @1)` where the device
+    holds multiple participant keys for the same `(inputIndex, placeholderIndex)`). -/
+def distinctTaskCoordinates : List (UInt32 × UInt32 × CompressedPubKey) → Bool
   | [] => true
   | c :: cs => !listMem c cs && distinctTaskCoordinates cs
 
@@ -802,13 +969,11 @@ def executeRound1Pass {Affine : Type} (c : MusigCrypto Affine)
     (sid : PsbtSessionId) (freshRandRoot : RandRoot)
     (tasks : List MusigSignTask) :
     Except (MusigError × MusigSessionStore) (List MusigRound1Output × MusigSessionStore) :=
-  if sid.isAllZeros then
+  if sid.isAllZeros || freshRandRoot.isAllZeros || store.isRandRootConsumed freshRandRoot then
     .error (.nonceGenFailed, store)
-  else if store.isConsumed sid then
-    .error (.sessionAlreadyConsumed, store)
   else
     let poppedStore := store.evictUnconsumed sid
-    let coords := tasks.map (fun t => (t.inputIndex, t.placeholderIndex))
+    let coords := tasks.map (fun t => (t.inputIndex, t.placeholderIndex, t.internalPk))
     if !distinctTaskCoordinates coords then
       .error (.nonceOutOfRange, poppedStore)
     else
@@ -819,10 +984,12 @@ def executeRound1Pass {Affine : Type} (c : MusigCrypto Affine)
         | .error err => .error (err, poppedStore)
         | .ok committedStore => .ok (outputs, committedStore)
 
-/-- Produce a Round-2 `MusigRound2Output` for one task, enforcing BOLOS's self-pubnonce match
-    (`recomputedPubnonce == myPubnonce`) before invoking `partialSign`. -/
+/-- Produce a Round-2 `MusigRound2Output` for one task, optionally enforcing self-pubnonce
+    byte-equality (`checkSelfPubnonce = true` on BOLOS, configurable on Vanadium) before
+    invoking `partialSign`. -/
 def round2SignTask {Affine : Type} (c : MusigCrypto Affine)
-    (mode : NonceAggPkMode) (randRoot : RandRoot) (inp : MusigRound2TaskInput) :
+    (mode : NonceAggPkMode) (randRoot : RandRoot) (inp : MusigRound2TaskInput)
+    (checkSelfPubnonce : Bool := true) :
     Except MusigError MusigRound2Output := do
   if inp.task.sortedPubkeys.isEmpty then
     .error .emptyPubkeyList
@@ -837,7 +1004,7 @@ def round2SignTask {Affine : Type} (c : MusigCrypto Affine)
   let randIJ := syntheticRandIJ c randRoot inp.task.inputIndex inp.task.placeholderIndex
   let aggpk := selectNonceAggPk mode inp.task.untweakedAggPk inp.task.tweakedAggPk
   let (secnonce, recomputedPubnonce) ← nonceGen c randIJ inp.task.internalPk aggpk
-  if recomputedPubnonce != myPubnonce then
+  if checkSelfPubnonce && decide (recomputedPubnonce ≠ myPubnonce) then
     .error .pubnonceMismatch
   let ctx : SessionContext := {
     aggnonce := aggnonce
@@ -854,19 +1021,20 @@ def round2SignTask {Affine : Type} (c : MusigCrypto Affine)
     leafHash := inp.task.leafHash
   }
 
-/-- Execute a complete Round-2 PSBT pass for `sid`, atomically consuming `sid` before signing. -/
+/-- Execute a complete Round-2 PSBT pass for `sid`, atomically popping `sid` before signing. -/
 def executeRound2Pass {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store : MusigSessionStore)
-    (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput) :
+    (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput)
+    (checkSelfPubnonce : Bool := true) :
     Except (MusigError × MusigSessionStore) (List MusigRound2Output × MusigSessionStore) :=
   match store.consumeRound2 sid with
   | .error err => .error (err, store)
   | .ok (randRoot, consumedStore) =>
-    let coords := inputs.map (fun inp => (inp.task.inputIndex, inp.task.placeholderIndex))
+    let coords := inputs.map (fun inp => (inp.task.inputIndex, inp.task.placeholderIndex, inp.task.internalPk))
     if !distinctTaskCoordinates coords then
       .error (.nonceOutOfRange, consumedStore)
     else
-      match inputs.mapM (round2SignTask c mode randRoot) with
+      match inputs.mapM (fun inp => round2SignTask c mode randRoot inp checkSelfPubnonce) with
       | .error err => .error (err, consumedStore)
       | .ok sigs => .ok (sigs, consumedStore)
 
@@ -879,171 +1047,206 @@ inductive MusigOp where
   | evict (sid : PsbtSessionId)
   deriving Repr, DecidableEq
 
-/-- Observable event emitted by one `MusigOp` step. -/
+/-- Observable event emitted by one `MusigOp` step.
+    `.round2Ok` records the consumed `RandRoot` alongside `sid` and emitted signatures so
+    single-use nonce linearity is directly observable per generated `RandRoot`. -/
 inductive MusigStepEvent where
   | round1Ok (sid : PsbtSessionId) (nonces : List MusigRound1Output)
-  | round2Ok (sid : PsbtSessionId) (sigs : List MusigRound2Output)
+  | round2Ok (sid : PsbtSessionId) (randRoot : RandRoot) (sigs : List MusigRound2Output)
   | evicted (sid : PsbtSessionId)
   | failed (sid : PsbtSessionId) (err : MusigError)
   deriving Repr, DecidableEq
 
 /-- Execute a single `MusigOp`, always returning `(event, postStore)`. -/
 def stepMusigOp {Affine : Type} (c : MusigCrypto Affine) (mode : NonceAggPkMode)
-    (store : MusigSessionStore) (op : MusigOp) : MusigStepEvent × MusigSessionStore :=
+    (store : MusigSessionStore) (op : MusigOp) (checkSelfPubnonce : Bool := true) :
+    MusigStepEvent × MusigSessionStore :=
   match op with
   | .round1 sid freshRand tasks =>
     match executeRound1Pass c mode store sid freshRand tasks with
     | .ok (nonces, store') => (.round1Ok sid nonces, store')
     | .error (err, store') => (.failed sid err, store')
   | .round2 sid inputs =>
-    match executeRound2Pass c mode store sid inputs with
-    | .ok (sigs, store') => (.round2Ok sid sigs, store')
-    | .error (err, store') => (.failed sid err, store')
+    match store.lookupActive sid, executeRound2Pass c mode store sid inputs checkSelfPubnonce with
+    | some rr, .ok (sigs, store') => (.round2Ok sid rr sigs, store')
+    | none, .ok (_, store') => (.failed sid .missingSession, store')
+    | _, .error (err, store') => (.failed sid err, store')
   | .evict sid =>
     (.evicted sid, store.evictUnconsumed sid)
 
 /-- Execute a multi-step sequence of `MusigOp`s, collecting all emitted events. -/
 def runMusigTrace {Affine : Type} (c : MusigCrypto Affine) (mode : NonceAggPkMode)
-    (store : MusigSessionStore) : List MusigOp → List MusigStepEvent × MusigSessionStore
+    (store : MusigSessionStore) (ops : List MusigOp) (checkSelfPubnonce : Bool := true) :
+    List MusigStepEvent × MusigSessionStore :=
+  match ops with
   | [] => ([], store)
-  | op :: ops =>
-    let (ev, store') := stepMusigOp c mode store op
-    let (restEvs, finalStore) := runMusigTrace c mode store' ops
+  | op :: restOps =>
+    let (ev, store') := stepMusigOp c mode store op checkSelfPubnonce
+    let (restEvs, finalStore) := runMusigTrace c mode store' restOps checkSelfPubnonce
     (ev :: restEvs, finalStore)
+
+/-- Count how many times a given `RandRoot` successfully produced Round-2 partial signatures
+    in an event trace. -/
+def countRound2SuccessForRandRoot (rr : RandRoot) : List MusigStepEvent → Nat
+  | [] => 0
+  | .round2Ok _ rr' _ :: rest =>
+    (if decide (rr' = rr) then 1 else 0) + countRound2SuccessForRandRoot rr rest
+  | _ :: rest => countRound2SuccessForRandRoot rr rest
 
 /-- Count how many times `sid` successfully produced Round-2 partial signatures in an event trace. -/
 def countRound2SuccessFor (sid : PsbtSessionId) : List MusigStepEvent → Nat
   | [] => 0
-  | .round2Ok sid' _ :: rest =>
-    (if sid' == sid then 1 else 0) + countRound2SuccessFor sid rest
+  | .round2Ok sid' _ _ :: rest =>
+    (if decide (sid' = sid) then 1 else 0) + countRound2SuccessFor sid rest
   | _ :: rest => countRound2SuccessFor sid rest
 
-/-! ### Key Security Theorems: Monotonicity & Single-Use Nonce Linearity -/
+/-! ### Key Security Theorems: Monotonicity, Replay Rejection & Single-Use Nonce Linearity -/
 
-theorem isConsumed_evictUnconsumed (store : MusigSessionStore) (sid target : PsbtSessionId) :
-    (store.evictUnconsumed sid).isConsumed target = store.isConsumed target := by
+theorem find_none_of_filter_false {α : Type} (p : α → Bool) :
+    ∀ (xs : List α), (xs.filter (fun x => !p x)).find? p = none
+  | [] => rfl
+  | x :: xs => by
+    simp only [List.filter]
+    cases hp : p x with
+    | true =>
+      simp [find_none_of_filter_false p xs]
+    | false =>
+      simp [hp, find_none_of_filter_false p xs]
+
+theorem isRandRootConsumed_evictUnconsumed (store : MusigSessionStore)
+    (sid : PsbtSessionId) (target : RandRoot) :
+    (store.evictUnconsumed sid).isRandRootConsumed target = store.isRandRootConsumed target := by
   rfl
 
-theorem isConsumed_registerRound1 {store store' : MusigSessionStore}
+theorem isRandRootConsumed_registerRound1 {store store' : MusigSessionStore}
     {sid : PsbtSessionId} {rr : RandRoot}
-    (h : store.registerRound1 sid rr = .ok store') (target : PsbtSessionId) :
-    store'.isConsumed target = store.isConsumed target := by
+    (h : store.registerRound1 sid rr = .ok store') (target : RandRoot) :
+    store'.isRandRootConsumed target = store.isRandRootConsumed target := by
   unfold MusigSessionStore.registerRound1 at h
-  by_cases hZ : sid.isAllZeros = true
-  · simp [hZ] at h
-  · simp only [hZ, Bool.false_eq_true, ↓reduceIte] at h
-    by_cases hC : store.isConsumed sid = true
-    · simp [hC] at h
-    · simp only [hC, Bool.false_eq_true, ↓reduceIte] at h
-      injection h with hEq
-      rw [← hEq]
-      rfl
+  by_cases hBad : (sid.isAllZeros || rr.isAllZeros || store.isRandRootConsumed rr) = true
+  · simp [hBad] at h
+  · simp only [hBad, Bool.false_eq_true, ↓reduceIte] at h
+    injection h with hEq
+    rw [← hEq]
+    rfl
 
-theorem consumeRound2_marks_consumed {store store' : MusigSessionStore}
+theorem consumeRound2_marks_randRoot_consumed {store store' : MusigSessionStore}
     {sid : PsbtSessionId} {rr : RandRoot}
     (h : store.consumeRound2 sid = .ok (rr, store')) :
-    store'.isConsumed sid = true := by
+    store.lookupActive sid = some rr ∧
+    store.isRandRootConsumed rr = false ∧
+    store'.isRandRootConsumed rr = true ∧
+    store'.lookupActive sid = none := by
   unfold MusigSessionStore.consumeRound2 at h
-  by_cases hC : store.isConsumed sid = true
-  · simp [hC] at h
-  · simp only [hC, Bool.false_eq_true, ↓reduceIte] at h
-    cases hFind : store.activeEntries.find? (fun p => p.1 == sid) with
-    | none => simp [hFind] at h
-    | some pair =>
-      rcases pair with ⟨_, rr'⟩
-      simp only [hFind] at h
+  unfold MusigSessionStore.lookupActive
+  cases hFind : store.activeEntries.find? (fun p => sessionIdPrefixEq store.idMatchBytes p.1 sid) with
+  | none => simp [hFind] at h
+  | some pair =>
+    rcases pair with ⟨matchedSid, foundRr⟩
+    simp only [hFind] at h
+    cases hCons : store.isRandRootConsumed foundRr with
+    | true => simp [hCons] at h
+    | false =>
+      simp only [hCons, Bool.false_eq_true, ↓reduceIte] at h
       injection h with hPair
-      cases hPair
-      simp [MusigSessionStore.isConsumed, listMem]
+      have hRr : foundRr = rr := congrArg Prod.fst hPair
+      have hSt : { store with
+          activeEntries := store.activeEntries.filter (fun p => !sessionIdPrefixEq store.idMatchBytes p.1 sid)
+          consumedRandRoots := foundRr :: store.consumedRandRoots } = store' := congrArg Prod.snd hPair
+      subst hRr
+      subst hSt
+      refine ⟨rfl, hCons, ?_, ?_⟩
+      · simp [MusigSessionStore.isRandRootConsumed, listMem]
+      · have hNone := find_none_of_filter_false
+          (fun p : PsbtSessionId × RandRoot => sessionIdPrefixEq store.idMatchBytes p.1 sid)
+          store.activeEntries
+        dsimp only
+        rw [hNone]
 
-theorem consumeRound2_preserves_consumed {store store' : MusigSessionStore}
-    {sid target : PsbtSessionId} {rr : RandRoot}
+theorem consumeRound2_preserves_randRoot_consumed {store store' : MusigSessionStore}
+    {sid : PsbtSessionId} {rr target : RandRoot}
     (h : store.consumeRound2 sid = .ok (rr, store'))
-    (hCons : store.isConsumed target = true) :
-    store'.isConsumed target = true := by
+    (hCons : store.isRandRootConsumed target = true) :
+    store'.isRandRootConsumed target = true := by
   unfold MusigSessionStore.consumeRound2 at h
-  by_cases hC : store.isConsumed sid = true
-  · simp [hC] at h
-  · simp only [hC, Bool.false_eq_true, ↓reduceIte] at h
-    cases hFind : store.activeEntries.find? (fun p => p.1 == sid) with
-    | none => simp [hFind] at h
-    | some pair =>
-      rcases pair with ⟨_, rr'⟩
-      simp only [hFind] at h
+  cases hFind : store.activeEntries.find? (fun p => sessionIdPrefixEq store.idMatchBytes p.1 sid) with
+  | none => simp [hFind] at h
+  | some pair =>
+    rcases pair with ⟨_, foundRr⟩
+    simp only [hFind] at h
+    cases hAlready : store.isRandRootConsumed foundRr with
+    | true => simp [hAlready] at h
+    | false =>
+      simp only [hAlready, Bool.false_eq_true, ↓reduceIte] at h
       injection h with hPair
-      cases hPair
-      simp only [MusigSessionStore.isConsumed, listMem, Bool.or_eq_true]
+      have hSt : { store with
+          activeEntries := store.activeEntries.filter (fun p => !sessionIdPrefixEq store.idMatchBytes p.1 sid)
+          consumedRandRoots := foundRr :: store.consumedRandRoots } = store' := congrArg Prod.snd hPair
+      subst hSt
+      simp only [MusigSessionStore.isRandRootConsumed, listMem, Bool.or_eq_true]
       exact Or.inr hCons
 
-theorem consumeRound2_rejects_when_consumed (store : MusigSessionStore) (sid : PsbtSessionId)
-    (hCons : store.isConsumed sid = true) :
-    store.consumeRound2 sid = .error .sessionAlreadyConsumed := by
-  unfold MusigSessionStore.consumeRound2
-  simp [hCons]
-
-theorem executeRound1Pass_preserves_consumed {Affine : Type} (c : MusigCrypto Affine)
+theorem executeRound1Pass_preserves_randRoot_consumed {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store : MusigSessionStore)
-    (sid target : PsbtSessionId) (freshRand : RandRoot) (tasks : List MusigSignTask)
-    (hCons : store.isConsumed target = true) :
+    (sid : PsbtSessionId) (freshRand target : RandRoot) (tasks : List MusigSignTask)
+    (hCons : store.isRandRootConsumed target = true) :
     (match executeRound1Pass c mode store sid freshRand tasks with
      | .ok (_, s') => s'
-     | .error (_, s') => s').isConsumed target = true := by
+     | .error (_, s') => s').isRandRootConsumed target = true := by
   dsimp only [executeRound1Pass]
-  by_cases hZero : sid.isAllZeros = true
-  · simp [hZero, hCons]
-  · simp only [Bool.not_eq_true] at hZero
-    simp only [hZero, Bool.false_eq_true, ↓reduceIte]
-    by_cases hAlready : store.isConsumed sid = true
-    · simp [hAlready, hCons]
-    · simp only [Bool.not_eq_true] at hAlready
-      simp only [hAlready, Bool.false_eq_true, ↓reduceIte]
-      by_cases hDist : (!distinctTaskCoordinates (List.map (fun t => (t.inputIndex, t.placeholderIndex)) tasks)) = true
-      · simp [hDist, isConsumed_evictUnconsumed, hCons]
-      · simp only [Bool.not_eq_true] at hDist
-        simp only [hDist, Bool.false_eq_true, ↓reduceIte]
-        cases List.mapM (round1ProduceTaskNonce c mode freshRand) tasks with
+  by_cases hBad : (sid.isAllZeros || freshRand.isAllZeros || store.isRandRootConsumed freshRand) = true
+  · simp [hBad, hCons]
+  · simp only [Bool.not_eq_true] at hBad
+    simp only [hBad, Bool.false_eq_true, ↓reduceIte]
+    by_cases hDist : (!distinctTaskCoordinates (List.map (fun t => (t.inputIndex, t.placeholderIndex, t.internalPk)) tasks)) = true
+    · simp [hDist, isRandRootConsumed_evictUnconsumed, hCons]
+    · simp only [Bool.not_eq_true] at hDist
+      simp only [hDist, Bool.false_eq_true, ↓reduceIte]
+      cases List.mapM (round1ProduceTaskNonce c mode freshRand) tasks with
+      | error _ =>
+        simp [isRandRootConsumed_evictUnconsumed, hCons]
+      | ok _ =>
+        cases hReg : (store.evictUnconsumed sid).registerRound1 sid freshRand with
         | error _ =>
-          simp [isConsumed_evictUnconsumed, hCons]
-        | ok _ =>
-          cases hReg : (store.evictUnconsumed sid).registerRound1 sid freshRand with
-          | error _ =>
-            simp [isConsumed_evictUnconsumed, hCons]
-          | ok committed =>
-            simp only [isConsumed_registerRound1 hReg, isConsumed_evictUnconsumed, hCons]
+          simp [isRandRootConsumed_evictUnconsumed, hCons]
+        | ok committed =>
+          simp only [isRandRootConsumed_registerRound1 hReg, isRandRootConsumed_evictUnconsumed, hCons]
 
-theorem executeRound2Pass_preserves_consumed {Affine : Type} (c : MusigCrypto Affine)
+theorem executeRound2Pass_preserves_randRoot_consumed {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store : MusigSessionStore)
-    (sid target : PsbtSessionId) (inputs : List MusigRound2TaskInput)
-    (hCons : store.isConsumed target = true) :
-    (match executeRound2Pass c mode store sid inputs with
+    (sid : PsbtSessionId) (target : RandRoot) (inputs : List MusigRound2TaskInput)
+    (checkSelfPubnonce : Bool)
+    (hCons : store.isRandRootConsumed target = true) :
+    (match executeRound2Pass c mode store sid inputs checkSelfPubnonce with
      | .ok (_, s') => s'
-     | .error (_, s') => s').isConsumed target = true := by
+     | .error (_, s') => s').isRandRootConsumed target = true := by
   dsimp only [executeRound2Pass]
   cases hPop : store.consumeRound2 sid with
   | error _ =>
     exact hCons
   | ok pair =>
     rcases pair with ⟨rr, consumedStore⟩
-    have hPres : consumedStore.isConsumed target = true :=
-      consumeRound2_preserves_consumed hPop hCons
-    by_cases hDist : (!distinctTaskCoordinates (List.map (fun inp => (inp.task.inputIndex, inp.task.placeholderIndex)) inputs)) = true
+    have hPres : consumedStore.isRandRootConsumed target = true :=
+      consumeRound2_preserves_randRoot_consumed hPop hCons
+    by_cases hDist : (!distinctTaskCoordinates (List.map (fun inp => (inp.task.inputIndex, inp.task.placeholderIndex, inp.task.internalPk)) inputs)) = true
     · simp [hDist, hPres]
     · simp only [Bool.not_eq_true] at hDist
       simp only [hDist, Bool.false_eq_true, ↓reduceIte]
-      cases List.mapM (round2SignTask c mode rr) inputs <;> exact hPres
+      cases List.mapM (fun inp => round2SignTask c mode rr inp checkSelfPubnonce) inputs <;> exact hPres
 
-/-- **Irreversibility of Consumed Nonce Sessions**:
+/-- **Irreversibility of Consumed Nonce Roots**:
     No single `stepMusigOp` transition (whether succeeding or failing!) can ever clear or
-    resurrect a consumed `PsbtSessionId`. -/
-theorem stepMusigOp_preserves_consumed {Affine : Type} (c : MusigCrypto Affine)
-    (mode : NonceAggPkMode) (store : MusigSessionStore) (op : MusigOp) (target : PsbtSessionId)
-    (hCons : store.isConsumed target = true) :
-    (stepMusigOp c mode store op).2.isConsumed target = true := by
+    resurrect a consumed `RandRoot`. -/
+theorem stepMusigOp_preserves_randRoot_consumed {Affine : Type} (c : MusigCrypto Affine)
+    (mode : NonceAggPkMode) (store : MusigSessionStore) (op : MusigOp) (target : RandRoot)
+    (checkSelfPubnonce : Bool := true)
+    (hCons : store.isRandRootConsumed target = true) :
+    (stepMusigOp c mode store op checkSelfPubnonce).2.isRandRootConsumed target = true := by
   cases op with
   | evict sid =>
     exact hCons
   | round1 sid freshRand tasks =>
-    have h := executeRound1Pass_preserves_consumed c mode store sid target freshRand tasks hCons
+    have h := executeRound1Pass_preserves_randRoot_consumed c mode store sid freshRand target tasks hCons
     simp only [stepMusigOp]
     cases hEx : executeRound1Pass c mode store sid freshRand tasks with
     | ok p =>
@@ -1055,23 +1258,40 @@ theorem stepMusigOp_preserves_consumed {Affine : Type} (c : MusigCrypto Affine)
       rw [hEx] at h
       exact h
   | round2 sid inputs =>
-    have h := executeRound2Pass_preserves_consumed c mode store sid target inputs hCons
+    have h := executeRound2Pass_preserves_randRoot_consumed c mode store sid target inputs checkSelfPubnonce hCons
     simp only [stepMusigOp]
-    cases hEx : executeRound2Pass c mode store sid inputs with
-    | ok p =>
-      rcases p with ⟨sigs, store'⟩
-      rw [hEx] at h
-      exact h
-    | error p =>
-      rcases p with ⟨err, store'⟩
-      rw [hEx] at h
-      exact h
+    cases hLook : store.lookupActive sid with
+    | none =>
+      cases hEx : executeRound2Pass c mode store sid inputs checkSelfPubnonce with
+      | ok p =>
+        rcases p with ⟨sigs, store'⟩
+        rw [hEx] at h
+        exact h
+      | error p =>
+        rcases p with ⟨err, store'⟩
+        rw [hEx] at h
+        exact h
+    | some rr =>
+      cases hEx : executeRound2Pass c mode store sid inputs checkSelfPubnonce with
+      | ok p =>
+        rcases p with ⟨sigs, store'⟩
+        rw [hEx] at h
+        exact h
+      | error p =>
+        rcases p with ⟨err, store'⟩
+        rw [hEx] at h
+        exact h
 
-theorem executeRound2Pass_ok_consumes {Affine : Type} (c : MusigCrypto Affine)
+theorem executeRound2Pass_ok_consumes_randRoot {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store store' : MusigSessionStore)
-    (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput) (sigs : List MusigRound2Output)
-    (hOk : executeRound2Pass c mode store sid inputs = .ok (sigs, store')) :
-    store.isConsumed sid = false ∧ store'.isConsumed sid = true := by
+    (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput)
+    (checkSelfPubnonce : Bool) (sigs : List MusigRound2Output)
+    (hOk : executeRound2Pass c mode store sid inputs checkSelfPubnonce = .ok (sigs, store')) :
+    ∃ rr : RandRoot,
+      store.lookupActive sid = some rr ∧
+      store.isRandRootConsumed rr = false ∧
+      store'.isRandRootConsumed rr = true ∧
+      store'.lookupActive sid = none := by
   unfold executeRound2Pass at hOk
   cases hPop : store.consumeRound2 sid with
   | error err =>
@@ -1080,17 +1300,11 @@ theorem executeRound2Pass_ok_consumes {Affine : Type} (c : MusigCrypto Affine)
   | ok pair =>
     rcases pair with ⟨rr, consumedStore⟩
     rw [hPop] at hOk
-    have hNotCons : store.isConsumed sid = false := by
-      cases hC : store.isConsumed sid
-      · rfl
-      · rw [consumeRound2_rejects_when_consumed store sid hC] at hPop
-        contradiction
-    have hNowCons : consumedStore.isConsumed sid = true :=
-      consumeRound2_marks_consumed hPop
+    have ⟨hLook, hNotCons, hNowCons, hGone⟩ := consumeRound2_marks_randRoot_consumed hPop
     simp only at hOk
     split at hOk
     · contradiction
-    · cases hMap : List.mapM (round2SignTask c mode rr) inputs with
+    · cases hMap : List.mapM (fun inp => round2SignTask c mode rr inp checkSelfPubnonce) inputs with
       | error err =>
         rw [hMap] at hOk
         contradiction
@@ -1099,15 +1313,35 @@ theorem executeRound2Pass_ok_consumes {Affine : Type} (c : MusigCrypto Affine)
         injection hOk with hPair
         have hSt : consumedStore = store' := congrArg Prod.snd hPair
         rw [← hSt]
-        exact ⟨hNotCons, hNowCons⟩
+        exact ⟨rr, hLook, hNotCons, hNowCons, hGone⟩
 
-/-- If `stepMusigOp` emits `.round2Ok sid sigs`, then `sid` was NOT consumed beforehand and IS
+/-- **Immediate Round-2 Replay Fails with `.missingSession`**:
+    Whenever Round 2 succeeds on `sid` producing `store'`, any immediate Round-2 replay on `sid`
+    without an intervening Round 1 fails with `.missingSession`. -/
+theorem round2_replay_without_round1_missingSession {Affine : Type} (c : MusigCrypto Affine)
+    (mode : NonceAggPkMode) (store store' : MusigSessionStore)
+    (sid : PsbtSessionId) (inputs replayInputs : List MusigRound2TaskInput)
+    (checkSelfPubnonce replayCheck : Bool) (sigs : List MusigRound2Output)
+    (hOk : executeRound2Pass c mode store sid inputs checkSelfPubnonce = .ok (sigs, store')) :
+    executeRound2Pass c mode store' sid replayInputs replayCheck = .error (.missingSession, store') := by
+  obtain ⟨_rr, _hLook, _hNotCons, _hNowCons, hGone⟩ :=
+    executeRound2Pass_ok_consumes_randRoot c mode store store' sid inputs checkSelfPubnonce sigs hOk
+  unfold executeRound2Pass MusigSessionStore.consumeRound2
+  unfold MusigSessionStore.lookupActive at hGone
+  cases hFind : store'.activeEntries.find? (fun p => sessionIdPrefixEq store'.idMatchBytes p.1 sid) with
+  | none => rfl
+  | some pair =>
+    rw [hFind] at hGone
+    contradiction
+
+/-- If `stepMusigOp` emits `.round2Ok sid rr sigs`, then `rr` was NOT consumed beforehand and IS
     consumed in the post-state. -/
-theorem stepMusigOp_round2Ok_consumes {Affine : Type} (c : MusigCrypto Affine)
+theorem stepMusigOp_round2Ok_consumes_randRoot {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store store' : MusigSessionStore) (op : MusigOp)
-    (sid : PsbtSessionId) (sigs : List MusigRound2Output)
-    (hStep : stepMusigOp c mode store op = (.round2Ok sid sigs, store')) :
-    store.isConsumed sid = false ∧ store'.isConsumed sid = true := by
+    (checkSelfPubnonce : Bool)
+    (sid : PsbtSessionId) (rr : RandRoot) (sigs : List MusigRound2Output)
+    (hStep : stepMusigOp c mode store op checkSelfPubnonce = (.round2Ok sid rr sigs, store')) :
+    store.isRandRootConsumed rr = false ∧ store'.isRandRootConsumed rr = true := by
   cases op with
   | evict s =>
     simp [stepMusigOp] at hStep
@@ -1126,89 +1360,125 @@ theorem stepMusigOp_round2Ok_consumes {Affine : Type} (c : MusigCrypto Affine)
       contradiction
   | round2 s inputs =>
     simp only [stepMusigOp] at hStep
-    cases hEx : executeRound2Pass c mode store s inputs with
-    | error p =>
-      rcases p with ⟨err, st'⟩
-      rw [hEx] at hStep
-      injection hStep with hEv _
-      contradiction
-    | ok p =>
-      rcases p with ⟨outs, st'⟩
-      rw [hEx] at hStep
-      injection hStep with hEv hSt
-      injection hEv with hs hSigs
-      subst hs
-      subst hSt
-      exact executeRound2Pass_ok_consumes c mode store st' s inputs outs hEx
+    cases hLook : store.lookupActive s with
+    | none =>
+      rw [hLook] at hStep
+      cases hEx : executeRound2Pass c mode store s inputs checkSelfPubnonce with
+      | ok p =>
+        rcases p with ⟨outs, st'⟩
+        rw [hEx] at hStep
+        injection hStep with hEv _
+        contradiction
+      | error p =>
+        rcases p with ⟨err, st'⟩
+        rw [hEx] at hStep
+        injection hStep with hEv _
+        contradiction
+    | some activeRr =>
+      rw [hLook] at hStep
+      cases hEx : executeRound2Pass c mode store s inputs checkSelfPubnonce with
+      | error p =>
+        rcases p with ⟨err, st'⟩
+        rw [hEx] at hStep
+        injection hStep with hEv _
+        contradiction
+      | ok p =>
+        rcases p with ⟨outs, st'⟩
+        rw [hEx] at hStep
+        injection hStep with hEv hSt
+        injection hEv with hs hRr hSigs
+        subst hs
+        subst hRr
+        subst hSt
+        obtain ⟨rr2, hLook2, hNotCons, hNowCons, _⟩ :=
+          executeRound2Pass_ok_consumes_randRoot c mode store st' s inputs checkSelfPubnonce outs hEx
+        rw [hLook] at hLook2
+        injection hLook2 with hEqRr
+        subst hEqRr
+        exact ⟨hNotCons, hNowCons⟩
 
-/-- Once `sid` is consumed in `store`, no future trace `ops` can ever emit `.round2Ok sid _`. -/
-theorem countRound2SuccessFor_zero_of_consumed {Affine : Type} (c : MusigCrypto Affine)
-    (mode : NonceAggPkMode) (sid : PsbtSessionId) :
+/-- Once `rr` is consumed in `store`, no future trace `ops` can ever emit `.round2Ok _ rr _`. -/
+theorem countRound2SuccessForRandRoot_zero_of_consumed {Affine : Type} (c : MusigCrypto Affine)
+    (mode : NonceAggPkMode) (rr : RandRoot) (checkSelfPubnonce : Bool) :
     ∀ (ops : List MusigOp) (store : MusigSessionStore),
-      store.isConsumed sid = true →
-      countRound2SuccessFor sid (runMusigTrace c mode store ops).1 = 0
+      store.isRandRootConsumed rr = true →
+      countRound2SuccessForRandRoot rr (runMusigTrace c mode store ops checkSelfPubnonce).1 = 0
   | [], _, _ => rfl
   | op :: ops, store, hCons => by
     simp only [runMusigTrace]
-    have hNextCons : (stepMusigOp c mode store op).2.isConsumed sid = true :=
-      stepMusigOp_preserves_consumed c mode store op sid hCons
-    have ih := countRound2SuccessFor_zero_of_consumed c mode sid ops (stepMusigOp c mode store op).2 hNextCons
-    cases hEv : (stepMusigOp c mode store op).1 with
-    | round1Ok s ns => simp [countRound2SuccessFor, ih]
-    | evicted s => simp [countRound2SuccessFor, ih]
-    | failed s e => simp [countRound2SuccessFor, ih]
-    | round2Ok s sigs =>
-      simp only [countRound2SuccessFor]
-      by_cases hEq : s = sid
+    have hNextCons : (stepMusigOp c mode store op checkSelfPubnonce).2.isRandRootConsumed rr = true :=
+      stepMusigOp_preserves_randRoot_consumed c mode store op rr checkSelfPubnonce hCons
+    have ih := countRound2SuccessForRandRoot_zero_of_consumed c mode rr checkSelfPubnonce ops
+      (stepMusigOp c mode store op checkSelfPubnonce).2 hNextCons
+    cases hEv : (stepMusigOp c mode store op checkSelfPubnonce).1 with
+    | round1Ok s ns => simp [countRound2SuccessForRandRoot, ih]
+    | evicted s => simp [countRound2SuccessForRandRoot, ih]
+    | failed s e => simp [countRound2SuccessForRandRoot, ih]
+    | round2Ok s rr' sigs =>
+      simp only [countRound2SuccessForRandRoot]
+      by_cases hEq : rr' = rr
       · subst hEq
-        have hStepEq : stepMusigOp c mode store op = (.round2Ok s sigs, (stepMusigOp c mode store op).2) :=
+        have hStepEq : stepMusigOp c mode store op checkSelfPubnonce =
+            (.round2Ok s rr' sigs, (stepMusigOp c mode store op checkSelfPubnonce).2) :=
           Prod.ext hEv rfl
-        have ⟨hNotCons, _⟩ := stepMusigOp_round2Ok_consumes c mode store _ op s sigs hStepEq
+        have ⟨hNotCons, _⟩ :=
+          stepMusigOp_round2Ok_consumes_randRoot c mode store _ op checkSelfPubnonce s rr' sigs hStepEq
         rw [hCons] at hNotCons
         contradiction
-      · have hBeq : (s == sid) = false := beq_false_of_ne hEq
-        simp [hBeq, ih]
+      · simp [hEq, ih]
 
-/-- **Critical Security Theorem — MuSig2 Nonce Single-Use Linearity**:
+/-- **Critical Security Theorem — MuSig2 Nonce Single-Use Linearity per `RandRoot`**:
     Across ANY arbitrary sequence of Round-1, Round-2, and eviction operations `ops` from ANY
-    initial `MusigSessionStore`, a `PsbtSessionId` produces Round-2 partial signatures
-    **at most once** (`countRound2SuccessFor sid events ≤ 1`). -/
+    initial `MusigSessionStore` (even if a faulty RNG re-supplies a duplicate `RandRoot` or a
+    client re-uses the same `PsbtSessionId`), each `RandRoot` produces Round-2 partial signatures
+    **at most once** (`countRound2SuccessForRandRoot rr events ≤ 1`). -/
 theorem musig_nonce_single_use_linearity {Affine : Type} (c : MusigCrypto Affine)
-    (mode : NonceAggPkMode) (sid : PsbtSessionId) :
+    (mode : NonceAggPkMode) (rr : RandRoot) (checkSelfPubnonce : Bool := true) :
     ∀ (ops : List MusigOp) (store : MusigSessionStore),
-      countRound2SuccessFor sid (runMusigTrace c mode store ops).1 ≤ 1
-  | [], _ => by simp [runMusigTrace, countRound2SuccessFor]
+      countRound2SuccessForRandRoot rr (runMusigTrace c mode store ops checkSelfPubnonce).1 ≤ 1
+  | [], _ => by simp [runMusigTrace, countRound2SuccessForRandRoot]
   | op :: ops, store => by
     simp only [runMusigTrace]
-    cases hEv : (stepMusigOp c mode store op).1 with
+    cases hEv : (stepMusigOp c mode store op checkSelfPubnonce).1 with
     | round1Ok s ns =>
-      simp [countRound2SuccessFor, musig_nonce_single_use_linearity c mode sid ops]
+      simp [countRound2SuccessForRandRoot, musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops]
     | evicted s =>
-      simp [countRound2SuccessFor, musig_nonce_single_use_linearity c mode sid ops]
+      simp [countRound2SuccessForRandRoot, musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops]
     | failed s e =>
-      simp [countRound2SuccessFor, musig_nonce_single_use_linearity c mode sid ops]
-    | round2Ok s sigs =>
-      simp only [countRound2SuccessFor]
-      by_cases hEq : s = sid
+      simp [countRound2SuccessForRandRoot, musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops]
+    | round2Ok s rr' sigs =>
+      simp only [countRound2SuccessForRandRoot]
+      by_cases hEq : rr' = rr
       · subst hEq
-        have hStepEq : stepMusigOp c mode store op = (.round2Ok s sigs, (stepMusigOp c mode store op).2) :=
+        have hStepEq : stepMusigOp c mode store op checkSelfPubnonce =
+            (.round2Ok s rr' sigs, (stepMusigOp c mode store op checkSelfPubnonce).2) :=
           Prod.ext hEv rfl
-        have ⟨_, hNowCons⟩ := stepMusigOp_round2Ok_consumes c mode store _ op s sigs hStepEq
-        have hZero := countRound2SuccessFor_zero_of_consumed c mode s ops (stepMusigOp c mode store op).2 hNowCons
+        have ⟨_, hNowCons⟩ :=
+          stepMusigOp_round2Ok_consumes_randRoot c mode store _ op checkSelfPubnonce s rr' sigs hStepEq
+        have hZero := countRound2SuccessForRandRoot_zero_of_consumed c mode rr' checkSelfPubnonce ops
+          (stepMusigOp c mode store op checkSelfPubnonce).2 hNowCons
         simp [hZero]
-      · have hBeq : (s == sid) = false := beq_false_of_ne hEq
-        simp [hBeq, musig_nonce_single_use_linearity c mode sid ops]
+      · simp [hEq, musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops]
 
-/-! ## 10. Negative Security Rejection Theorems & Non-Vacuity Witness -/
+/-! ## 10. Negative Security Rejection Theorems & Non-Vacuity Witnesses -/
 
 /-- Round 2 rejects immediately when no session for `sid` exists in `MusigSessionStore`. -/
 theorem executeRound2Pass_rejects_missing_session {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput) :
     executeRound2Pass c mode {} sid inputs = .error (.missingSession, {}) := by
-  simp [executeRound2Pass, MusigSessionStore.consumeRound2, MusigSessionStore.isConsumed]
+  simp [executeRound2Pass, MusigSessionStore.consumeRound2]
 
-/-- Round 2 rejects with `.pubnonceMismatch` when the PSBT's self-pubnonce differs from the
-    session's recomputed pubnonce (preventing Vanadium's unaggregatable-signature hazard). -/
+/-- BOLOS `computeBolosPsbtSessionId` rejects an explicitly empty `some #[]` `musig2SessionId`,
+    while accepting `none` (field absent -> length 0 hashed). -/
+theorem computeBolosPsbtSessionId_rejects_empty_some {Affine : Type} (c : MusigCrypto Affine)
+    (descSha256 merkleRoot : Bytes32) :
+    computeBolosPsbtSessionId c descSha256 merkleRoot (some (ByteArray.mk #[])) = none ∧
+    (computeBolosPsbtSessionId c descSha256 merkleRoot none).isSome = true := by
+  simp [computeBolosPsbtSessionId, ByteArray.size]
+
+/-- Round 2 rejects with `.pubnonceMismatch` when `checkSelfPubnonce = true` and the PSBT's
+    self-pubnonce differs from the session's recomputed pubnonce (preventing Vanadium's
+    unaggregatable-signature hazard when enabled). -/
 theorem round2SignTask_rejects_mismatched_self_pubnonce {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (randRoot : RandRoot) (inp : MusigRound2TaskInput)
     (myPn recomputedPn aggnonce : PubNonce) (sec : SecNonce)
@@ -1220,8 +1490,8 @@ theorem round2SignTask_rejects_mismatched_self_pubnonce {Affine : Type} (c : Mus
     (hGen : nonceGen c (syntheticRandIJ c randRoot inp.task.inputIndex inp.task.placeholderIndex)
               inp.task.internalPk (selectNonceAggPk mode inp.task.untweakedAggPk inp.task.tweakedAggPk)
             = .ok (sec, recomputedPn))
-    (hMismatch : recomputedPn != myPn) :
-    round2SignTask c mode randRoot inp = .error .pubnonceMismatch := by
+    (hMismatch : recomputedPn ≠ myPn) :
+    round2SignTask c mode randRoot inp true = .error .pubnonceMismatch := by
   unfold round2SignTask
   have hNotGt : ¬ (inp.task.sortedPubkeys.length > maxPubkeysPerMusig) := by
     simpa using hBound
@@ -1239,8 +1509,9 @@ theorem partialSign_rejects_zero_sk {Affine : Type} (c : MusigCrypto Affine)
   unfold partialSign parseNonZeroScalar
   simp [hVals, hk1.1, hk1.2, hk2.1, hk2.2, hZero, Bind.bind, Except.bind]
 
-/-- Concrete toy model of `MusigCrypto Unit` proving non-vacuity of Round 1 → Round 2 signing
-    and immediate consumption rejection on a second Round 2 attempt. -/
+/-- Concrete toy model of `MusigCrypto Unit` proving non-vacuity of Round 1 → Round 2 signing,
+    immediate replay rejection with `.missingSession`, and fresh Round 1 re-registration on the
+    same `PsbtSessionId` with a fresh `RandRoot`. -/
 def oneByte32 : Bytes32 :=
   ⟨ByteArray.mk (Array.replicate 31 (0 : UInt8) ++ #[1]), by simp [ByteArray.size]⟩
 
@@ -1253,6 +1524,9 @@ def sidByte32 : PsbtSessionId :=
 def rrByte32 : RandRoot :=
   ⟨ByteArray.mk (Array.replicate 31 (0 : UInt8) ++ #[42]), by simp [ByteArray.size]⟩
 
+def rr2Byte32 : RandRoot :=
+  ⟨ByteArray.mk (Array.replicate 31 (0 : UInt8) ++ #[43]), by simp [ByteArray.size]⟩
+
 def sighashByte32 : Bytes32 :=
   ⟨ByteArray.mk (Array.replicate 31 (0 : UInt8) ++ #[99]), by simp [ByteArray.size]⟩
 
@@ -1261,6 +1535,9 @@ def threeByte32 : PartialSig :=
 
 def toyCompressedPk : CompressedPubKey :=
   ⟨ByteArray.mk (#[0x02] ++ Array.replicate 32 0x11), by simp [ByteArray.size]⟩
+
+def toyCompressedPk2 : CompressedPubKey :=
+  ⟨ByteArray.mk (#[0x02] ++ Array.replicate 32 0x22), by simp [ByteArray.size]⟩
 
 def nonVacuousToyCrypto : MusigCrypto Unit :=
   { generator := ()
@@ -1286,22 +1563,31 @@ theorem bytes32ToNat_oneByte32 : bytes32ToNat oneByte32 = 1 := by
 theorem scalarToBytes32_three : scalarToBytes32 3 = threeByte32 := by
   decide
 
-/-- **Non-Vacuity Witness**: There exist concrete cryptographic parameters, a Round-1 task, and a
-    Round-2 task such that Round 1 commits a session, Round 2 produces a non-empty partial signature
-    list and marks the session consumed, and any replay of Round 2 fails with `.sessionAlreadyConsumed`. -/
+/-- **Non-Vacuity Witness (`C-02`)**:
+    1. Round 1 with `(sid, rr1)` commits `s1`.
+    2. Round 2 on `sid` produces partial signatures and deletes `sid` from `activeEntries` (`s2`).
+    3. Immediate Round-2 replay on `sid` without a new Round 1 fails with `.missingSession`.
+    4. A fresh Round 1 on the **same** `sid` with a fresh `rr2` succeeds (`s3`), and the subsequent
+       Round 2 on `sid` succeeds (`s4`) — matching `test_sign_psbt_musig.py:509`! -/
 theorem nonvacuous_round1_then_round2_and_replay_rejected :
-    ∃ (sid : PsbtSessionId) (rr : RandRoot)
+    ∃ (sid : PsbtSessionId) (rr1 rr2 : RandRoot)
       (t1 : MusigSignTask) (t2 : MusigRound2TaskInput)
       (r1Out : List MusigRound1Output) (s1 : MusigSessionStore)
-      (r2Out : List MusigRound2Output) (s2 : MusigSessionStore),
-      executeRound1Pass nonVacuousToyCrypto .untweakedBolos {} sid rr [t1] = .ok (r1Out, s1) ∧
+      (r2Out : List MusigRound2Output) (s2 : MusigSessionStore)
+      (r1Out2 : List MusigRound1Output) (s3 : MusigSessionStore)
+      (r2Out2 : List MusigRound2Output) (s4 : MusigSessionStore),
+      executeRound1Pass nonVacuousToyCrypto .untweakedBolos MusigSessionStore.bolosDefault sid rr1 [t1] = .ok (r1Out, s1) ∧
       r1Out.length = 1 ∧
       executeRound2Pass nonVacuousToyCrypto .untweakedBolos s1 sid [t2] = .ok (r2Out, s2) ∧
       r2Out.length = 1 ∧
       executeRound2Pass nonVacuousToyCrypto .untweakedBolos s2 sid [t2] =
-        .error (.sessionAlreadyConsumed, s2) := by
+        .error (.missingSession, s2) ∧
+      executeRound1Pass nonVacuousToyCrypto .untweakedBolos s2 sid rr2 [t1] = .ok (r1Out2, s3) ∧
+      executeRound2Pass nonVacuousToyCrypto .untweakedBolos s3 sid [t2] = .ok (r2Out2, s4) ∧
+      r2Out2.length = 1 := by
   let sid : PsbtSessionId := sidByte32
-  let rr : RandRoot := rrByte32
+  let rr1 : RandRoot := rrByte32
+  let rr2 : RandRoot := rr2Byte32
   let pk : CompressedPubKey := toyCompressedPk
   let pn : PubNonce := PubNonce.ofParts pk pk
   let task : MusigSignTask := {
@@ -1321,11 +1607,18 @@ theorem nonvacuous_round1_then_round2_and_replay_rejected :
     psbtMyPubnonce := some pn
     cosignerPubnonces := [pn]
   }
-  let s1 : MusigSessionStore := { activeEntries := [(sid, rr)], consumedIds := [], capacity := none }
-  let s2 : MusigSessionStore := { activeEntries := [], consumedIds := [sid], capacity := none }
-  have hOrdNe1 : secp256k1Order ≠ 1 := by decide
+  let s0 : MusigSessionStore := MusigSessionStore.bolosDefault
+  let s1 : MusigSessionStore := { s0 with activeEntries := [(sid, rr1)], consumedRandRoots := [] }
+  let s2 : MusigSessionStore := { s0 with activeEntries := [], consumedRandRoots := [rr1] }
+  let s3 : MusigSessionStore := { s0 with activeEntries := [(sid, rr2)], consumedRandRoots := [rr1] }
+  let s4 : MusigSessionStore := { s0 with activeEntries := [], consumedRandRoots := [rr2, rr1] }
   have hOrd1 : 1 < secp256k1Order := by decide
   have hSidZero : sid.isAllZeros = false := by decide
+  have hRr1Zero : rr1.isAllZeros = false := by decide
+  have hRr2Zero : rr2.isAllZeros = false := by decide
+  have hRrNe : decide (rr2 = rr1) = false := by decide
+  have hSidRefl : sessionIdPrefixEq bolosStoredIdPrefixLen sid sid = true :=
+    sessionIdPrefixEq_refl bolosStoredIdPrefixLen sid
   have hPnZero : (PubNonce.r1Bytes pn).isAllZeros = false := by decide
   have hPn2Zero : (PubNonce.r2Bytes pn).isAllZeros = false := by decide
   have hOneMod : parseScalarModN oneByte32 = 1 := by
@@ -1354,10 +1647,11 @@ theorem nonvacuous_round1_then_round2_and_replay_rejected :
     unfold nonceGen nonceHash
     simp [hHash, hOneMod, hMul1, hComp, pk, pn]
   have hR1 :
-      executeRound1Pass nonVacuousToyCrypto .untweakedBolos {} sid rr [task] =
+      executeRound1Pass nonVacuousToyCrypto .untweakedBolos s0 sid rr1 [task] =
         .ok ([{ inputIndex := 0, pubnonce := pn, participantPk := pk, aggregatePubkey := pk, leafHash := none }], s1) := by
     unfold executeRound1Pass round1ProduceTaskNonce syntheticRandIJ selectNonceAggPk
-    simp [sid, s1, task, hSidZero, MusigSessionStore.isConsumed, MusigSessionStore.evictUnconsumed,
+    simp [s0, s1, sid, rr1, task, hSidZero, hRr1Zero, MusigSessionStore.bolosDefault,
+      bolosMaxMusigSessions, MusigSessionStore.isRandRootConsumed, MusigSessionStore.evictUnconsumed,
       MusigSessionStore.registerRound1, trimToCapacity, distinctTaskCoordinates, maxPubkeysPerMusig,
       hSha, hGen, List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
   have hAgg : nonceAgg nonVacuousToyCrypto [pn] = .ok pn := by
@@ -1373,14 +1667,150 @@ theorem nonvacuous_round1_then_round2_and_replay_rejected :
       executeRound2Pass nonVacuousToyCrypto .untweakedBolos s1 sid [r2Inp] =
         .ok ([{ inputIndex := 0, signature := threeByte32, participantPk := pk, aggregatePubkey := pk, leafHash := none }], s2) := by
     unfold executeRound2Pass MusigSessionStore.consumeRound2 round2SignTask syntheticRandIJ selectNonceAggPk
-    simp [sid, s1, s2, r2Inp, task, MusigSessionStore.isConsumed, distinctTaskCoordinates,
+    simp [s0, s1, s2, sid, rr1, r2Inp, task, MusigSessionStore.bolosDefault, hSidRefl,
+      MusigSessionStore.isRandRootConsumed, distinctTaskCoordinates,
       maxPubkeysPerMusig, hSha, hAgg, hGen, hSign,
       List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
   have hReplay :
       executeRound2Pass nonVacuousToyCrypto .untweakedBolos s2 sid [r2Inp] =
-        .error (.sessionAlreadyConsumed, s2) := by
-    unfold executeRound2Pass MusigSessionStore.consumeRound2
-    simp [s2, sid, MusigSessionStore.isConsumed]
-  exact ⟨sid, rr, task, r2Inp, _, s1, _, s2, hR1, rfl, hR2, rfl, hReplay⟩
+        .error (.missingSession, s2) :=
+    round2_replay_without_round1_missingSession nonVacuousToyCrypto .untweakedBolos s1 s2 sid [r2Inp] [r2Inp] true true _ hR2
+  have hR1Again :
+      executeRound1Pass nonVacuousToyCrypto .untweakedBolos s2 sid rr2 [task] =
+        .ok ([{ inputIndex := 0, pubnonce := pn, participantPk := pk, aggregatePubkey := pk, leafHash := none }], s3) := by
+    unfold executeRound1Pass round1ProduceTaskNonce syntheticRandIJ selectNonceAggPk
+    simp [s0, s2, s3, sid, rr1, rr2, task, hSidZero, hRr2Zero, hRrNe, MusigSessionStore.bolosDefault,
+      bolosMaxMusigSessions, MusigSessionStore.isRandRootConsumed, MusigSessionStore.evictUnconsumed,
+      MusigSessionStore.registerRound1, trimToCapacity, distinctTaskCoordinates, maxPubkeysPerMusig,
+      hSha, hGen, List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
+  have hR2Again :
+      executeRound2Pass nonVacuousToyCrypto .untweakedBolos s3 sid [r2Inp] =
+        .ok ([{ inputIndex := 0, signature := threeByte32, participantPk := pk, aggregatePubkey := pk, leafHash := none }], s4) := by
+    unfold executeRound2Pass MusigSessionStore.consumeRound2 round2SignTask syntheticRandIJ selectNonceAggPk
+    simp [s0, s3, s4, sid, rr1, rr2, r2Inp, task, MusigSessionStore.bolosDefault, hSidRefl, hRrNe,
+      MusigSessionStore.isRandRootConsumed, distinctTaskCoordinates,
+      maxPubkeysPerMusig, hSha, hAgg, hGen, hSign,
+      List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
+  exact ⟨sid, rr1, rr2, task, r2Inp, _, s1, _, s2, _, s3, _, s4,
+    hR1, rfl, hR2, rfl, hReplay, hR1Again, hR2Again, rfl⟩
+
+/-- **Multi-Internal-Key Witness (`M-04`)**:
+    Two Round-1 signing tasks sharing `(inputIndex, placeholderIndex) = (0, 0)` with distinct
+    participant `internalPk`s (`musig(@0, @1)` on Vanadium) pass `distinctTaskCoordinates` and
+    produce two distinct Round-1 output entries. -/
+theorem nonvacuous_multi_internal_key_same_placeholder_round1_ok :
+    let pk1 := toyCompressedPk
+    let pk2 := toyCompressedPk2
+    let tA : MusigSignTask := {
+      inputIndex := 0, placeholderIndex := 0, internalPk := pk1,
+      untweakedAggPk := pk1, tweakedAggPk := pk1, sortedPubkeys := [pk1, pk2],
+      tweaks := [], leafHash := none
+    }
+    let tB : MusigSignTask := { tA with internalPk := pk2 }
+    ∃ outs s1,
+      executeRound1Pass nonVacuousToyCrypto .tweakedVanadium MusigSessionStore.vanadiumDefault
+        sidByte32 rrByte32 [tA, tB] = .ok (outs, s1) ∧ outs.length = 2 := by
+  intro pk1 pk2 tA tB
+  have hSidZero : sidByte32.isAllZeros = false := by decide
+  have hRrZero : rrByte32.isAllZeros = false := by decide
+  have hPkNe : pk1 ≠ pk2 := by decide
+  have hOneMod : parseScalarModN oneByte32 = 1 := by
+    unfold parseScalarModN
+    rw [bytes32ToNat_oneByte32]
+    decide
+  have hHash : ∀ tag msg, nonVacuousToyCrypto.taggedHash tag msg = oneByte32 := fun _ _ => rfl
+  have hSha : ∀ msg, nonVacuousToyCrypto.sha256 msg = oneByte32 := fun _ => rfl
+  have hComp : ∀ p, nonVacuousToyCrypto.compress p = toyCompressedPk := fun _ => rfl
+  have hMul1 : ∀ p, nonVacuousToyCrypto.pointMul 1 p = p := by
+    intro p
+    show (if 1 % secp256k1Order == 0 then CurvePoint.infinity else p) = p
+    have h1 : (1 % secp256k1Order == 0) = false := by decide
+    rw [h1]
+    rfl
+  have hGen1 : nonceGen nonVacuousToyCrypto oneByte32 pk1 pk1.xOnly =
+      .ok ({ k1 := 1, k2 := 1, pk := pk1 }, PubNonce.ofParts pk1 pk1) := by
+    unfold nonceGen nonceHash
+    simp [hHash, hOneMod, hMul1, hComp, pk1]
+  have hGen2 : nonceGen nonVacuousToyCrypto oneByte32 pk2 pk1.xOnly =
+      .ok ({ k1 := 1, k2 := 1, pk := pk2 }, PubNonce.ofParts pk1 pk1) := by
+    unfold nonceGen nonceHash
+    simp [hHash, hOneMod, hMul1, hComp, pk1, pk2]
+  let pn := PubNonce.ofParts pk1 pk1
+  let out1 : MusigRound1Output :=
+    { inputIndex := 0, pubnonce := pn, participantPk := pk1, aggregatePubkey := pk1, leafHash := none }
+  let out2 : MusigRound1Output :=
+    { inputIndex := 0, pubnonce := pn, participantPk := pk2, aggregatePubkey := pk1, leafHash := none }
+  let s1 : MusigSessionStore :=
+    { MusigSessionStore.vanadiumDefault with activeEntries := [(sidByte32, rrByte32)] }
+  refine ⟨[out1, out2], s1, ?_, rfl⟩
+  unfold executeRound1Pass round1ProduceTaskNonce syntheticRandIJ selectNonceAggPk
+  simp [tA, tB, out1, out2, pn, s1, hSidZero, hRrZero, hPkNe, MusigSessionStore.vanadiumDefault,
+    vanadiumMaxMusigSessions, MusigSessionStore.isRandRootConsumed,
+    MusigSessionStore.evictUnconsumed, MusigSessionStore.registerRound1,
+    trimToCapacity, distinctTaskCoordinates, maxPubkeysPerMusig,
+    hSha, hGen1, hGen2, List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
+
+/-- **Non-Vacuity Witness for `deriveMusigPerInputInfo` (`M-04`)**:
+    Keypath derivation produces 3 tweaks (2 BIP-32 unhardened + 1 x-only BIP-341 `TapTweak`),
+    while tapscript derivation produces 2 tweaks and preserves `leafHash`. -/
+theorem nonvacuous_deriveMusigPerInputInfo_keypath_and_tapscript :
+    ∃ infoKey infoScript,
+      deriveMusigPerInputInfo nonVacuousToyCrypto [toyCompressedPk] 0 1 false 0 (.keypath none) = .ok infoKey ∧
+      infoKey.tweaks.length = 3 ∧
+      deriveMusigPerInputInfo nonVacuousToyCrypto [toyCompressedPk] 0 1 true 5 (.tapscript oneByte32) = .ok infoScript ∧
+      infoScript.tweaks.length = 2 ∧
+      infoScript.leafHash = some oneByte32 := by
+  have hStrict : parseScalarStrict oneByte32 = some 1 := by
+    unfold parseScalarStrict
+    rw [bytes32ToNat_oneByte32]
+    decide
+  have hOneMod : parseScalarModN oneByte32 = 1 := by
+    unfold parseScalarModN
+    rw [bytes32ToNat_oneByte32]
+    decide
+  have hHash : ∀ tag msg, nonVacuousToyCrypto.taggedHash tag msg = oneByte32 := fun _ _ => rfl
+  have hComp : ∀ p, nonVacuousToyCrypto.compress p = toyCompressedPk := fun _ => rfl
+  have hDecomp : ∀ b, nonVacuousToyCrypto.decompress b = some () := fun _ => rfl
+  have hEven : ∀ p, nonVacuousToyCrypto.hasEvenY p = true := fun _ => rfl
+  have hMul1 : ∀ p, nonVacuousToyCrypto.pointMul 1 p = p := by
+    intro p
+    show (if 1 % secp256k1Order == 0 then CurvePoint.infinity else p) = p
+    have h1 : (1 % secp256k1Order == 0) = false := by decide
+    rw [h1]
+    rfl
+  have hAddAff : nonVacuousToyCrypto.pointAdd .infinity (.affine ()) = .affine () := rfl
+  have hAddAff2 : nonVacuousToyCrypto.pointAdd (.affine ()) (.affine ()) = .affine () := rfl
+  have hCkd : ∀ pk cc idx, nonVacuousToyCrypto.ckdPubUnhardened pk cc idx = some (pk, cc, oneByte32) :=
+    fun _ _ _ => rfl
+  have hStep0 : ¬ (bip32HardenedBit ≤ (0 : UInt32)) := by decide
+  have hStep1 : ¬ (bip32HardenedBit ≤ (1 : UInt32)) := by decide
+  have hStep5 : ¬ (bip32HardenedBit ≤ (5 : UInt32)) := by decide
+  let tw : MusigTweak := { scalar := oneByte32, isXOnly := false }
+  let twX : MusigTweak := { scalar := oneByte32, isXOnly := true }
+  let infoK : MusigPerInputInfo := {
+    sortedPubkeys := [toyCompressedPk]
+    untweakedAggPk := toyCompressedPk
+    preTapTweakAggPk := toyCompressedPk
+    tweakedAggPk := toyCompressedPk
+    tweaks := [tw, tw, twX]
+    leafHash := none
+  }
+  let infoS : MusigPerInputInfo := {
+    sortedPubkeys := [toyCompressedPk]
+    untweakedAggPk := toyCompressedPk
+    preTapTweakAggPk := toyCompressedPk
+    tweakedAggPk := toyCompressedPk
+    tweaks := [tw, tw]
+    leafHash := some oneByte32
+  }
+  refine ⟨infoK, infoS, ?_, rfl, ?_, rfl, rfl⟩
+  · unfold deriveMusigPerInputInfo keyAgg applyTweak
+    simp [infoK, tw, twX, keySort, insertPubKey, secondUniqueKey, keyAggLoop, cpoint,
+      keyAggCoeffInternal, maxPubkeysPerMusig, hStep0, hDecomp, hHash, hOneMod, hMul1,
+      hAddAff, hAddAff2, hComp, hCkd, hStrict, hEven, Bind.bind, Except.bind]
+  · unfold deriveMusigPerInputInfo keyAgg
+    simp [infoS, tw, keySort, insertPubKey, secondUniqueKey, keyAggLoop, cpoint,
+      keyAggCoeffInternal, maxPubkeysPerMusig, hStep1, hStep5, hDecomp, hHash, hOneMod,
+      hMul1, hAddAff, hComp, hCkd, Bind.bind, Except.bind]
 
 end Spec.Musig2
