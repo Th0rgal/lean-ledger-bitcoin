@@ -48,6 +48,21 @@ def psbtOutSpV0Label : UInt8 := 0x0A
 /-- `SIGHASH_ALL = 0x01`, the sole explicit sighash flag permitted by BIP-375 when SP outputs exist. -/
 def sighashAll : UInt32 := 0x01
 
+/-- `SIGHASH_DEFAULT = 0x00`, the implicit BIP-341 Taproot sighash when `PSBT_IN_SIGHASH_TYPE` is absent. -/
+def sighashDefault : UInt32 := 0x00
+
+/-- BIP-341 unspendable NUMS x-only internal key `H`
+    (`0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0`),
+    excluded from BIP-352 Silent Payment input eligibility. -/
+def bip341NumsXOnlyBytes : List UInt8 :=
+  [ 0x50, 0x92, 0x9b, 0x74, 0xc1, 0xa0, 0x49, 0x54,
+    0xb7, 0x8b, 0x4b, 0x60, 0x35, 0xe9, 0x7a, 0x5e,
+    0x07, 0x8a, 0x5a, 0x0f, 0x28, 0xec, 0x96, 0xd5,
+    0x47, 0xbf, 0xee, 0x9a, 0xce, 0x80, 0x3a, 0xc0 ]
+
+theorem bip341NumsXOnlyBytes_length : bip341NumsXOnlyBytes.length = 32 := by
+  rfl
+
 /-- Exact-size byte sequence (`ByteArray` of length `n`). -/
 structure SizedBytes (n : Nat) where
   bytes : ByteArray
@@ -86,6 +101,12 @@ abbrev Bytes36 := SizedBytes 36
 abbrev Bytes64 := SizedBytes 64
 abbrev Bytes65 := SizedBytes 65
 abbrev Bytes66 := SizedBytes 66
+
+/-- BIP-341 unspendable NUMS x-only internal key `H` as `Bytes32`. -/
+def bip341NumsXOnly : Bytes32 :=
+  ⟨ByteArray.mk bip341NumsXOnlyBytes.toArray, by
+    change bip341NumsXOnlyBytes.toArray.size = 32
+    rw [List.size_toArray, bip341NumsXOnlyBytes_length]⟩
 
 /-- Decode a big-endian byte list into a natural number. -/
 def natFromBytesBE (bs : List UInt8) : Nat :=
@@ -317,13 +338,12 @@ def decodeSpAddress {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
     | some h => .ok h
     | none => .error .invalidEncoding
   if _hV0 : decide (version = 0) then
-    if hSz : payload.size == 66 then
-      have hEq : payload.size = 66 := beq_iff_eq.mp hSz
+    if hEq : payload.size = 66 then
       let code ← SilentPaymentCode.fromBytes c ⟨payload, hEq⟩
       .ok (hrp, code)
     else
       .error .invalidEncoding
-  else if _hV30 : version <= 30 then
+  else if _hV30 : decide (version ≤ 30) then
     if hGe : 66 ≤ payload.size then
       let arr := (payload.data.toList.take 66).toArray
       have hLen : (ByteArray.mk arr).size = 66 := by
@@ -358,10 +378,8 @@ def decodeSpScanKey {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
   let hrp ← match SpScanHrp.fromLowerString hrpStr with
     | some h => .ok h
     | none => .error .invalidEncoding
-  if hCheck : decide (version = 0) && payload.size == 65 then
-    have hSz : payload.size = 65 := by
-      simp only [Bool.and_eq_true, beq_iff_eq] at hCheck
-      exact hCheck.2
+  if hCheck : version = 0 ∧ payload.size = 65 then
+    have hSz : payload.size = 65 := hCheck.2
     let arr1 := (payload.data.toList.take 32).toArray
     let scanBytes : Bytes32 := ⟨ByteArray.mk arr1, by
       have h1 : payload.data.toList.length = 65 := by rw [Array.length_toList]; exact hSz
@@ -799,8 +817,33 @@ structure PsbtSpInput where
   hasInputSpEcdhShare : Bool
   hasInputSpDleq : Bool
   scriptKind : SpInputScriptKind
+  tapInternalKey : Option Bytes32 := none
   deviceEligiblePrivKey : Option Nat
   deriving Repr, DecidableEq
+
+/-- Whether `inp` spends a Taproot prevout (`witness_v1` or `tr(...)` policy). -/
+def PsbtSpInput.isTaproot (inp : PsbtSpInput) : Bool :=
+  match inp.prevoutWitnessVersion, inp.scriptKind with
+  | some v, _ => decide (v = 1)
+  | _, .tr _ => true
+  | _, _ => false
+
+/-- Effective consensus sighash type signed by the device for `inp`:
+    - Taproot inputs without `PSBT_IN_SIGHASH_TYPE` default to `SIGHASH_DEFAULT (0x00)`
+      (`sighash.rs:taproot_sighash_type`), so BIP-375 requires explicit `some 0x01`!
+    - Legacy / SegWit-v0 inputs without `PSBT_IN_SIGHASH_TYPE` default to `SIGHASH_ALL (0x01)`. -/
+def PsbtSpInput.effectiveSighashType (inp : PsbtSpInput) : UInt32 :=
+  match inp.sighashType with
+  | some sh => sh
+  | none => if inp.isTaproot then sighashDefault else sighashAll
+
+/-- Whether `inp` is BIP-352 eligible, excluding both boolean `hasNumsInternalKey` and literal
+    `bip341NumsXOnly` (`0x50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0`). -/
+def PsbtSpInput.isEligible (inp : PsbtSpInput) : Bool :=
+  let hasLiteralNums := match inp.tapInternalKey with
+    | some xk => decide (xk = bip341NumsXOnly)
+    | none => false
+  inp.scriptKind.isEligible && !hasLiteralNums
 
 /-- Logical PSBT output view for BIP-375 Silent Payment checks (`ByteArray` without derived `Repr`). -/
 structure PsbtSpOutput where
@@ -808,15 +851,18 @@ structure PsbtSpOutput where
   script : Option ByteArray
   spV0Info : Option Bytes66
   spV0Label : Option UInt32
+  hasAccountCoordinates : Bool := false
+  hasIdAuthProofs : Bool := false
   deriving DecidableEq
 
 /-- Logical PSBT global Silent Payment fields (BIP-375). -/
-structure PsbtSpTx where
+structure PsbtSpTx (Affine : Type := Unit) where
   txModifiable : Option UInt8
   globalEcdhShares : List (Bytes33 × Bytes33)
   globalDleqProofs : List (Bytes33 × Bytes64)
   inputs : List PsbtSpInput
   outputs : List PsbtSpOutput
+  spAccounts : List (SilentPaymentAccount Affine) := []
   deriving DecidableEq
 
 /-- BIP-375 global ECDH share + DLEQ proof returned by `SignPsbt`. -/
@@ -832,7 +878,7 @@ structure SilentPaymentOutputScriptOut where
   script : Bytes34
   deriving Repr, DecidableEq
 
-/-- Structural BIP-375 output rules (`fastpsbt.rs:validate_silent_payment_outputs`). -/
+/-- Structural BIP-375 output rules (`fastpsbt.rs` & `sign_psbt/analyze.rs:315-323`). -/
 def validatePsbtSpOutputs (outputs : List PsbtSpOutput) (txModifiable : Option UInt8) :
     Except SpError Unit := do
   let modifiable := ((txModifiable.getD 0).toNat &&& 0x03) != 0
@@ -844,38 +890,64 @@ def validatePsbtSpOutputs (outputs : List PsbtSpOutput) (txModifiable : Option U
     | _, _ => pure ()
     if out.spV0Label.isSome && out.spV0Info.isNone then
       .error .invalidSilentPaymentField
+    if out.spV0Info.isSome && (out.hasAccountCoordinates || out.hasIdAuthProofs) then
+      .error .invalidSilentPaymentField
 
-/-- Extract indexed Silent Payment recipients `(outputIdx, code)` in output order. -/
-def collectSpRecipients {Affine : Type} (c : SpCrypto Affine) :
+/-- Verify `PSBT_OUT_SP_V0_LABEL` against `labeledSpendKey` when both `spV0Info` and `spV0Label`
+    are present on an output (`code.scan = account.scanKey * G` and
+    `code.spend = labeledSpendKey account.spendKey account.scanKey m`). -/
+def verifyOutputSpLabel {Affine : Type} [DecidableEq Affine] (c : SpCrypto Affine)
+    (accounts : List (SilentPaymentAccount Affine))
+    (code : SilentPaymentCode Affine) (labelOpt : Option UInt32) : Except SpError Unit :=
+  match labelOpt with
+  | none => .ok ()
+  | some m =>
+    let matchedAcc? := accounts.find? (fun acc =>
+      match c.pointMul acc.scanKey (.affine c.generator) with
+      | .affine scanPub => decide (scanPub = code.scan)
+      | .infinity => false)
+    match matchedAcc? with
+    | none => .error .invalidSilentPaymentField
+    | some acc => do
+      let expectedBm ← labeledSpendKey c acc.spendKey acc.scanKey m
+      if decide (expectedBm ≠ code.spend) then
+        .error .invalidSilentPaymentField
+      else
+        .ok ()
+
+/-- Extract indexed Silent Payment recipients `(outputIdx, code)` in output order, verifying
+    any `spV0Label` against `accounts` via `labeledSpendKey`. -/
+def collectSpRecipients {Affine : Type} [DecidableEq Affine] (c : SpCrypto Affine)
+    (accounts : List (SilentPaymentAccount Affine)) :
     Nat → List PsbtSpOutput → Except SpError (List (Nat × SilentPaymentCode Affine))
   | _, [] => .ok []
   | idx, out :: rest => do
-    let tail ← collectSpRecipients c (idx + 1) rest
+    let tail ← collectSpRecipients c accounts (idx + 1) rest
     match out.spV0Info with
     | none => .ok tail
     | some raw66 =>
       let code ← SilentPaymentCode.fromBytes c raw66
+      verifyOutputSpLabel c accounts code out.spV0Label
       .ok ((idx, code) :: tail)
 
 /-- Pre-review BIP-375 `analyze` checks (`silent_payments.rs:analyze`). -/
 def analyzePsbtSilentPayments {Affine : Type} [DecidableEq Affine] (c : SpCrypto Affine)
-    (psbt : PsbtSpTx) :
+    (psbt : PsbtSpTx Affine) :
     Except SpError (Option (List (Nat × SilentPaymentCode Affine) × List UInt32 × List Nat)) := do
   validatePsbtSpOutputs psbt.outputs psbt.txModifiable
-  let indexedCodes ← collectSpRecipients c 0 psbt.outputs
+  let indexedCodes ← collectSpRecipients c psbt.spAccounts 0 psbt.outputs
   if indexedCodes.isEmpty then
     return none
   let ks ← assignK (indexedCodes.map Prod.snd)
   let eligibleKeys ← psbt.inputs.foldlM (fun acc inp => do
     match inp.prevoutWitnessVersion with
-    | some v => if v > 1 then .error .silentPaymentSegwitVersion else pure ()
+    | some v => if decide (1 < v) then .error .silentPaymentSegwitVersion else pure ()
     | none => pure ()
-    match inp.sighashType with
-    | some sh => if decide (sh ≠ sighashAll) then .error .silentPaymentSighashType else pure ()
-    | none => pure ()
+    if decide (inp.effectiveSighashType ≠ sighashAll) then
+      .error .silentPaymentSighashType
     if inp.hasInputSpEcdhShare || inp.hasInputSpDleq then
       .error .silentPaymentShareMismatch
-    if !inp.scriptKind.isEligible then
+    if !inp.isEligible then
       .ok acc
     else
       match inp.deviceEligiblePrivKey with
@@ -898,7 +970,7 @@ def analyzePsbtSilentPayments {Affine : Type} [DecidableEq Affine] (c : SpCrypto
 
 /-- Finalize BIP-375 Silent Payment ECDH shares, DLEQ proofs, and P2TR output scripts. -/
 def finalizePsbtSilentPayments {Affine : Type} [DecidableEq Affine] (c : SpCrypto Affine)
-    (psbt : PsbtSpTx) (dleqAuxRand : Bytes32) :
+    (psbt : PsbtSpTx Affine) (dleqAuxRand : Bytes32) :
     Except SpError (List SilentPaymentShareOut × List SilentPaymentOutputScriptOut) := do
   match ← analyzePsbtSilentPayments c psbt with
   | none => .ok ([], [])
@@ -1006,6 +1078,24 @@ theorem validatePsbtSpOutputs_rejects_orphan_label (scr : ByteArray) :
       none = .error .invalidSilentPaymentField := by
   rfl
 
+/-- `validatePsbtSpOutputs` rejects an output combining `spV0Info` with standard wallet-policy
+    account coordinates (`sign_psbt/analyze.rs:320`). -/
+theorem validatePsbtSpOutputs_rejects_spV0Info_with_account_coords (raw66 : Bytes66) :
+    validatePsbtSpOutputs
+      [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none,
+         hasAccountCoordinates := true }]
+      none = .error .invalidSilentPaymentField := by
+  rfl
+
+/-- `validatePsbtSpOutputs` rejects an output combining `spV0Info` with external identity-auth
+    proofs (`sign_psbt/analyze.rs:320`). -/
+theorem validatePsbtSpOutputs_rejects_spV0Info_with_idAuth (raw66 : Bytes66) :
+    validatePsbtSpOutputs
+      [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none,
+         hasIdAuthProofs := true }]
+      none = .error .invalidSilentPaymentField := by
+  rfl
+
 /-- `analyzePsbtSilentPayments` rejects inputs with SegWit witness version `> 1` (e.g., v2). -/
 theorem analyzePsbtSilentPayments_rejects_segwit_v2 {Affine : Type} [DecidableEq Affine]
     (c : SpCrypto Affine) (code : SilentPaymentCode Affine) (raw66 : Bytes66)
@@ -1026,8 +1116,8 @@ theorem analyzePsbtSilentPayments_rejects_segwit_v2 {Affine : Type} [DecidableEq
       outputs := [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none }]
     } = .error .silentPaymentSegwitVersion := by
   unfold analyzePsbtSilentPayments validatePsbtSpOutputs
-  simp [collectSpRecipients, hCode, assignK, assignKLoop, lookupCounter, spMaxOutputsPerScanKey,
-    ForIn.forIn, List.foldlM, Pure.pure, Except.pure, Bind.bind, Except.bind]
+  simp [collectSpRecipients, verifyOutputSpLabel, hCode, assignK, assignKLoop, lookupCounter,
+    spMaxOutputsPerScanKey, ForIn.forIn, List.foldlM, Pure.pure, Except.pure, Bind.bind, Except.bind]
 
 /-- `analyzePsbtSilentPayments` rejects explicit `SIGHASH_DEFAULT (0x00)` (BIP-375 allows only `SIGHASH_ALL = 0x01`). -/
 theorem analyzePsbtSilentPayments_rejects_non_sighash_all {Affine : Type} [DecidableEq Affine]
@@ -1049,8 +1139,83 @@ theorem analyzePsbtSilentPayments_rejects_non_sighash_all {Affine : Type} [Decid
       outputs := [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none }]
     } = .error .silentPaymentSighashType := by
   unfold analyzePsbtSilentPayments validatePsbtSpOutputs
-  simp [collectSpRecipients, hCode, sighashAll, assignK, assignKLoop, lookupCounter,
+  simp [collectSpRecipients, verifyOutputSpLabel, PsbtSpInput.effectiveSighashType, hCode,
+    sighashAll, assignK, assignKLoop, lookupCounter,
     spMaxOutputsPerScanKey, ForIn.forIn, List.foldlM, Pure.pure, Except.pure, Bind.bind, Except.bind]
+
+/-- `analyzePsbtSilentPayments` rejects Taproot inputs with implicit `sighashType = none`
+    (which signs with `SIGHASH_DEFAULT = 0x00`, violating BIP-375's `SIGHASH_ALL` mandate). -/
+theorem analyzePsbtSilentPayments_rejects_taproot_implicit_sighash_default {Affine : Type} [DecidableEq Affine]
+    (c : SpCrypto Affine) (code : SilentPaymentCode Affine) (raw66 : Bytes66)
+    (hCode : SilentPaymentCode.fromBytes c raw66 = .ok code) (op : OutPoint) :
+    analyzePsbtSilentPayments c {
+      txModifiable := some 0
+      globalEcdhShares := []
+      globalDleqProofs := []
+      inputs := [{
+        outpoint := op
+        prevoutWitnessVersion := some 1
+        sighashType := none
+        hasInputSpEcdhShare := false
+        hasInputSpDleq := false
+        scriptKind := .tr false
+        deviceEligiblePrivKey := some 1
+      }]
+      outputs := [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none }]
+    } = .error .silentPaymentSighashType := by
+  unfold analyzePsbtSilentPayments validatePsbtSpOutputs
+  simp [collectSpRecipients, verifyOutputSpLabel, PsbtSpInput.effectiveSighashType,
+    PsbtSpInput.isTaproot, sighashDefault, sighashAll, hCode, assignK, assignKLoop, lookupCounter,
+    spMaxOutputsPerScanKey, ForIn.forIn, List.foldlM, Pure.pure, Except.pure, Bind.bind, Except.bind]
+
+/-- `analyzePsbtSilentPayments` excludes Taproot inputs whose internal key is the literal
+    BIP-341 NUMS x-only point (`bip341NumsXOnly`), failing with `.silentPaymentNoEligibleInputs`
+    when no other eligible input exists. -/
+theorem analyzePsbtSilentPayments_excludes_literal_bip341_nums {Affine : Type} [DecidableEq Affine]
+    (c : SpCrypto Affine) (code : SilentPaymentCode Affine) (raw66 : Bytes66)
+    (hCode : SilentPaymentCode.fromBytes c raw66 = .ok code) (op : OutPoint) :
+    analyzePsbtSilentPayments c {
+      txModifiable := some 0
+      globalEcdhShares := []
+      globalDleqProofs := []
+      inputs := [{
+        outpoint := op
+        prevoutWitnessVersion := some 1
+        sighashType := some sighashAll
+        hasInputSpEcdhShare := false
+        hasInputSpDleq := false
+        scriptKind := .tr false
+        tapInternalKey := some bip341NumsXOnly
+        deviceEligiblePrivKey := some 1
+      }]
+      outputs := [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := none }]
+    } = .error .silentPaymentNoEligibleInputs := by
+  unfold analyzePsbtSilentPayments validatePsbtSpOutputs
+  simp [collectSpRecipients, verifyOutputSpLabel, PsbtSpInput.effectiveSighashType,
+    PsbtSpInput.isEligible, SpInputScriptKind.isEligible, sighashAll, hCode, assignK,
+    assignKLoop, lookupCounter, spMaxOutputsPerScanKey,
+    ForIn.forIn, List.foldlM, Pure.pure, Except.pure, Bind.bind, Except.bind]
+
+/-- `analyzePsbtSilentPayments` rejects an output carrying `spV0Info` + `spV0Label = some m`
+    when `code.spend` does not match `labeledSpendKey` for the account owning `code.scan`. -/
+theorem analyzePsbtSilentPayments_rejects_mismatched_spV0Label {Affine : Type} [DecidableEq Affine]
+    (c : SpCrypto Affine) (acc : SilentPaymentAccount Affine)
+    (code : SilentPaymentCode Affine) (expectedBm : Affine) (raw66 : Bytes66) (m : UInt32)
+    (hCode : SilentPaymentCode.fromBytes c raw66 = .ok code)
+    (hScan : c.pointMul acc.scanKey (.affine c.generator) = .affine code.scan)
+    (hLbl : labeledSpendKey c acc.spendKey acc.scanKey m = .ok expectedBm)
+    (hMismatch : expectedBm ≠ code.spend) :
+    analyzePsbtSilentPayments c {
+      txModifiable := some 0
+      globalEcdhShares := []
+      globalDleqProofs := []
+      inputs := []
+      outputs := [{ amount := 1000, script := none, spV0Info := some raw66, spV0Label := some m }]
+      spAccounts := [acc]
+    } = .error .invalidSilentPaymentField := by
+  unfold analyzePsbtSilentPayments validatePsbtSpOutputs
+  simp [collectSpRecipients, verifyOutputSpLabel, hCode, hScan, hLbl, hMismatch,
+    ForIn.forIn, Pure.pure, Except.pure, Bind.bind, Except.bind]
 
 /-- Concrete toy `SpCrypto Unit` and `Bech32mCodec` for non-vacuity witness proofs. -/
 def spOneByte32 : Bytes32 :=
@@ -1099,10 +1264,11 @@ theorem sp_scalarToBytes32_one : scalarToBytes32 1 = spOneByte32 := by decide
 theorem sp_scalarToBytes32_two : scalarToBytes32 2 = spTwoByte32 := by decide
 
 /-- **Non-Vacuity Witness**: There exists a valid BIP-375 PSBT with a Silent Payment output and
-    an eligible input such that `finalizePsbtSilentPayments` succeeds, emitting 1 verified DLEQ
-    ECDH share and 1 P2TR output script (`0x51 0x20 || x(P_0)`). -/
+    an eligible input (explicit `sighashType := some sighashAll`, verified change `spV0Label`)
+    such that `finalizePsbtSilentPayments` succeeds, emitting 1 verified DLEQ ECDH share and
+    1 P2TR output script (`0x51 0x20 || x(P_0)`). -/
 theorem nonvacuous_finalizePsbtSilentPayments_ok :
-    ∃ (psbt : PsbtSpTx) (shares : List SilentPaymentShareOut)
+    ∃ (psbt : PsbtSpTx Unit) (shares : List SilentPaymentShareOut)
       (scripts : List SilentPaymentOutputScriptOut),
       finalizePsbtSilentPayments nonVacuousSpCrypto psbt spFiveByte32 =
         .ok (shares, scripts) ∧
@@ -1110,10 +1276,11 @@ theorem nonvacuous_finalizePsbtSilentPayments_ok :
       scripts.length = 1 := by
   let code : SilentPaymentCode Unit := { scan := (), spend := () }
   let codeBytes : Bytes66 := code.toBytes nonVacuousSpCrypto
+  let acc : SilentPaymentAccount Unit := { accountIndex := 0, scanKey := 1, spendKey := () }
   let inp : PsbtSpInput := {
     outpoint := { txid := spNineByte32, vout := 0 }
     prevoutWitnessVersion := some 1
-    sighashType := none
+    sighashType := some sighashAll
     hasInputSpEcdhShare := false
     hasInputSpDleq := false
     scriptKind := .tr false
@@ -1123,14 +1290,15 @@ theorem nonvacuous_finalizePsbtSilentPayments_ok :
     amount := 50000
     script := none
     spV0Info := some codeBytes
-    spV0Label := none
+    spV0Label := some 0
   }
-  let psbt : PsbtSpTx := {
+  let psbt : PsbtSpTx Unit := {
     txModifiable := some 0
     globalEcdhShares := []
     globalDleqProofs := []
     inputs := [inp]
     outputs := [out]
+    spAccounts := [acc]
   }
   let proof64 : Bytes64 := SizedBytes.append spOneByte32 spTwoByte32
   let shareOut : SilentPaymentShareOut := {
@@ -1184,9 +1352,11 @@ theorem nonvacuous_finalizePsbtSilentPayments_ok :
   have hAnalyze : analyzePsbtSilentPayments nonVacuousSpCrypto psbt =
       .ok (some ([(0, code)], [0], [1])) := by
     unfold analyzePsbtSilentPayments validatePsbtSpOutputs normalizeInputPrivKey
-    simp [collectSpRecipients, SilentPaymentCode.fromBytes, SpInputScriptKind.isEligible,
-      psbt, inp, out, code, hDecomp, hComp, hMul1, hEven, hNotLe1, assignK, assignKLoop, lookupCounter,
-      spMaxOutputsPerScanKey, ForIn.forIn, List.foldlM,
+    simp [collectSpRecipients, verifyOutputSpLabel, labeledSpendKey, labelTweak,
+      SilentPaymentCode.fromBytes, PsbtSpInput.effectiveSighashType, PsbtSpInput.isEligible,
+      SpInputScriptKind.isEligible, sighashAll,
+      psbt, acc, inp, out, code, hDecomp, hComp, hHash, hOneNz, hAddAff, hMul1, hEven, hNotLe1,
+      assignK, assignKLoop, lookupCounter, spMaxOutputsPerScanKey, ForIn.forIn, List.foldlM,
       Bind.bind, Except.bind, Pure.pure, Except.pure]
   have hFin :
       finalizePsbtSilentPayments nonVacuousSpCrypto psbt spFiveByte32 =
