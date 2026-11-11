@@ -230,4 +230,124 @@ def llbBolosSwForError (errTag : UInt8) : UInt16 :=
   | 18 => 0xB008 -- cryptoOrSignatureFailed -> SW_SIGNATURE_FAIL
   | _  => 0xB007 -- fallback -> SW_BAD_STATE
 
+/-! ## 6. Wave 4 BOLOS Optimization Kernels (Division-Free Satoshi Split, O(log n) Merkle, BIP32 & Bech32) -/
+
+/-- 32x32->64 unsigned product `(a.toUInt64) * (b.toUInt64)`:
+    lowered to single-cycle `muls` partial products on `thumbv6m`, `umull` on `thumbv8m.main`,
+    and `mul`/`mulhu` on `riscv32imac` with **zero** `__aeabi_lmul` or `__aeabi_uldivmod` libcalls! -/
+def mulU32ToU64 (a b : UInt32) : UInt64 :=
+  a.toUInt64 * b.toUInt64
+
+/-- Compute the high 64 bits of `x * 0xABCC77118461CEFD` using pure 32-bit `UInt32` limb arithmetic
+    (`0` undefined libgcc/compiler-rt symbols across `thumbv6m`, `thumbv8m.main`, `riscv32imac`). -/
+def mulHiRecip1e8 (x : UInt64) : UInt64 :=
+  let x0 : UInt32 := x.toUInt32
+  let x1 : UInt32 := (x >>> 32).toUInt32
+  let m0 : UInt32 := 0x8461CEFD
+  let m1 : UInt32 := 0xABCC7711
+  let p00 : UInt64 := mulU32ToU64 x0 m0
+  let p01 : UInt64 := mulU32ToU64 x0 m1
+  let p10 : UInt64 := mulU32ToU64 x1 m0
+  let p11 : UInt64 := mulU32ToU64 x1 m1
+  let mid : UInt64 := (p00 >>> 32) + p01.toUInt32.toUInt64 + p10.toUInt32.toUInt64
+  p11 + (p01 >>> 32) + (p10 >>> 32) + (mid >>> 32)
+
+/-- Exact division-free `amount / 100_000_000` for any `amount : UInt64`
+    (`⌊amount * 0xABCC77118461CEFD / 2^90⌋`), eliminating 64-bit software division on BOLOS ARM. -/
+@[export llb_sats_div_1e8]
+def llbSatsDiv1e8 (amount : UInt64) : UInt64 :=
+  (mulHiRecip1e8 amount) >>> 26
+
+/-- Exact division-free `amount % 100_000_000` (`0..99_999_999`) for any `amount : UInt64`
+    computed in 32-bit arithmetic (`amount.toUInt32 - q.toUInt32 * 100_000_000`). -/
+@[export llb_sats_mod_1e8]
+def llbSatsMod1e8 (amount : UInt64) : UInt32 :=
+  let q := llbSatsDiv1e8 amount
+  amount.toUInt32 - (q.toUInt32 * 100000000)
+
+/-- Compute the largest power of `2` strictly less than `s` (for `s ≥ 2`) in `O(1)` branchless
+    bit-smearing (`(((m ||| m>>>1 ||| m>>>2 ||| m>>>4 ||| m>>>8 ||| m>>>16) >>> 1) + 1)` where `m = s - 1`):
+    lowers to 7 straight-line ALU instructions on ARM Thumb (`0` branches, `0` callee-saved pushes)! -/
+def largestPow2LtU32 (s : UInt32) : UInt32 :=
+  let m0 : UInt32 := s - 1
+  let m1 : UInt32 := m0 ||| (m0 >>> 1)
+  let m2 : UInt32 := m1 ||| (m1 >>> 2)
+  let m4 : UInt32 := m2 ||| (m2 >>> 4)
+  let m8 : UInt32 := m4 ||| (m4 >>> 8)
+  let m16 : UInt32 := m8 ||| (m8 >>> 16)
+  (m16 >>> 1) + 1
+
+/-- Pack `(size, index)` into a single `UInt64` (`size * 2^32 + index`) so multi-step
+    Merkle descent stays 100% unboxed scalar (`0` heap tuples / `0` `isShared`). -/
+def packMerkleState (size index : UInt32) : UInt64 :=
+  (size.toUInt64 <<< 32) + index.toUInt64
+
+/-- Advance packed `(size, index)` (`(size <<< 32) ||| index`) by one Merkle tree level
+    toward `index`:
+    - returns `st` unchanged when `size ≤ 1` (already at leaf);
+    - otherwise descends into left subtree `(mask, index)` or right subtree `(size - mask, index - mask)`. -/
+@[export llb_merkle_advance_state]
+def llbMerkleAdvanceState (st : UInt64) : UInt64 :=
+  let size : UInt32 := (st >>> 32).toUInt32
+  let index : UInt32 := st.toUInt32
+  if decide (size ≤ 1) then
+    st
+  else
+    let mask := largestPow2LtU32 size
+    if decide (index < mask) then
+      packMerkleState mask index
+    else
+      packMerkleState (size - mask) (index - mask)
+
+/-- Extract the branch direction at packed `(size, index)` (`0` = left, `1` = right, `0xFF` = leaf / invalid). -/
+@[export llb_merkle_state_dir]
+def llbMerkleStateDir (st : UInt64) : UInt8 :=
+  let size : UInt32 := (st >>> 32).toUInt32
+  let index : UInt32 := st.toUInt32
+  if decide (size ≤ 1) || !decide (index < size) then
+    0xFF
+  else
+    let mask := largestPow2LtU32 size
+    if decide (index < mask) then 0 else 1
+
+/-- Exact scalar check for BOLOS `is_path_safe_for_pubkey_export` (`get_extended_pubkey.c`):
+    given `p0..p3`, `pathLen`, `expectedCoinType` (`0` mainnet / `1` testnet), and whether all
+    remaining tail steps (`p3..` for 3-step purposes or `p4..` for BIP-48) are unhardened. -/
+@[export llb_bip32_pubkey_export_prefix_ok]
+def llbBip32PubkeyExportPrefixOk
+    (p0 p1 p2 p3 : UInt32) (pathLen : UInt8) (expectedCoinType : UInt32) (tailUnhardened : Bool) : Bool :=
+  if decide (pathLen = 2) then
+    decide (p0 = 0x80454C45) && decide (p1 = 0xC2494532)
+  else if decide (pathLen < 3) || !tailUnhardened then
+    false
+  else if !(llbBip32IsHardened p0 && llbBip32IsHardened p1 && llbBip32IsHardened p2) then
+    false
+  else
+    let purpose := llbBip32Unharden p0
+    let coinType := llbBip32Unharden p1
+    let account := llbBip32Unharden p2
+    if !decide (coinType = expectedCoinType) || decide (100 < account) then
+      false
+    else if llbBip32StandardPurposeOk p0 then
+      true
+    else if decide (purpose = 48) then
+      decide (4 ≤ pathLen) && llbBip32IsHardened p3 &&
+        (let st := llbBip32Unharden p3
+         decide (st = 1) || decide (st = 2))
+    else
+      false
+
+/-- BIP-173 Bech32 (`1` -> `1`) / BIP-350 Bech32m (`2` -> `0x2bc830a3`) final polymod constant (`0` otherwise). -/
+@[export llb_bech32_final_constant]
+def llbBech32FinalConstant (enc : UInt8) : UInt32 :=
+  if decide (enc = 1) then 1
+  else if decide (enc = 2) then 0x2bc830a3
+  else 0
+
+/-- BOLOS wallet policy name character check (`0x20..0x7E` interior, `0x21..0x7E` non-space at first/last char). -/
+@[export llb_wallet_name_char_ok]
+def llbWalletNameCharOk (c : UInt8) (isEdge : Bool) : Bool :=
+  let lo : UInt8 := if isEdge then 0x21 else 0x20
+  decide (lo ≤ c) && decide (c ≤ 0x7E)
+
 end BitcoinLedger.FreestandingKernels

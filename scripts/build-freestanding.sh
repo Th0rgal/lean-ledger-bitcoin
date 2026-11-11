@@ -34,7 +34,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 HUB="${LEDGER_HUB:-/var/lib/orb-node/work/caches/ledger-hub}"
-LEAN_NATIVE="${LEAN_NATIVE:-${HUB}/turbo-lean/lean/.lake/build/bin/lean-native}"
+if [ -z "${LEAN_NATIVE:-}" ]; then
+  if [ -x "${REPO_ROOT}/../turbo-lean/lean/.lake/build/bin/lean-native" ]; then
+    LEAN_NATIVE="${REPO_ROOT}/../turbo-lean/lean/.lake/build/bin/lean-native"
+  else
+    LEAN_NATIVE="${HUB}/turbo-lean/lean/.lake/build/bin/lean-native"
+  fi
+fi
 LLB_KERNEL="${LLB_KERNEL:-BitcoinLedger/FreestandingKernels.lean}"
 LLB_STACK_BUDGET="${LLB_STACK_BUDGET:-1024}"
 CLANG="${CLANG:-clang}"
@@ -85,6 +91,97 @@ emit_target() {
     --clang-bin "${CLANG}" \
     -o "${archive}" \
     --json)
+}
+
+emit_bolos_lto_bundle() {
+  local lto_dir="${REPO_ROOT}/ffi/bolos/build/lto"
+  local opt_bin
+  opt_bin="$(command -v opt || echo "${HUB}/dev-tools-rootfs/usr/lib/llvm-21/bin/opt")"
+  [ -x "${opt_bin}" ] || die "LLVM opt binary not found at '${opt_bin}'"
+
+  mkdir -p "${lto_dir}"
+  cp "${REPO_ROOT}/ffi/bolos/build/thumbv8m.main/${LIB_NAME}.h" "${lto_dir}/${LIB_NAME}_ilp32.h"
+  cp "${REPO_ROOT}/ffi/bolos/build/host/${LIB_NAME}.h" "${lto_dir}/${LIB_NAME}_lp64.h"
+  cat > "${lto_dir}/${LIB_NAME}.h" <<'EOF'
+#pragma once
+#if defined(__LP64__) || defined(_LP64)
+#include "liblean_ledger_bitcoin_lp64.h"
+#else
+#include "liblean_ledger_bitcoin_ilp32.h"
+#endif
+EOF
+
+  local tag src_ll dst_ll
+  for tag in thumbv6m thumbv8m.main host; do
+    src_ll="${REPO_ROOT}/ffi/bolos/build/${tag}/${LIB_NAME}.ll"
+    dst_ll="${lto_dir}/${LIB_NAME}_${tag}.ll"
+    python3 - "${src_ll}" "${dst_ll}.pre.ll" "${tag}" <<'PY'
+import re, sys
+
+src, dst, tag = sys.argv[1], sys.argv[2], sys.argv[3]
+text = open(src).read()
+
+INLINE_SCALARS = {
+    "llb_bip32_bolos_depth_ok",
+    "llb_bip32_is_hardened",
+    "llb_bip32_unharden",
+    "llb_valid_amount",
+    "llb_sighash_type_valid",
+    "llb_taproot_sighash_valid",
+    "llb_bech32_final_constant",
+    "llb_segwit_program_valid",
+    "llb_witness_opcode_to_version",
+    "llb_wallet_name_char_ok",
+    "llb_merkle_advance_state",
+}
+
+out = []
+for line in text.splitlines():
+    if line.startswith("!llvm.ident") or line.startswith("!0 = !{!\"lean-native"):
+        continue
+    m = re.match(r'^define\s+(?:dso_local\s+)?(.*?)\s+@([^\(\s]+)\((.*)$', line)
+    if m:
+        ret_ty, fn, rest = m.groups()
+        if fn.startswith("llb_"):
+            extra = " alwaysinline" if (fn in INLINE_SCALARS or tag == "host") else ""
+            opt_attr = "" if tag == "host" else "optsize"
+            line = f"define hidden {ret_ty} @{fn}({rest}"
+            if line.endswith("{"):
+                line = line[:-1] + f"{opt_attr}{extra} {{"
+        else:
+            line = f"define internal {ret_ty} @{fn}({rest}"
+    elif line.startswith("attributes #"):
+        line = line.replace(" minsize ", " ")
+        if tag == "host":
+            line = line.replace(" optsize ", " ")
+    out.append(line)
+
+open(dst, "w").write("\n".join(out) + "\n")
+PY
+    if [ "${tag}" = "host" ]; then
+      "${opt_bin}" -S -passes='default<O2>' "${dst_ll}.pre.ll" -o "${dst_ll}"
+    else
+      "${opt_bin}" -S -passes='default<Oz>' "${dst_ll}.pre.ll" -o "${dst_ll}"
+    fi
+    python3 - "${dst_ll}" "${tag}" <<'PY2'
+import sys
+p, tag = sys.argv[1], sys.argv[2]
+s = open(p).read()
+def clean_attr(l: str) -> str:
+    l = l.replace(" minsize ", " ")
+    if tag == "host":
+        l = l.replace(" optsize ", " ")
+    return l
+open(p, "w").write("\n".join(
+    clean_attr(l)
+    for l in s.splitlines()
+    if not l.startswith("!llvm.ident") and not l.startswith("!0 = !{!\"lean-native")
+) + "\n")
+PY2
+    rm -f "${dst_ll}.pre.ll"
+    [ -s "${dst_ll}" ] || die "failed to emit BOLOS LTO IR: ${dst_ll}"
+  done
+  log "[bolos-lto] staged LTO bitcode IR + dual ILP32/LP64 headers -> ${lto_dir}"
 }
 
 verify_target() {
@@ -155,6 +252,8 @@ main() {
     verify_target "${tag}" "${out_dir}"
     log ""
   done
+
+  emit_bolos_lto_bundle
 
   log "SUCCESS: freestanding C99 bundles verified for thumbv6m, thumbv8m.main,"
   log "riscv32imac (+ host test emissions) with 0 undefined symbols, 0 heap/runtime"
