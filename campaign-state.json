@@ -1,7 +1,7 @@
 {
   "campaign": "lean-ledger-bitcoin",
   "created_at": "2026-11-10T15:55:00Z",
-  "last_updated": "2026-11-11T02:09:30Z",
+  "last_updated": "2026-11-11T03:56:00Z",
   "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
   "allowed_providers_policy": {
     "allowed": [
@@ -35,7 +35,7 @@
     "lean_toolchain": "leanprover/lean4:v4.35.0",
     "warm_snapshot": "orb-snap-health-manager-ledger-hub-warm-v1-eevr"
   },
-  "current_wave": "wave3_bolos_speculos_and_vanadium_integration",
+  "current_wave": "wave3_final_acceptance_review",
   "spec_freeze": {
     "frozen": true,
     "frozen_at": "2026-11-10T22:16:00Z",
@@ -62,9 +62,15 @@
       "wave2/impl-i5-ffi-shims": "f775ff50fc5fda633b592659b3874e9ef2641f6d",
       "wave2/impl-unified": "0331e64d0e282424fed3a58fa840a31226426958"
     },
+    "wave3_branches": {
+      "wave3/test-t1-bolos": "18eac154c4732acadb02a11460489d445f43e32e",
+      "wave3/test-t2-vanadium": "febbfd71070e037fcce26ad7d05a073dccac48b9"
+    },
     "spec_cards": [
       "docs/spec-cards/000-initial-unified-spec.md",
-      "docs/spec-cards/vanadium-upstream-bugs.md"
+      "docs/spec-cards/vanadium-upstream-bugs.md",
+      "docs/spec-cards/bolos-integration-report.md",
+      "docs/spec-cards/vanadium-integration-report.md"
     ]
   },
   "ownership_ledger": {
@@ -96,7 +102,7 @@
       "size": "large",
       "provider": "boat",
       "role": "Wave 3 Shard T1 (BOLOS Speculos, C Unit Tests & Pure Lean Differential Suite)",
-      "state": "online"
+      "state": "destroyed"
     },
     "mmvgxqm3t3": {
       "name": "large-d",
@@ -104,7 +110,7 @@
       "size": "large",
       "provider": "boat",
       "role": "Wave 3 Shard T2 (Vanadium V-App, RISC-V Link & Pure Lean Differential Suite)",
-      "state": "online"
+      "state": "destroyed"
     }
   },
   "missions": {
@@ -153,14 +159,16 @@
       "backend": "antigravity",
       "model_effort": "low",
       "remote_node_id": "managed-mmfzhpdwau",
-      "status": "active"
+      "status": "completed",
+      "commit_sha": "18eac154c4732acadb02a11460489d445f43e32e"
     },
     "W3_T2_vanadium_vapp": {
       "mission_id": "79ac9da9-8f67-4580-9380-00bdd917255a",
       "backend": "antigravity",
       "model_effort": "low",
       "remote_node_id": "managed-mmvgxqm3t3",
-      "status": "active"
+      "status": "completed",
+      "commit_sha": "febbfd71070e037fcce26ad7d05a073dccac48b9"
     }
   },
   "quorum_log": [
