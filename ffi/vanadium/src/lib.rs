@@ -40,11 +40,35 @@ pub const VERSION_MINOR: u32 = 4;
 /// Kernel patch version.
 pub const VERSION_PATCH: u32 = 1;
 
+/// Consensus `MAX_MONEY` (`21_000_000 * 100_000_000 = 2_100_000_000_000_000` satoshis).
+pub const MAX_MONEY_SATS: u64 = 2_100_000_000_000_000;
+
 mod sys {
     extern "C" {
-        /// turbo-lean-emitted freestanding kernel entry
-        /// (`BitcoinLedger.FreestandingKernels.llbVersionPacked`).
+        /// turbo-lean-emitted freestanding kernel entries
+        /// (`BitcoinLedger.FreestandingKernels.*`).
         pub fn llb_version_packed() -> u32;
+        pub fn llb_valid_amount(sats: u64) -> u8;
+        pub fn llb_checked_add_sats_ok(a: u64, b: u64) -> u8;
+        pub fn llb_checked_add_sats_val(a: u64, b: u64) -> u64;
+        pub fn llb_checked_sub_sats_ok(a: u64, b: u64) -> u8;
+        pub fn llb_checked_sub_sats_val(a: u64, b: u64) -> u64;
+        pub fn llb_varint_encoded_len(n: u64) -> u8;
+        pub fn llb_varint_prefix_is_canonical(tag: u8, decoded_val: u64) -> u8;
+        pub fn llb_bip32_is_hardened(idx: u32) -> u8;
+        pub fn llb_bip32_harden(n: u32) -> u32;
+        pub fn llb_bip32_unharden(idx: u32) -> u32;
+        pub fn llb_bip32_bolos_depth_ok(depth: u8) -> u8;
+        pub fn llb_bip32_vanadium_depth_ok(depth: u8) -> u8;
+        pub fn llb_bip32_standard_purpose_ok(purpose_step: u32) -> u8;
+        pub fn llb_witness_opcode_to_version(op: u8) -> u8;
+        pub fn llb_segwit_program_valid(witver: u8, prog_len: u8) -> u8;
+        pub fn llb_bech32_polymod_step(pre: u32, val: u8) -> u32;
+        pub fn llb_minimal_push_opcode_ok(op: u8, first_byte: u8, push_len: u32) -> u8;
+        pub fn llb_sighash_type_valid(sighash_u32: u32) -> u8;
+        pub fn llb_taproot_sighash_valid(sighash_byte: u8) -> u8;
+        pub fn llb_merkle_depth_index_ok(tree_size: u32, index: u32, depth: u8) -> u8;
+        pub fn llb_bolos_sw_for_error(err_tag: u8) -> u16;
     }
 }
 
@@ -55,6 +79,150 @@ mod sys {
 pub fn version_packed() -> u32 {
     // SAFETY: pure freestanding function with no preconditions.
     unsafe { sys::llb_version_packed() }
+}
+
+/// Consensus satoshi range check (`0 <= sats <= MAX_MONEY`).
+pub fn valid_amount(sats: u64) -> bool {
+    // SAFETY: pure freestanding scalar function with no preconditions.
+    unsafe { sys::llb_valid_amount(sats) != 0 }
+}
+
+/// Overflow-free satoshi addition in `[0, MAX_MONEY]`.
+pub fn checked_add_sats(a: u64, b: u64) -> Option<u64> {
+    // SAFETY: pure freestanding scalar functions with no preconditions.
+    unsafe {
+        if sys::llb_checked_add_sats_ok(a, b) != 0 {
+            Some(sys::llb_checked_add_sats_val(a, b))
+        } else {
+            None
+        }
+    }
+}
+
+/// Underflow-free satoshi subtraction in `[0, MAX_MONEY]`.
+pub fn checked_sub_sats(a: u64, b: u64) -> Option<u64> {
+    // SAFETY: pure freestanding scalar functions with no preconditions.
+    unsafe {
+        if sys::llb_checked_sub_sats_ok(a, b) != 0 {
+            Some(sys::llb_checked_sub_sats_val(a, b))
+        } else {
+            None
+        }
+    }
+}
+
+/// Canonical CompactSize / VarInt encoded byte length (`1`, `3`, `5`, or `9`).
+pub fn varint_encoded_len(n: u64) -> u8 {
+    unsafe { sys::llb_varint_encoded_len(n) }
+}
+
+/// Check whether a CompactSize prefix `tag` and `decoded_val` form a minimal encoding.
+pub fn varint_prefix_is_canonical(tag: u8, decoded_val: u64) -> bool {
+    unsafe { sys::llb_varint_prefix_is_canonical(tag, decoded_val) != 0 }
+}
+
+/// Check whether BIP-32 child index `idx` has the hardened bit (`0x8000_0000`) set.
+pub fn bip32_is_hardened(idx: u32) -> bool {
+    unsafe { sys::llb_bip32_is_hardened(idx) != 0 }
+}
+
+/// Set the BIP-32 hardened bit (`n | 0x8000_0000`).
+pub fn bip32_harden(n: u32) -> u32 {
+    unsafe { sys::llb_bip32_harden(n) }
+}
+
+/// Clear the BIP-32 hardened bit (`idx & 0x7FFF_FFFF`).
+pub fn bip32_unharden(idx: u32) -> u32 {
+    unsafe { sys::llb_bip32_unharden(idx) }
+}
+
+/// BOLOS standard BIP-32 path depth gate (`depth <= 10`).
+pub fn bip32_bolos_depth_ok(depth: u8) -> bool {
+    unsafe { sys::llb_bip32_bolos_depth_ok(depth) != 0 }
+}
+
+/// Vanadium `KeyTree::Standard` BIP-32 path depth gate (`depth <= 16`).
+pub fn bip32_vanadium_depth_ok(depth: u8) -> bool {
+    unsafe { sys::llb_bip32_vanadium_depth_ok(depth) != 0 }
+}
+
+/// Hardened standard 3-step BIP purpose check (`44'`, `49'`, `84'`, `86'`, `87'`, `45'`).
+pub fn bip32_standard_purpose_ok(purpose_step: u32) -> bool {
+    unsafe { sys::llb_bip32_standard_purpose_ok(purpose_step) != 0 }
+}
+
+/// Decode a Bitcoin Script witness-version opcode (`OP_0` -> `Some(0)`, `OP_1..OP_16` -> `Some(1..=16)`).
+pub fn witness_opcode_to_version(op: u8) -> Option<u8> {
+    let v = unsafe { sys::llb_witness_opcode_to_version(op) };
+    if v == 0xFF { None } else { Some(v) }
+}
+
+/// Validate SegWit witness version & program length (`v0`: `20|32`, `v1..=16`: `2..=40`).
+pub fn segwit_program_valid(witver: u8, prog_len: u8) -> bool {
+    unsafe { sys::llb_segwit_program_valid(witver, prog_len) != 0 }
+}
+
+/// Single GF(32) generator-polynomial step for Bech32 / Bech32m `polymod`.
+pub fn bech32_polymod_step(pre: u32, val: u8) -> u32 {
+    unsafe { sys::llb_bech32_polymod_step(pre, val) }
+}
+
+/// Validate BIP-62 `MINIMALDATA` canonicality for `(op, first_byte, push_len)`.
+pub fn minimal_push_opcode_ok(op: u8, first_byte: u8, push_len: u32) -> bool {
+    unsafe { sys::llb_minimal_push_opcode_ok(op, first_byte, push_len) != 0 }
+}
+
+/// Validate a 32-bit non-Taproot sighash type (`0x01..=0x03`, `0x81..=0x83`).
+pub fn sighash_type_valid(sighash_u32: u32) -> bool {
+    unsafe { sys::llb_sighash_type_valid(sighash_u32) != 0 }
+}
+
+/// Validate a 1-byte BIP-341 Taproot sighash type (`0x00`, `0x01..=0x03`, `0x81..=0x83`).
+pub fn taproot_sighash_valid(sighash_byte: u8) -> bool {
+    unsafe { sys::llb_taproot_sighash_valid(sighash_byte) != 0 }
+}
+
+/// Validate Merkle inclusion-proof header bounds (`0 < tree_size`, `index < tree_size`, `depth <= 32`).
+pub fn merkle_depth_index_ok(tree_size: u32, index: u32, depth: u8) -> bool {
+    unsafe { sys::llb_merkle_depth_index_ok(tree_size, index, depth) != 0 }
+}
+
+/// Map compact `SpecError` discriminant tag (`0..=18`) to BOLOS 16-bit APDU status word.
+pub fn bolos_sw_for_error(err_tag: u8) -> u16 {
+    unsafe { sys::llb_bolos_sw_for_error(err_tag) }
+}
+
+/// Exercises all 22 freestanding C99 kernel exports from `liblean_ledger_bitcoin.a`
+/// in `no_std` environments (e.g. Vanadium RV32IMAC V-App boot / request boundary).
+pub fn kernel_self_test() -> bool {
+    check_kernel_version().is_ok()
+        && valid_amount(MAX_MONEY_SATS)
+        && !valid_amount(MAX_MONEY_SATS + 1)
+        && checked_add_sats(1_000_000, 2_500_000) == Some(3_500_000)
+        && checked_add_sats(MAX_MONEY_SATS, 1).is_none()
+        && checked_sub_sats(5_000_000, 1_500_000) == Some(3_500_000)
+        && checked_sub_sats(100, 101).is_none()
+        && varint_encoded_len(0xFC) == 1
+        && varint_encoded_len(0xFD) == 3
+        && varint_prefix_is_canonical(0xFD, 0xFD)
+        && !varint_prefix_is_canonical(0xFD, 0xFC)
+        && bip32_is_hardened(bip32_harden(86))
+        && bip32_unharden(bip32_harden(86)) == 86
+        && bip32_bolos_depth_ok(10)
+        && !bip32_bolos_depth_ok(11)
+        && bip32_vanadium_depth_ok(16)
+        && !bip32_vanadium_depth_ok(17)
+        && bip32_standard_purpose_ok(bip32_harden(86))
+        && witness_opcode_to_version(0x51) == Some(1)
+        && segwit_program_valid(1, 32)
+        && bech32_polymod_step(1, 0) == 0x20
+        && minimal_push_opcode_ok(0x01, 0x42, 1)
+        && !minimal_push_opcode_ok(0x01, 0x05, 1)
+        && sighash_type_valid(0x01)
+        && !sighash_type_valid(0x00)
+        && taproot_sighash_valid(0x00)
+        && merkle_depth_index_ok(8, 3, 3)
+        && bolos_sw_for_error(5) == 0x6985
 }
 
 /// Unpacked kernel version triple.
@@ -904,6 +1072,98 @@ mod tests {
     fn kernel_version_check_ok() {
         let v = check_kernel_version().expect("linked kernel must match 0x00020401");
         assert_eq!(v, Version { major: 2, minor: 4, patch: 1 });
+        assert!(kernel_self_test());
+    }
+
+    #[test]
+    fn kernel_satoshi_arithmetic_guards_overflow() {
+        assert!(valid_amount(0));
+        assert!(valid_amount(MAX_MONEY_SATS));
+        assert!(!valid_amount(MAX_MONEY_SATS + 1));
+        assert!(!valid_amount(1u64 << 63)); // VND-BUG-002 i64::MIN cast vector
+        assert!(!valid_amount(u64::MAX));
+        assert_eq!(checked_add_sats(100_000, 250_000), Some(350_000));
+        assert_eq!(checked_add_sats(MAX_MONEY_SATS, 0), Some(MAX_MONEY_SATS));
+        assert_eq!(checked_add_sats(MAX_MONEY_SATS, 1), None);
+        assert_eq!(checked_add_sats(MAX_MONEY_SATS - 10, 11), None);
+        assert_eq!(checked_add_sats(1u64 << 63, 1), None);
+        assert_eq!(checked_sub_sats(500_000, 125_000), Some(375_000));
+        assert_eq!(checked_sub_sats(100, 101), None);
+        assert_eq!(checked_sub_sats(MAX_MONEY_SATS + 1, 1), None);
+    }
+
+    #[test]
+    fn kernel_varint_and_bip32_guards() {
+        assert_eq!(varint_encoded_len(0xFC), 1);
+        assert_eq!(varint_encoded_len(0xFD), 3);
+        assert_eq!(varint_encoded_len(0xFFFF), 3);
+        assert_eq!(varint_encoded_len(0x1_0000), 5);
+        assert_eq!(varint_encoded_len(0x1_0000_0000), 9);
+        assert!(varint_prefix_is_canonical(0xFC, 0xFC));
+        assert!(!varint_prefix_is_canonical(0xFD, 0xFC)); // VND-BUG-009 non-minimal 0xFD
+        assert!(varint_prefix_is_canonical(0xFD, 0xFD));
+        assert!(!varint_prefix_is_canonical(0xFE, 0xFFFF)); // VND-BUG-009 non-minimal 0xFE
+        assert!(!varint_prefix_is_canonical(0xFF, 0xFFFF_FFFF)); // VND-BUG-009 non-minimal 0xFF
+
+        let h84 = bip32_harden(84);
+        assert_eq!(h84, 0x8000_0054);
+        assert!(bip32_is_hardened(h84));
+        assert!(!bip32_is_hardened(84));
+        assert_eq!(bip32_unharden(h84), 84);
+        assert!(bip32_bolos_depth_ok(10));
+        assert!(!bip32_bolos_depth_ok(11));
+        assert!(bip32_vanadium_depth_ok(16));
+        assert!(!bip32_vanadium_depth_ok(17));
+        for p in [44, 45, 49, 84, 86, 87] {
+            assert!(bip32_standard_purpose_ok(bip32_harden(p)));
+            assert!(!bip32_standard_purpose_ok(p));
+        }
+        assert!(!bip32_standard_purpose_ok(bip32_harden(352)));
+    }
+
+    #[test]
+    fn kernel_script_sighash_merkle_and_sw_exports() {
+        assert_eq!(witness_opcode_to_version(0x00), Some(0));
+        assert_eq!(witness_opcode_to_version(0x51), Some(1));
+        assert_eq!(witness_opcode_to_version(0x60), Some(16));
+        assert_eq!(witness_opcode_to_version(0x50), None);
+
+        assert!(segwit_program_valid(0, 20));
+        assert!(segwit_program_valid(0, 32));
+        assert!(!segwit_program_valid(0, 24));
+        assert!(segwit_program_valid(1, 32));
+        assert!(!segwit_program_valid(17, 32));
+
+        // BIP-173polymod step sanity
+        let mut chk = 1u32;
+        for b in [3u8, 3, 0, 2, 3] {
+            chk = bech32_polymod_step(chk, b);
+        }
+        assert_ne!(chk, 0);
+
+        assert!(minimal_push_opcode_ok(0x00, 0x00, 0));
+        assert!(!minimal_push_opcode_ok(0x01, 0x01, 1)); // must use OP_1
+        assert!(minimal_push_opcode_ok(0x51, 0x01, 1));
+        assert!(minimal_push_opcode_ok(0x4C, 0xAA, 76));
+        assert!(!minimal_push_opcode_ok(0x4C, 0xAA, 75));
+
+        for sh in [0x01u32, 0x02, 0x03, 0x81, 0x82, 0x83] {
+            assert!(sighash_type_valid(sh));
+            assert!(taproot_sighash_valid(sh as u8));
+        }
+        assert!(!sighash_type_valid(0x00));
+        assert!(taproot_sighash_valid(0x00)); // SIGHASH_DEFAULT
+        assert!(!taproot_sighash_valid(0x04));
+
+        assert!(merkle_depth_index_ok(16, 15, 4));
+        assert!(!merkle_depth_index_ok(0, 0, 0));
+        assert!(!merkle_depth_index_ok(4, 4, 2));
+        assert!(!merkle_depth_index_ok(4, 0, 33));
+
+        assert_eq!(bolos_sw_for_error(0), 0x6700);
+        assert_eq!(bolos_sw_for_error(5), 0x6985);
+        assert_eq!(bolos_sw_for_error(18), 0xB008);
+        assert_eq!(bolos_sw_for_error(99), 0xB007);
     }
 
     // ------------------------------------------------------------------
