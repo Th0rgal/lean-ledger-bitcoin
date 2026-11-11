@@ -1,0 +1,12 @@
+[package]
+name = "llb-vanadium-ffi"
+version = "0.2.4"
+edition = "2021"
+description = "Vanadium Bitcoin V-App FFI bindings for the lean-ledger-bitcoin freestanding kernels (riscv32imac + host)"
+license = "MIT"
+publish = false
+
+[dependencies]
+# Intentionally dependency-free: `no_std`-compatible and linkable into the
+# Vanadium V-App (apps/bitcoin/app) sandbox next to the lean-native-emitted
+# freestanding archive.
