@@ -1,0 +1,398 @@
+{
+  "benchmark_suite": "vanadium-bitcoin-vapp-wave4",
+  "upstream_reference_commit": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
+  "target_isa": "riscv32imac-unknown-none-elf",
+  "device_model": "Ledger Flex (Speculos --model flex, 480x600 E-Ink)",
+  "lean_freestanding_kernels": {
+    "version_packed": "0x00020401",
+    "exported_symbols": 23,
+    "max_stack_frame_bytes": 0,
+    "frames": [
+      {
+        "symbol": "llb_checked_add_sats_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_valid_amount",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_witness_opcode_to_version",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_standard_purpose_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MAX__MONEY__U64",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_minimal_push_opcode_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_taproot_sighash_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_unharden",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_harden",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bech32_polymod_step",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_merkle_depth_index_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_sighash_type_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_vanadium_depth_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bolos_sw_for_error",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_checked_add_sats_val",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_segwit_program_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_varint_encoded_len",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_version_packed",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_is_hardened",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_varint_prefix_is_canonical",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_checked_sub_sats_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_bolos_depth_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_checked_sub_sats_val",
+        "stack_frame_bytes": 0
+      }
+    ]
+  },
+  "storage_and_ram": {
+    "reference_plain": {
+      "elf_file_bytes": 542092,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 306008,
+      "load_rw_ram_bytes": 65836,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 65536,
+      "total_vapp_ram_bytes": 131372,
+      "text_bytes": 251708,
+      "rodata_bytes": 26376,
+      "eh_frame_bytes": 27708,
+      "data_bytes": 16,
+      "bss_bytes": 65820,
+      "n_code_pages_256b": 1196,
+      "code_merkle_tree_depth": 11,
+      "n_data_pages_256b": 258,
+      "n_stack_pages_256b": 256
+    },
+    "lean_optimized_plain": {
+      "elf_file_bytes": 244780,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 244350,
+      "load_rw_ram_bytes": 33068,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 32768,
+      "total_vapp_ram_bytes": 65836,
+      "text_bytes": 234848,
+      "rodata_bytes": 9286,
+      "eh_frame_bytes": 0,
+      "data_bytes": 16,
+      "bss_bytes": 33052,
+      "n_code_pages_256b": 955,
+      "code_merkle_tree_depth": 10,
+      "n_data_pages_256b": 130,
+      "n_stack_pages_256b": 128
+    },
+    "same_profile_lean_plain": {
+      "elf_file_bytes": 508368,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 268742,
+      "load_rw_ram_bytes": 65836,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 65536,
+      "total_vapp_ram_bytes": 131372,
+      "text_bytes": 234722,
+      "rodata_bytes": 9286,
+      "eh_frame_bytes": 24516,
+      "data_bytes": 16,
+      "bss_bytes": 65820,
+      "n_code_pages_256b": 1050,
+      "code_merkle_tree_depth": 11,
+      "n_data_pages_256b": 258,
+      "n_stack_pages_256b": 256
+    },
+    "reference_autoapprove": {
+      "elf_file_bytes": 485256,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 271664,
+      "load_rw_ram_bytes": 65836,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 65536,
+      "total_vapp_ram_bytes": 131372,
+      "text_bytes": 223336,
+      "rodata_bytes": 23348,
+      "eh_frame_bytes": 24764,
+      "data_bytes": 16,
+      "bss_bytes": 65820,
+      "n_code_pages_256b": 1062,
+      "code_merkle_tree_depth": 11,
+      "n_data_pages_256b": 258,
+      "n_stack_pages_256b": 256
+    },
+    "lean_optimized_autoapprove": {
+      "elf_file_bytes": 213552,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 213122,
+      "load_rw_ram_bytes": 33068,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 32768,
+      "total_vapp_ram_bytes": 65836,
+      "text_bytes": 206432,
+      "rodata_bytes": 6474,
+      "eh_frame_bytes": 0,
+      "data_bytes": 16,
+      "bss_bytes": 33052,
+      "n_code_pages_256b": 833,
+      "code_merkle_tree_depth": 10,
+      "n_data_pages_256b": 130,
+      "n_stack_pages_256b": 128
+    },
+    "same_profile_lean_autoapprove": {
+      "elf_file_bytes": 449448,
+      "pt_load_segments": 2,
+      "load_rx_bytes": 234726,
+      "load_rw_ram_bytes": 65836,
+      "load_rw_filesz_bytes": 16,
+      "stack_bytes": 65536,
+      "total_vapp_ram_bytes": 131372,
+      "text_bytes": 206298,
+      "rodata_bytes": 6474,
+      "eh_frame_bytes": 21736,
+      "data_bytes": 16,
+      "bss_bytes": 65820,
+      "n_code_pages_256b": 917,
+      "code_merkle_tree_depth": 10,
+      "n_data_pages_256b": 258,
+      "n_stack_pages_256b": 256
+    }
+  },
+  "speculos_flex_e2e": {
+    "runs_per_workload": 5,
+    "reference": {
+      "get_fingerprint": {
+        "wall_median_ms": 615.32,
+        "wall_min_ms": 473.84,
+        "wall_mean_ms": 606.38,
+        "apdu_exchanges": 268,
+        "apdu_bytes_sent": 87552,
+        "apdu_bytes_received": 2632,
+        "rv32_instructions": 6190,
+        "vm_page_loads": 137,
+        "vm_page_commits": 0
+      },
+      "sign_transaction": {
+        "wall_median_ms": 2605.29,
+        "wall_min_ms": 2512.71,
+        "wall_mean_ms": 2670.43,
+        "apdu_exchanges": 2744,
+        "apdu_bytes_sent": 926105,
+        "apdu_bytes_received": 72708,
+        "rv32_instructions": 234238,
+        "vm_page_loads": 1384,
+        "vm_page_commits": 169
+      },
+      "send_to_silent_payment": {
+        "wall_median_ms": 2598.98,
+        "wall_min_ms": 2454.36,
+        "wall_mean_ms": 2571.38,
+        "apdu_exchanges": 2737,
+        "apdu_bytes_sent": 936894,
+        "apdu_bytes_received": 84369,
+        "rv32_instructions": 276951,
+        "vm_page_loads": 1387,
+        "vm_page_commits": 211
+      },
+      "silent_payment_account": {
+        "wall_median_ms": 1988.04,
+        "wall_min_ms": 1959.62,
+        "wall_mean_ms": 2041.24,
+        "apdu_exchanges": 1962,
+        "apdu_bytes_sent": 641645,
+        "apdu_bytes_received": 32613,
+        "rv32_instructions": 180682,
+        "vm_page_loads": 981,
+        "vm_page_commits": 49
+      }
+    },
+    "lean_optimized": {
+      "get_fingerprint": {
+        "wall_median_ms": 466.58,
+        "wall_min_ms": 443.16,
+        "wall_mean_ms": 522.35,
+        "apdu_exchanges": 243,
+        "apdu_bytes_sent": 75706,
+        "apdu_bytes_received": 2397,
+        "rv32_instructions": 5690,
+        "vm_page_loads": 125,
+        "vm_page_commits": 0
+      },
+      "sign_transaction": {
+        "wall_median_ms": 2018.6,
+        "wall_min_ms": 1760.9,
+        "wall_mean_ms": 2092.1,
+        "apdu_exchanges": 2155,
+        "apdu_bytes_sent": 689236,
+        "apdu_bytes_received": 60514,
+        "rv32_instructions": 192632,
+        "vm_page_loads": 1085,
+        "vm_page_commits": 145
+      },
+      "send_to_silent_payment": {
+        "wall_median_ms": 1946.07,
+        "wall_min_ms": 1934.87,
+        "wall_mean_ms": 2032.29,
+        "apdu_exchanges": 2319,
+        "apdu_bytes_sent": 753320,
+        "apdu_bytes_received": 76009,
+        "rv32_instructions": 236852,
+        "vm_page_loads": 1177,
+        "vm_page_commits": 195
+      },
+      "silent_payment_account": {
+        "wall_median_ms": 1829.69,
+        "wall_min_ms": 1616.79,
+        "wall_mean_ms": 1778.23,
+        "apdu_exchanges": 1747,
+        "apdu_bytes_sent": 542662,
+        "apdu_bytes_received": 30025,
+        "rv32_instructions": 177240,
+        "vm_page_loads": 874,
+        "vm_page_commits": 47
+      }
+    }
+  },
+  "host_microbenchmarks": {
+    "iterations": 1000000,
+    "upstream_hotpath_median_ns": 471079831,
+    "lean_hotpath_median_ns": 11802469,
+    "upstream_ns_per_tx_step": 471.08,
+    "lean_ns_per_tx_step": 11.8,
+    "upstream_ops_per_sec": 2122782,
+    "lean_ops_per_sec": 84728034,
+    "hotpath_speedup_x": 39.91,
+    "lean_freestanding_kernel_ns_per_check": 1.3355,
+    "lean_freestanding_kernel_mops_per_sec": 748.76
+  },
+  "summary_deltas": {
+    "plain_production_vapp": {
+      "load_rx_delta_bytes": -61658,
+      "load_rx_delta_pct": -20.15,
+      "elf_file_delta_bytes": -297312,
+      "elf_file_delta_pct": -54.85,
+      "load_rw_ram_delta_bytes": -32768,
+      "load_rw_ram_delta_pct": -49.77,
+      "total_vapp_ram_delta_bytes": -65536,
+      "total_vapp_ram_delta_pct": -49.89
+    },
+    "autoapprove_e2e_vapp": {
+      "load_rx_delta_bytes": -58542,
+      "load_rx_delta_pct": -21.55,
+      "elf_file_delta_bytes": -271704,
+      "elf_file_delta_pct": -55.99,
+      "load_rw_ram_delta_bytes": -32768,
+      "load_rw_ram_delta_pct": -49.77
+    },
+    "same_profile_plain_vapp": {
+      "load_rx_delta_bytes": -37266,
+      "load_rx_delta_pct": -12.18,
+      "elf_file_delta_bytes": -33724,
+      "elf_file_delta_pct": -6.22
+    },
+    "speculos_flex_e2e_deltas": {
+      "get_fingerprint": {
+        "wall_median_delta_ms": -148.74,
+        "wall_median_delta_pct": -24.17,
+        "rv32_instructions_delta": -500,
+        "rv32_instructions_delta_pct": -8.08,
+        "vm_page_loads_delta": -12,
+        "vm_page_loads_delta_pct": -8.76,
+        "apdu_exchanges_delta": -25,
+        "apdu_exchanges_delta_pct": -9.33,
+        "apdu_bytes_sent_delta": -11846,
+        "apdu_bytes_sent_delta_pct": -13.53
+      },
+      "sign_transaction": {
+        "wall_median_delta_ms": -586.69,
+        "wall_median_delta_pct": -22.52,
+        "rv32_instructions_delta": -41606,
+        "rv32_instructions_delta_pct": -17.76,
+        "vm_page_loads_delta": -299,
+        "vm_page_loads_delta_pct": -21.6,
+        "apdu_exchanges_delta": -589,
+        "apdu_exchanges_delta_pct": -21.47,
+        "apdu_bytes_sent_delta": -236869,
+        "apdu_bytes_sent_delta_pct": -25.58
+      },
+      "send_to_silent_payment": {
+        "wall_median_delta_ms": -652.91,
+        "wall_median_delta_pct": -25.12,
+        "rv32_instructions_delta": -40099,
+        "rv32_instructions_delta_pct": -14.48,
+        "vm_page_loads_delta": -210,
+        "vm_page_loads_delta_pct": -15.14,
+        "apdu_exchanges_delta": -418,
+        "apdu_exchanges_delta_pct": -15.27,
+        "apdu_bytes_sent_delta": -183574,
+        "apdu_bytes_sent_delta_pct": -19.59
+      },
+      "silent_payment_account": {
+        "wall_median_delta_ms": -158.35,
+        "wall_median_delta_pct": -7.97,
+        "rv32_instructions_delta": -3442,
+        "rv32_instructions_delta_pct": -1.91,
+        "vm_page_loads_delta": -107,
+        "vm_page_loads_delta_pct": -10.91,
+        "apdu_exchanges_delta": -215,
+        "apdu_exchanges_delta_pct": -10.96,
+        "apdu_bytes_sent_delta": -98983,
+        "apdu_bytes_sent_delta_pct": -15.43
+      }
+    }
+  }
+}
