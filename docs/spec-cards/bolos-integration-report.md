@@ -25,9 +25,9 @@ All four Wave 3 Shard T1 verification gates passed with zero failures and zero u
 
 ### 2.1 `./scripts/build-freestanding.sh`
 
-`lake exe emit-freestanding-c` (`lean --freestanding-c`) emitted freestanding C99 (`BitcoinLedger/FreestandingKernels.c`) for **23 declarations**:
+`lean-native emit-freestanding-c-lib --input BitcoinLedger/FreestandingKernels.lean` emitted freestanding C99/LLVM IR and static archives for **23 declarations**:
 - `llb_version_packed` (`0x00020401`) + `MAX_MONEY_U64` (`2,100,000,000,000,000`)
-- 21 freestanding `llb_*` decision/validation kernels (`llb_valid_satoshi_amount`, `llb_checked_add_sats_ok`, `llb_checked_add_sats_val`, `llb_compact_size_byte_len`, `llb_compact_size_is_minimal`, `llb_segwit_version_valid`, `llb_segwit_prog_len_valid`, `llb_bech32_encoding_for_version`, `llb_minimal_push_opcode_ok`, `llb_bip32_depth_bolos_ok`, `llb_bip32_depth_vanadium_resident_ok`, `llb_bip32_depth_vanadium_master_ok`, `llb_standard_bip44_path_ok`, `llb_bolos_os_testnet_lock_ok`, `llb_ecdsa_sighash_type_ok`, `llb_taproot_sighash_byte_ok`, `llb_locktime_types_match`, `llb_valid_wallet_name_char_bolos`, `llb_valid_wallet_name_len_bolos`, `llb_bolos_ins_supported`, `llb_spec_error_to_sw`).
+- 21 additional `@[export llb_*]` decision/validation kernels (`llb_valid_amount`, `llb_checked_add_sats_ok`, `llb_checked_add_sats_val`, `llb_checked_sub_sats_ok`, `llb_checked_sub_sats_val`, `llb_varint_encoded_len`, `llb_varint_prefix_is_canonical`, `llb_bip32_is_hardened`, `llb_bip32_harden`, `llb_bip32_unharden`, `llb_bip32_bolos_depth_ok`, `llb_bip32_vanadium_depth_ok`, `llb_bip32_standard_purpose_ok`, `llb_witness_opcode_to_version`, `llb_segwit_program_valid`, `llb_bech32_polymod_step`, `llb_minimal_push_opcode_ok`, `llb_sighash_type_valid`, `llb_taproot_sighash_valid`, `llb_merkle_depth_index_ok`, `llb_bolos_sw_for_error`).
 
 Cross-compilation and symbol/stack audits across all 4 hardware targets:
 

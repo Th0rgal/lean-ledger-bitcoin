@@ -1,7 +1,7 @@
 {
   "campaign": "lean-ledger-bitcoin",
   "created_at": "2026-11-10T15:55:00Z",
-  "last_updated": "2026-11-11T03:56:00Z",
+  "last_updated": "2026-11-11T04:06:00Z",
   "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
   "allowed_providers_policy": {
     "allowed": [
@@ -35,7 +35,7 @@
     "lean_toolchain": "leanprover/lean4:v4.35.0",
     "warm_snapshot": "orb-snap-health-manager-ledger-hub-warm-v1-eevr"
   },
-  "current_wave": "wave3_final_acceptance_review",
+  "current_wave": "completed",
   "spec_freeze": {
     "frozen": true,
     "frozen_at": "2026-11-10T22:16:00Z",
@@ -193,6 +193,28 @@
         "3fedb2c8-2e09-4876-aa32-7fe1ce345d3f"
       ],
       "verdict": "APPROVED_AND_FROZEN"
+    },
+    {
+      "wave": "wave3_final_acceptance",
+      "audited_commit_sha": "49e7340307f6a577dbccfef509a2baf1934d8f0b",
+      "auditors": [
+        {
+          "mission_id": "74a6dcf5-33ef-46f9-a0b2-6dab57f6ce06",
+          "family": "ethereumfoundation",
+          "backend": "opencode",
+          "model": "ethereumfoundation/glm-5.3",
+          "verdict": "APPROVED"
+        },
+        {
+          "mission_id": "9afdb5da-9a43-4d11-82a3-b5939aa77e8d",
+          "family": "gemini-carbon-4",
+          "backend": "antigravity",
+          "model_effort": "low",
+          "remote_node_id": "managed-mm4rxj8jzr",
+          "verdict": "APPROVED"
+        }
+      ],
+      "verdict": "APPROVED"
     }
   ]
 }
