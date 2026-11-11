@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 import BitcoinLedger.Bip32
 import BitcoinLedger.Script
@@ -15,7 +15,7 @@ namespace Proofs.FreestandingKernels
 Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`, `0 omega`) refinement theorems
 proving that every `@[export llb_*]` scalar entrypoint in `BitcoinLedger.FreestandingKernels`
 refines the corresponding executable primitive in `BitcoinLedger.{Basic,Bip32,Script}` and
-the normative specification in `Spec.{Basic,Bip32,Script,Psbt,MerkleProtocol}`.
+the normative specification in `InternalSpec.{Basic,Bip32,Script,Psbt,MerkleProtocol}`.
 -/
 
 open BitcoinLedger.FreestandingKernels
@@ -23,9 +23,9 @@ open BitcoinLedger.FreestandingKernels
 /-! ## 1. Version & Satoshi Overflow-Safe Arithmetic Refinement -/
 
 theorem llbVersionPacked_bytes :
-    (llbVersionPacked >>> 16).toUInt8 = Spec.ledgerBitcoinTargetVersion.major ∧
-    ((llbVersionPacked >>> 8) &&& 0xff).toUInt8 = Spec.ledgerBitcoinTargetVersion.minor ∧
-    (llbVersionPacked &&& 0xff).toUInt8 = Spec.ledgerBitcoinTargetVersion.patch := by
+    (llbVersionPacked >>> 16).toUInt8 = InternalSpec.ledgerBitcoinTargetVersion.major ∧
+    ((llbVersionPacked >>> 8) &&& 0xff).toUInt8 = InternalSpec.ledgerBitcoinTargetVersion.minor ∧
+    (llbVersionPacked &&& 0xff).toUInt8 = InternalSpec.ledgerBitcoinTargetVersion.patch := by
   exact ⟨rfl, rfl, rfl⟩
 
 theorem llbVersionPacked_eq_hex :
@@ -35,14 +35,14 @@ theorem llbValidAmount_eq (sats : UInt64) :
     llbValidAmount sats = BitcoinLedger.Basic.isValidAmount sats := rfl
 
 theorem llbValidAmount_iff (sats : UInt64) :
-    llbValidAmount sats = true ↔ Spec.ValidAmount sats :=
+    llbValidAmount sats = true ↔ InternalSpec.ValidAmount sats :=
   Proofs.Basic.isValidAmount_iff sats
 
 theorem llbCheckedAddSats_refines (a b : UInt64) :
     (if llbCheckedAddSatsOk a b then some (llbCheckedAddSatsVal a b) else none) =
       BitcoinLedger.Basic.checkedAddSats? a b ∧
     (if llbCheckedAddSatsOk a b then some (llbCheckedAddSatsVal a b) else none) =
-      Spec.addAmounts? a b := by
+      InternalSpec.addAmounts? a b := by
   have h1 :
       (if llbCheckedAddSatsOk a b then some (llbCheckedAddSatsVal a b) else none) =
         BitcoinLedger.Basic.checkedAddSats? a b := by
@@ -57,7 +57,7 @@ theorem llbCheckedSubSats_refines (a b : UInt64) :
     (if llbCheckedSubSatsOk a b then some (llbCheckedSubSatsVal a b) else none) =
       BitcoinLedger.Basic.checkedSubSats? a b ∧
     (if llbCheckedSubSatsOk a b then some (llbCheckedSubSatsVal a b) else none) =
-      Spec.subAmounts? a b := by
+      InternalSpec.subAmounts? a b := by
   have h1 :
       (if llbCheckedSubSatsOk a b then some (llbCheckedSubSatsVal a b) else none) =
         BitcoinLedger.Basic.checkedSubSats? a b := by
@@ -72,7 +72,7 @@ theorem llbCheckedSubSats_refines (a b : UInt64) :
 
 theorem llbVarIntEncodedLen_eq (n : UInt64) :
     (llbVarIntEncodedLen n).toNat = BitcoinLedger.Basic.varIntByteLen n ∧
-    (llbVarIntEncodedLen n).toNat = (Spec.encodeVarIntCanonical n).size := by
+    (llbVarIntEncodedLen n).toNat = (InternalSpec.encodeVarIntCanonical n).size := by
   have h1 : (llbVarIntEncodedLen n).toNat = BitcoinLedger.Basic.varIntByteLen n := by
     unfold llbVarIntEncodedLen BitcoinLedger.Basic.varIntByteLen
     cases decide (n ≤ 0xFC)
@@ -80,7 +80,7 @@ theorem llbVarIntEncodedLen_eq (n : UInt64) :
       · cases decide (n ≤ 0xFFFFFFFF) <;> rfl
       · rfl
     · rfl
-  have h2 : BitcoinLedger.Basic.varIntByteLen n = (Spec.encodeVarIntCanonical n).size := by
+  have h2 : BitcoinLedger.Basic.varIntByteLen n = (InternalSpec.encodeVarIntCanonical n).size := by
     rw [← Proofs.Basic.encodeVarInt_eq n]
     unfold BitcoinLedger.Basic.varIntByteLen BitcoinLedger.Basic.encodeVarInt
     cases decide (n ≤ 0xFC)
@@ -154,20 +154,20 @@ theorem llbVarIntPrefixIsCanonical_encodeVarInt (n : UInt64) :
 
 theorem llbBip32IsHardened_eq (idx : UInt32) :
     llbBip32IsHardened idx = BitcoinLedger.Bip32.isHardened idx ∧
-    llbBip32IsHardened idx = Spec.isHardened idx :=
+    llbBip32IsHardened idx = InternalSpec.isHardened idx :=
   ⟨rfl, Proofs.Bip32.isHardened_eq idx⟩
 
 theorem llbBip32Harden_eq (n : UInt32) :
     llbBip32Harden n = BitcoinLedger.Bip32.harden n ∧
-    llbBip32Harden n = Spec.harden n :=
+    llbBip32Harden n = InternalSpec.harden n :=
   ⟨rfl, Proofs.Bip32.harden_eq n⟩
 
 theorem llbBip32Unharden_eq (idx : UInt32) :
     llbBip32Unharden idx = BitcoinLedger.Bip32.unharden idx ∧
-    llbBip32Unharden idx = Spec.unharden idx :=
+    llbBip32Unharden idx = InternalSpec.unharden idx :=
   ⟨rfl, Proofs.Bip32.unharden_eq idx⟩
 
-theorem llbBip32BolosDepthOk_eq (path : Spec.Bip32Path) (hbyte : path.size ≤ 255) :
+theorem llbBip32BolosDepthOk_eq (path : InternalSpec.Bip32Path) (hbyte : path.size ≤ 255) :
     llbBip32BolosDepthOk (UInt8.ofNat path.size) = BitcoinLedger.Bip32.checkBolosDepth path := by
   unfold llbBip32BolosDepthOk BitcoinLedger.Bip32.checkBolosDepth BitcoinLedger.Bip32.MAX_BIP32_PATH_STEPS
   have hlt : path.size < 256 := Nat.lt_of_le_of_lt hbyte (by decide)
@@ -180,7 +180,7 @@ theorem llbBip32BolosDepthOk_eq (path : Spec.Bip32Path) (hbyte : path.size ≤ 2
   · have hy : UInt8.ofNat path.size ≤ 10 := h1.mpr (of_decide_eq_true h)
     simp [hy]
 
-theorem llbBip32VanadiumDepthOk_eq (path : Spec.Bip32Path) (hbyte : path.size ≤ 255) :
+theorem llbBip32VanadiumDepthOk_eq (path : InternalSpec.Bip32Path) (hbyte : path.size ≤ 255) :
     llbBip32VanadiumDepthOk (UInt8.ofNat path.size) = BitcoinLedger.Bip32.checkVanadiumDepth path := by
   unfold llbBip32VanadiumDepthOk BitcoinLedger.Bip32.checkVanadiumDepth BitcoinLedger.Bip32.MAX_BIP32_PATH_LEN
   have hlt : path.size < 256 := Nat.lt_of_le_of_lt hbyte (by decide)
@@ -204,7 +204,7 @@ theorem llbWitnessOpcodeToVersion_refines (op : UInt8) :
     (if decide (llbWitnessOpcodeToVersion op = 0xFF) then none else some (llbWitnessOpcodeToVersion op)) =
       BitcoinLedger.Script.decodeWitnessVersionOpcode? op ∧
     (if decide (llbWitnessOpcodeToVersion op = 0xFF) then none else some (llbWitnessOpcodeToVersion op)) =
-      Spec.decodeWitnessVersionOpcode? op := by
+      InternalSpec.decodeWitnessVersionOpcode? op := by
   have h1 :
       (if decide (llbWitnessOpcodeToVersion op = 0xFF) then none else some (llbWitnessOpcodeToVersion op)) =
         BitcoinLedger.Script.decodeWitnessVersionOpcode? op := by
@@ -240,7 +240,7 @@ theorem llbSegwitProgramValid_refines (witver : UInt8) (witprog : ByteArray)
     llbSegwitProgramValid witver (UInt8.ofNat witprog.size) =
       BitcoinLedger.Script.isValidSegwitProgram witver witprog ∧
     llbSegwitProgramValid witver (UInt8.ofNat witprog.size) =
-      Spec.isValidSegwitProgram witver witprog := by
+      InternalSpec.isValidSegwitProgram witver witprog := by
   have hlt : witprog.size < 256 := Nat.lt_of_le_of_lt hlen (by decide)
   have htoNat : (UInt8.ofNat witprog.size).toNat = witprog.size := by
     rw [UInt8.toNat_ofNat', Nat.mod_eq_of_lt hlt]
@@ -276,7 +276,7 @@ theorem llbSegwitProgramValid_refines (witver : UInt8) (witprog : ByteArray)
 
 theorem llbBech32PolymodStep_eq (pre : UInt32) (val : UInt8) :
     llbBech32PolymodStep pre val = BitcoinLedger.Script.bech32PolymodStep pre val ∧
-    llbBech32PolymodStep pre val = Spec.bech32PolymodStep pre val :=
+    llbBech32PolymodStep pre val = InternalSpec.bech32PolymodStep pre val :=
   ⟨rfl, Proofs.Script.bech32PolymodStep_eq pre val⟩
 
 theorem llbMinimalPushOpcodeOk_sound
@@ -462,22 +462,22 @@ private theorem forall_u8_of_range {p : UInt8 → Bool}
 set_option maxRecDepth 16384 in
 private theorem u8_segwit_sighash_valid_eq (b : UInt8) :
     (decide (1 ≤ b.toUInt32 &&& 0x7F) && decide (b.toUInt32 &&& 0x7F ≤ 3)) =
-      decide ((Spec.Psbt.classifySighash .segwitV0 (some b.toUInt32)).1 ≠ .unsupported) := by
+      decide ((InternalSpec.Psbt.classifySighash .segwitV0 (some b.toUInt32)).1 ≠ .unsupported) := by
   have hall :
       ∀ x : UInt8,
         decide
           ((decide (1 ≤ x.toUInt32 &&& 0x7F) && decide (x.toUInt32 &&& 0x7F ≤ 3)) =
-            decide ((Spec.Psbt.classifySighash .segwitV0 (some x.toUInt32)).1 ≠ .unsupported)) = true :=
+            decide ((InternalSpec.Psbt.classifySighash .segwitV0 (some x.toUInt32)).1 ≠ .unsupported)) = true :=
     forall_u8_of_range (by decide)
   exact of_decide_eq_true (hall b)
 
 theorem llbSighashTypeValid_refines_psbt (sighashU32 : UInt32) :
     llbSighashTypeValid sighashU32 =
-      decide ((Spec.Psbt.classifySighash .segwitV0 (some sighashU32)).1 ≠ .unsupported) := by
+      decide ((InternalSpec.Psbt.classifySighash .segwitV0 (some sighashU32)).1 ≠ .unsupported) := by
   cases hle : decide (sighashU32 ≤ 0xFF)
   · have hgt : sighashU32.toNat > 0xFF :=
       Nat.lt_of_not_le (fun h => of_decide_eq_false hle (UInt32.le_iff_toNat_le.mpr h))
-    unfold llbSighashTypeValid Spec.Psbt.classifySighash
+    unfold llbSighashTypeValid InternalSpec.Psbt.classifySighash
     simp [hle, hgt]
   · have hleNat : sighashU32.toNat ≤ 0xFF := UInt32.le_iff_toNat_le.mp (of_decide_eq_true hle)
     have hlt256 : sighashU32.toNat < 256 := Nat.lt_of_le_of_lt hleNat (by decide)
@@ -491,12 +491,12 @@ theorem llbSighashTypeValid_refines_psbt (sighashU32 : UInt32) :
 set_option maxRecDepth 16384 in
 theorem llbTaprootSighashValid_refines_psbt (sighashByte : UInt8) :
     llbTaprootSighashValid sighashByte =
-      decide ((Spec.Psbt.classifySighash .taprootV1 (some sighashByte.toUInt32)).1 ≠ .unsupported) := by
+      decide ((InternalSpec.Psbt.classifySighash .taprootV1 (some sighashByte.toUInt32)).1 ≠ .unsupported) := by
   have hall :
       ∀ x : UInt8,
         decide
           (llbTaprootSighashValid x =
-            decide ((Spec.Psbt.classifySighash .taprootV1 (some x.toUInt32)).1 ≠ .unsupported)) = true :=
+            decide ((InternalSpec.Psbt.classifySighash .taprootV1 (some x.toUInt32)).1 ≠ .unsupported)) = true :=
     forall_u8_of_range (by decide)
   exact of_decide_eq_true (hall sighashByte)
 
@@ -505,10 +505,10 @@ theorem llbMerkleDepthIndexOk_refines_merkleProtocol
     llbMerkleDepthIndexOk treeSize index depth =
       !(decide (treeSize.toNat = 0) ||
         decide (index.toNat ≥ treeSize.toNat) ||
-        decide (index.toNat > Spec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX) ||
-        decide (depth.toNat > Spec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH)) := by
-  unfold llbMerkleDepthIndexOk Spec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX
-    Spec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH
+        decide (index.toNat > InternalSpec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX) ||
+        decide (depth.toNat > InternalSpec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH)) := by
+  unfold llbMerkleDepthIndexOk InternalSpec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX
+    InternalSpec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH
   cases h0 : decide (0 < treeSize)
   · have hz : treeSize.toNat = 0 := Nat.eq_zero_of_not_pos (of_decide_eq_false h0)
     simp [hz]
@@ -534,7 +534,7 @@ theorem llbMerkleDepthIndexOk_refines_merkleProtocol
             Nat.not_lt.mpr (UInt8.le_iff_toNat_le.mp (of_decide_eq_true hd))
           simp [hngD]
 
-theorem llbBolosSwForError_refines (err : Spec.SpecError) :
+theorem llbBolosSwForError_refines (err : InternalSpec.SpecError) :
     llbBolosSwForError (BitcoinLedger.Basic.specErrorToTag err) =
       BitcoinLedger.Basic.specErrorToBolosU16 err ∧
     llbBolosSwForError (BitcoinLedger.Basic.specErrorToTag err) =

@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger
 import Lean
 
@@ -614,31 +614,31 @@ end RefCrypto
 
 /-! ### Concrete Speculos-Seeded BOLOS Cryptographic Oracles -/
 
-def mkMusigBytes32! (bs : ByteArray) : Spec.Musig2.Bytes32 :=
-  if h : bs.size = 32 then ⟨bs, h⟩ else Spec.Musig2.SizedBytes.zeros 32
+def mkMusigBytes32! (bs : ByteArray) : InternalSpec.Musig2.Bytes32 :=
+  if h : bs.size = 32 then ⟨bs, h⟩ else InternalSpec.Musig2.SizedBytes.zeros 32
 
-def mkMusigBytes33! (bs : ByteArray) : Spec.Musig2.CompressedPubKey :=
-  if h : bs.size = 33 then ⟨bs, h⟩ else Spec.Musig2.SizedBytes.zeros 33
+def mkMusigBytes33! (bs : ByteArray) : InternalSpec.Musig2.CompressedPubKey :=
+  if h : bs.size = 33 then ⟨bs, h⟩ else InternalSpec.Musig2.SizedBytes.zeros 33
 
-def mkMusigBytes64! (bs : ByteArray) : Spec.Musig2.SizedBytes 64 :=
-  if h : bs.size = 64 then ⟨bs, h⟩ else Spec.Musig2.SizedBytes.zeros 64
+def mkMusigBytes64! (bs : ByteArray) : InternalSpec.Musig2.SizedBytes 64 :=
+  if h : bs.size = 64 then ⟨bs, h⟩ else InternalSpec.Musig2.SizedBytes.zeros 64
 
-def mkMusigBytes66! (bs : ByteArray) : Spec.Musig2.PubNonce :=
-  if h : bs.size = 66 then ⟨bs, h⟩ else Spec.Musig2.SizedBytes.zeros 66
+def mkMusigBytes66! (bs : ByteArray) : InternalSpec.Musig2.PubNonce :=
+  if h : bs.size = 66 then ⟨bs, h⟩ else InternalSpec.Musig2.SizedBytes.zeros 66
 
-def mkPsbtBytes32! (bs : ByteArray) : Spec.Psbt.Bytes32 :=
+def mkPsbtBytes32! (bs : ByteArray) : InternalSpec.Psbt.Bytes32 :=
   if h : bs.size = 32 then ⟨bs, h⟩ else ⟨ByteArray.mk (Array.replicate 32 0), by decide⟩
 
-def mkSpBytes32! (bs : ByteArray) : Spec.SilentPayments.Bytes32 :=
-  if h : bs.size = 32 then ⟨bs, h⟩ else Spec.SilentPayments.SizedBytes.zeros 32
+def mkSpBytes32! (bs : ByteArray) : InternalSpec.SilentPayments.Bytes32 :=
+  if h : bs.size = 32 then ⟨bs, h⟩ else InternalSpec.SilentPayments.SizedBytes.zeros 32
 
-def mkSpBytes33! (bs : ByteArray) : Spec.SilentPayments.Bytes33 :=
-  if h : bs.size = 33 then ⟨bs, h⟩ else Spec.SilentPayments.SizedBytes.zeros 33
+def mkSpBytes33! (bs : ByteArray) : InternalSpec.SilentPayments.Bytes33 :=
+  if h : bs.size = 33 then ⟨bs, h⟩ else InternalSpec.SilentPayments.SizedBytes.zeros 33
 
-def mkSpBytes64! (bs : ByteArray) : Spec.SilentPayments.Bytes64 :=
-  if h : bs.size = 64 then ⟨bs, h⟩ else Spec.SilentPayments.SizedBytes.zeros 64
+def mkSpBytes64! (bs : ByteArray) : InternalSpec.SilentPayments.Bytes64 :=
+  if h : bs.size = 64 then ⟨bs, h⟩ else InternalSpec.SilentPayments.SizedBytes.zeros 64
 
-def bolosDerivOracle : Spec.CryptoDerivationOracle where
+def bolosDerivOracle : InternalSpec.CryptoDerivationOracle where
   deriveNode tree path :=
     match tree with
     | .resident => none
@@ -661,7 +661,7 @@ def bolosDerivOracle : Spec.CryptoDerivationOracle where
   hash160 := RefCrypto.hash160
   doubleSha256 := RefCrypto.doubleSha256
 
-def bolosMusigCrypto : Spec.Musig2.MusigCrypto RefCrypto.AffinePt where
+def bolosMusigCrypto : InternalSpec.Musig2.MusigCrypto RefCrypto.AffinePt where
   generator := RefCrypto.secpG
   pointAdd p q :=
     let p? := match p with | .infinity => none | .affine a => some a
@@ -688,7 +688,7 @@ def bolosMusigCrypto : Spec.Musig2.MusigCrypto RefCrypto.AffinePt where
     let (cPub, cCc, il) ← RefCrypto.ckdPubStep pub.bytes cc.bytes idx
     some (mkMusigBytes33! cPub, mkMusigBytes32! cCc, mkMusigBytes32! il)
 
-def bolosSpCrypto : Spec.SilentPayments.SpCrypto RefCrypto.AffinePt where
+def bolosSpCrypto : InternalSpec.SilentPayments.SpCrypto RefCrypto.AffinePt where
   generator := RefCrypto.secpG
   pointAdd p q :=
     let p? := match p with | .infinity => none | .affine a => some a
@@ -719,7 +719,7 @@ section BasicAndFreestanding
 open BitcoinLedger.Basic
 open BitcoinLedger.FreestandingKernels
 
-def allSpecErrors : List Spec.SpecError := [
+def allSpecErrors : List InternalSpec.SpecError := [
   .wrongLength, .wrongDataLength, .unsupportedInstruction, .unsupportedClass,
   .wrongP1P2, .userRejected, .securityStatusNotSatisfied, .swapValidationFailed,
   .invalidData, .bip32PathTooLong, .unsupportedBip32Path, .notSupported,
@@ -1251,7 +1251,7 @@ end WalletPolicyConformance
 
 section PsbtConformance
 
-open Spec.Psbt (
+open InternalSpec.Psbt (
   Bytes32 zeroBytes32 CryptoOracles SpendClass SighashSafety OutPoint TxOut RawTxIn RawTx
   KeyOrigin KeyDerivationEntry InternalKeyPlaceholder WalletPolicySpec
   PsbtInput PsbtOutput PsbtTx PsbtV0 PsbtError TxDisplayMode SigningConfig SwapMode SwapParams
@@ -1505,7 +1505,7 @@ end PsbtConformance
 
 section MerkleProtocolConformance
 
-open Spec.MerkleProtocol (
+open InternalSpec.MerkleProtocol (
   MerkleElementOpening MerkleMapCommitment ClientCommandTag
   MapLookupResult MapLookupProof MerkleizedPsbtCommitment
   ContinuationApdu PreimageInitFrame MoreElementsChunk PreimageStreamError
@@ -1513,7 +1513,7 @@ open Spec.MerkleProtocol (
 )
 open BitcoinLedger.MerkleProtocol
 
-private def merkleSha256 (bs : ByteArray) : Spec.Psbt.Bytes32 :=
+private def merkleSha256 (bs : ByteArray) : InternalSpec.Psbt.Bytes32 :=
   mkPsbtBytes32! (RefCrypto.sha256 bs)
 
 private def mkOpening (leaves : List ByteArray) (idx : Nat) : MerkleElementOpening :=
@@ -1523,7 +1523,7 @@ private def mkOpening (leaves : List ByteArray) (idx : Nat) : MerkleElementOpeni
     siblingsBottomUp := buildMerkleAuditPath merkleSha256 leaves idx }
 
 def checkMerkleProtocolConformance : Bool :=
-  let z32 := Spec.Psbt.zeroBytes32
+  let z32 := InternalSpec.Psbt.zeroBytes32
   -- 1. Empty tree `MTH([]) == 0^32` (BOLOS intentional deviation from RFC-6962 `SHA256("")`),
   --    domain separation `merkleLeafHash != merkleNodeHash`, and unbalanced 5-leaf & 7-leaf audit paths
   let leaves5 := (List.range 5).map fun i => ByteArray.mk #[0x10, UInt8.ofNat i]
@@ -1622,7 +1622,7 @@ end MerkleProtocolConformance
 
 section Musig2Conformance
 
-open Spec.Musig2 (
+open InternalSpec.Musig2 (
   SizedBytes CompressedPubKey XOnlyPubKey PubNonce SecNonce
   MusigTweak SessionContext MusigError MusigSignTask
   MusigRound2TaskInput MusigOp MusigStepEvent NonceAggPkMode
@@ -1631,7 +1631,7 @@ open BitcoinLedger.Musig2
 
 private def mpk! (s : String) : CompressedPubKey := mkMusigBytes33! (RefCrypto.hex! s)
 private def mxo! (s : String) : XOnlyPubKey := mkMusigBytes32! (RefCrypto.hex! s)
-private def mb32! (s : String) : Spec.Musig2.Bytes32 := mkMusigBytes32! (RefCrypto.hex! s)
+private def mb32! (s : String) : InternalSpec.Musig2.Bytes32 := mkMusigBytes32! (RefCrypto.hex! s)
 private def mpn! (s : String) : PubNonce := mkMusigBytes66! (RefCrypto.hex! s)
 
 private def parseSecNonce! (s : String) : SecNonce :=
@@ -1681,7 +1681,7 @@ def officialTweakPks : List CompressedPubKey := [
   mpk! "03935F972DA013F80AE011890FA89B67A27B7BE6CCB24D3274D18B2D4067F261A9"
 ]
 
-def officialTweakScalars : Array Spec.Musig2.Bytes32 := #[
+def officialTweakScalars : Array InternalSpec.Musig2.Bytes32 := #[
   mb32! "E8F791FF9225A2AF0102AFFF4A9A723D9612A682A25EBE79802B263CDFCD83BB",
   mb32! "AE2EA797CC0FE72AC5B97B97F3C6957D7E4199A167A58EB08BCAFFDA70AC0455",
   mb32! "F52ECBC565B3D8BEA2DFD5B75A4F457E54369809322E4120831626F290FA87E0",
@@ -1713,12 +1713,12 @@ private def checkKeyAggErr (idxs : List Nat) (expected : MusigError) : Bool :=
   | .error e => decide (e = expected)
   | .ok _ => false
 
-private def checkPartialSignOk (sec : SecNonce) (sk : Spec.Musig2.Bytes32) (ctx : SessionContext) (expHex : String) : Bool :=
+private def checkPartialSignOk (sec : SecNonce) (sk : InternalSpec.Musig2.Bytes32) (ctx : SessionContext) (expHex : String) : Bool :=
   match partialSign bolosMusigCrypto sec sk ctx with
   | .ok psig => decide (psig = mb32! expHex)
   | .error _ => false
 
-private def checkPartialSignErr (sec : SecNonce) (sk : Spec.Musig2.Bytes32) (ctx : SessionContext) (expected : MusigError) : Bool :=
+private def checkPartialSignErr (sec : SecNonce) (sk : InternalSpec.Musig2.Bytes32) (ctx : SessionContext) (expected : MusigError) : Bool :=
   match partialSign bolosMusigCrypto sec sk ctx with
   | .error e => decide (e = expected)
   | .ok _ => false
@@ -1882,14 +1882,14 @@ end Musig2Conformance
 
 section SilentPaymentsConformance
 
-open Spec.SilentPayments (
+open InternalSpec.SilentPayments (
   SpError SpAddressHrp SpScanHrp SilentPaymentCode SilentPaymentAccount
   SilentPaymentCoordinates OutPoint SpInputScriptKind PsbtSpInput PsbtSpOutput PsbtSpTx
 )
 open BitcoinLedger.SilentPayments
 
 /-- Reverse 32-byte display hex txid to consensus little-endian txid bytes. -/
-private def spTxidLE! (rpcHex : String) : Spec.SilentPayments.Bytes32 :=
+private def spTxidLE! (rpcHex : String) : InternalSpec.SilentPayments.Bytes32 :=
   mkSpBytes32! (ByteArray.mk (RefCrypto.hex! rpcHex).data.reverse)
 
 def officialBip352Addr0 : String :=
@@ -2029,7 +2029,7 @@ end SilentPaymentsConformance
 
 section AppStateMachineConformance
 
-open Spec.AppStateMachine (
+open InternalSpec.AppStateMachine (
   TargetProfile BolosApduHeader BolosWireCommand VanadiumRequestTag
   CompactSigHeaderBase MessageDisplayForm KeyTree
   WalletPolicySpec AccountSpec AddressCoordinates
@@ -2038,7 +2038,7 @@ open Spec.AppStateMachine (
   AppCommand AppResponse AppError AppPersistentState
   UserPrompt UserApprovalOracle HardwareOracle AppTraceOutcome
 )
-open Spec.Unified (PsbtMerkleOpeningBundle VerifiedPsbtSignError)
+open InternalSpec.Unified (PsbtMerkleOpeningBundle VerifiedPsbtSignError)
 open BitcoinLedger.AppStateMachine
 
 /-- Recover the compressed public key `Q = r⁻¹ * (s * R - z * G)` from a 65-byte BOLOS compact signature
@@ -2104,7 +2104,7 @@ def bolosHardwareOracle : HardwareOracle RefCrypto.AffinePt where
     | .standard => some 0xF5ACC2FD
     | .resident => none
   deriveExtendedPubkey tree _ path :=
-    let treeBip : Spec.KeyTree := match tree with | .standard => .standard | .resident => .resident
+    let treeBip : InternalSpec.KeyTree := match tree with | .standard => .standard | .resident => .resident
     match BitcoinLedger.Bip32.deriveExtendedPubKeyWithOracle bolosDerivOracle .testnet treeBip path.toArray with
     | some node =>
       let ser := BitcoinLedger.Bip32.serializeExtendedPubKey node
@@ -2232,8 +2232,8 @@ def checkAppStateMachineConformance : Bool :=
       let recvSpk := ByteArray.mk #[0x00, 0x14] ++ RefCrypto.hash160 pub00
       let chgSpk  := ByteArray.mk #[0x00, 0x14] ++ RefCrypto.hash160 pub10
       let extSpk  := RefCrypto.hex! "00141122334455667788990011223344556677889900"
-      let psbtSha (bs : ByteArray) : Spec.Psbt.Bytes32 := mkPsbtBytes32! (RefCrypto.sha256 bs)
-      let prevTx : Spec.Psbt.RawTx := {
+      let psbtSha (bs : ByteArray) : InternalSpec.Psbt.Bytes32 := mkPsbtBytes32! (RefCrypto.sha256 bs)
+      let prevTx : InternalSpec.Psbt.RawTx := {
         version := 2
         vin := #[{ prevout := { txid := mkPsbtBytes32! (ByteArray.mk (Array.replicate 32 0)), vout := 0 },
                    scriptSig := ByteArray.empty, sequence := 0xFFFFFFFF }]
@@ -2241,18 +2241,18 @@ def checkAppStateMachineConformance : Bool :=
         locktime := 0
       }
       let prevTxid := BitcoinLedger.Psbt.computeTxid psbtSha prevTx
-      let pIn : Spec.Psbt.PsbtInput := {
+      let pIn : InternalSpec.Psbt.PsbtInput := {
         prevout := { txid := prevTxid, vout := 0 }
         nonWitnessUtxo := some prevTx
         witnessUtxo := some { amount := 100000, scriptPubKey := recvSpk }
         derivations := [{ pubkey := pub00, origin := { fingerprint := 0xF5ACC2FD, path := [h 84, h 1, h 0, 0, 0] } }]
       }
-      let pExtOut : Spec.Psbt.PsbtOutput := { amount := 60000, scriptPubKey := some extSpk }
-      let pChgOut : Spec.Psbt.PsbtOutput := {
+      let pExtOut : InternalSpec.Psbt.PsbtOutput := { amount := 60000, scriptPubKey := some extSpk }
+      let pChgOut : InternalSpec.Psbt.PsbtOutput := {
         amount := 39800, scriptPubKey := some chgSpk,
         derivations := [{ pubkey := pub10, origin := { fingerprint := 0xF5ACC2FD, path := [h 84, h 1, h 0, 1, 0] } }]
       }
-      let psbt : Spec.Psbt.PsbtTx := { txVersion := 2, inputs := #[pIn], outputs := #[pExtOut, pChgOut] }
+      let psbt : InternalSpec.Psbt.PsbtTx := { txVersion := 2, inputs := #[pIn], outputs := #[pExtOut, pChgOut] }
       let stdTask : StandardInputSigRequest := {
         inputIndex := 0, derivationPath := [h 84, h 1, h 0, 0, 0],
         sighash := mkMusigBytes32! (ByteArray.mk (Array.replicate 32 0xAA)), isSchnorr := false, leafHash := none

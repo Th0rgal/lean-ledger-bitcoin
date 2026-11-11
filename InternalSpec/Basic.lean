@@ -1,7 +1,7 @@
-namespace Spec
+namespace InternalSpec
 
 /-!
-# `Spec.Basic` — Foundational Bitcoin & Ledger Primitives
+# `InternalSpec.Basic` — Foundational Bitcoin & Ledger Primitives
 
 Implementation-independent plain Lean 4 specifications for:
 1. Satoshi amounts (`MAX_MONEY = 2_100_000_000_000_000`) and checked summation (`sumAmounts?`)
@@ -1551,4 +1551,4 @@ theorem SpecError.toBolosCode_ne_ok_and_interrupted (err : SpecError) :
     err.toBolosCode ≠ 0x9000 ∧ err.toBolosCode ≠ 0xE000 := by
   cases err <;> decide
 
-end Spec
+end InternalSpec

@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 
 /-!
 # `BitcoinLedger.SilentPayments` — Executable BIP-352, BIP-374, BIP-375 & BIP-392 Implementation
@@ -20,7 +20,7 @@ refinement proofs in `Proofs.SilentPayments`.
 
 namespace BitcoinLedger.SilentPayments
 
-open Spec.SilentPayments (
+open InternalSpec.SilentPayments (
   SizedBytes Bytes32 Bytes33 Bytes34 Bytes36 Bytes64 Bytes65 Bytes66
   SpError SpPoint SpCrypto SpAddressHrp SpScanHrp Bech32mCodec
   SilentPaymentCode SilentPaymentAccount SilentPaymentCoordinates
@@ -182,9 +182,9 @@ def validBech32Padding (fes : List UInt8) : Bool :=
     | none => true
     | some lastFe => decide ((lastFe.toNat &&& ((1 <<< padding) - 1)) = 0)
 
-/-- Canonical Bech32m codec instantiated directly from `Spec.Script` (`encodeBech32Raw?` / `decodeBech32Raw?`). -/
+/-- Canonical Bech32m codec instantiated directly from `InternalSpec.Script` (`encodeBech32Raw?` / `decodeBech32Raw?`). -/
 def canonicalBech32mCodec : Bech32mCodec :=
-  Spec.Unified.canonicalScriptBech32mCodec
+  InternalSpec.Unified.canonicalScriptBech32mCodec
 
 /-- Serialize `SilentPaymentCode` to 66 bytes `ser_P(B_scan) || ser_P(B_m)`. -/
 def serializeSpCode {Affine : Type} (c : SpCrypto Affine)
@@ -392,13 +392,13 @@ def exportSpScanKey {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
 /-- Classify a raw `scriptPubKey` (plus optional redeemScript for `P2SH-P2WPKH`) into `SpInputScriptKind`. -/
 def classifySpInputScript (scriptPubKey : ByteArray) (redeemScriptOpt : Option ByteArray := none) :
     SpInputScriptKind :=
-  match Spec.classifyScript? scriptPubKey with
+  match InternalSpec.classifyScript? scriptPubKey with
   | some (.p2pkh _) => .pkh
   | some (.p2wpkh _) => .wpkh
   | some (.p2sh _) =>
     match redeemScriptOpt with
     | some rs =>
-      match Spec.classifyScript? rs with
+      match InternalSpec.classifyScript? rs with
       | some (.p2wpkh _) => .shWpkh
       | _ => .other
     | none => .other

@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.AppStateMachine
 import Proofs.Musig2
 import Proofs.SilentPayments
@@ -6,8 +6,8 @@ import Proofs.SilentPayments
 /-!
 # `Proofs.AppStateMachine` — Refinement, Purity, Consent, Anti-Replay, Swap & Verified `SIGN_PSBT`
 
-Connects every executable operation in `BitcoinLedger.AppStateMachine` to `Spec.AppStateMachine`
-and `Spec.Unified`:
+Connects every executable operation in `BitcoinLedger.AppStateMachine` to `InternalSpec.AppStateMachine`
+and `InternalSpec.Unified`:
 1. Exact refinement of BOLOS APDU (`CLA=0xE1`/`0xB0`/`0xF8`) and Vanadium CBOR wire classification,
    `SIGN_MESSAGE`, BIP-32 export policy, Vanadium `IDEN` identity signatures & cosigner auth,
    `SwapLock` validation, `stepAppCommand`, and multi-step `runAppTrace`.
@@ -22,17 +22,17 @@ All theorems satisfy `0 sorryAx`, `0 native_decide`, and `0 Classical.choice`.
 
 namespace Proofs.AppStateMachine
 
-open Spec.Musig2 (
+open InternalSpec.Musig2 (
   CompressedPubKey SchnorrSig PsbtSessionId RandRoot
   MusigSignTask MusigRound1Output MusigRound2TaskInput MusigRound2Output
   MusigError NonceAggPkMode MusigSessionStore
 )
-open Spec.SilentPayments (
+open InternalSpec.SilentPayments (
   SpError SpAddressHrp SpScanHrp Bech32mCodec
   SilentPaymentAccount SilentPaymentCoordinates PsbtSpTx
   SilentPaymentShareOut SilentPaymentOutputScriptOut
 )
-open Spec.AppStateMachine (
+open InternalSpec.AppStateMachine (
   TargetProfile AppVersion BolosApduHeader BolosWireCommand VanadiumRequestTag
   CompactSigHeaderBase MessageDisplayForm KeyTree
   IdentitySignature RegisteredIdentityEntry
@@ -42,7 +42,7 @@ open Spec.AppStateMachine (
   AppCommand AppResponse AppError AppPersistentState
   UserPrompt UserApprovalOracle HardwareOracle AppTraceOutcome
 )
-open Spec.Unified (
+open InternalSpec.Unified (
   PsbtMerkleOpeningBundle VerifiedPsbtSignError
 )
 
@@ -52,10 +52,10 @@ theorem decide_ite_eq {α : Type} (P : Prop) [Decidable P] (a b : α) :
     (if decide P then a else b) = (if P then a else b) := by
   by_cases h : P <;> simp [h]
 
-theorem sizedBytes32_beq_eq_decide (a b : Spec.Musig2.Bytes32) :
+theorem sizedBytes32_beq_eq_decide (a b : InternalSpec.Musig2.Bytes32) :
     (a == b) = decide (a = b) := rfl
 
-theorem sizedBytes32_bne_eq_decide_ne (a b : Spec.Musig2.Bytes32) :
+theorem sizedBytes32_bne_eq_decide_ne (a b : InternalSpec.Musig2.Bytes32) :
     (a != b) = decide (a ≠ b) := by
   show (!(a == b)) = decide (a ≠ b)
   rw [sizedBytes32_beq_eq_decide]
@@ -108,10 +108,10 @@ theorem emptyStateForProfile_eq (p : TargetProfile) :
   rw [emptyMusigStoreForProfile_eq]
 
 theorem appListAll_eq_listAll {α : Type} (p : α → Bool) :
-    ∀ xs : List α, BitcoinLedger.AppStateMachine.appListAll p xs = Spec.Musig2.listAll p xs
+    ∀ xs : List α, BitcoinLedger.AppStateMachine.appListAll p xs = InternalSpec.Musig2.listAll p xs
   | [] => rfl
   | x :: xs => by
-    simp only [BitcoinLedger.AppStateMachine.appListAll, Spec.Musig2.listAll,
+    simp only [BitcoinLedger.AppStateMachine.appListAll, InternalSpec.Musig2.listAll,
       appListAll_eq_listAll p xs]
 
 theorem appListAll_eq_List_all {α : Type} (p : α → Bool) :
@@ -122,10 +122,10 @@ theorem appListAll_eq_List_all {α : Type} (p : α → Bool) :
       appListAll_eq_List_all p xs]
 
 theorem appListMem_eq_listMem {α : Type} [DecidableEq α] (x : α) :
-    ∀ xs : List α, BitcoinLedger.AppStateMachine.appListMem x xs = Spec.Musig2.listMem x xs
+    ∀ xs : List α, BitcoinLedger.AppStateMachine.appListMem x xs = InternalSpec.Musig2.listMem x xs
   | [] => rfl
   | y :: ys => by
-    simp only [BitcoinLedger.AppStateMachine.appListMem, Spec.Musig2.listMem,
+    simp only [BitcoinLedger.AppStateMachine.appListMem, InternalSpec.Musig2.listMem,
       appListMem_eq_listMem x ys]
 
 theorem appListAny_eq_List_any {α : Type} (p : α → Bool) :
@@ -136,32 +136,32 @@ theorem appListAny_eq_List_any {α : Type} (p : α → Bool) :
       appListAny_eq_List_any p xs]
 
 theorem encodeVarint_eq (n : Nat) :
-    BitcoinLedger.AppStateMachine.encodeVarint n = Spec.AppStateMachine.encodeVarint n := by
-  unfold BitcoinLedger.AppStateMachine.encodeVarint Spec.AppStateMachine.encodeVarint
+    BitcoinLedger.AppStateMachine.encodeVarint n = InternalSpec.AppStateMachine.encodeVarint n := by
+  unfold BitcoinLedger.AppStateMachine.encodeVarint InternalSpec.AppStateMachine.encodeVarint
   rw [decide_ite_eq, decide_ite_eq, decide_ite_eq]
   rfl
 
 theorem isPrintableAsciiMessage_eq (msg : ByteArray) :
     BitcoinLedger.AppStateMachine.isPrintableAsciiMessage msg =
-      Spec.AppStateMachine.isPrintableAsciiMessage msg := by
+      InternalSpec.AppStateMachine.isPrintableAsciiMessage msg := by
   unfold BitcoinLedger.AppStateMachine.isPrintableAsciiMessage
-    Spec.AppStateMachine.isPrintableAsciiMessage
+    InternalSpec.AppStateMachine.isPrintableAsciiMessage
   rw [appListAll_eq_listAll]
   rfl
 
 theorem bitcoinSignedMessagePreimage_eq (msg : ByteArray) :
     BitcoinLedger.AppStateMachine.bitcoinSignedMessagePreimage msg =
-      Spec.AppStateMachine.bitcoinSignedMessagePreimage msg := by
+      InternalSpec.AppStateMachine.bitcoinSignedMessagePreimage msg := by
   unfold BitcoinLedger.AppStateMachine.bitcoinSignedMessagePreimage
-    Spec.AppStateMachine.bitcoinSignedMessagePreimage
+    InternalSpec.AppStateMachine.bitcoinSignedMessagePreimage
   rw [encodeVarint_eq]
   rfl
 
-theorem bitcoinSignedMessageDigest_eq (sha256 : ByteArray → Spec.Musig2.Bytes32) (msg : ByteArray) :
+theorem bitcoinSignedMessageDigest_eq (sha256 : ByteArray → InternalSpec.Musig2.Bytes32) (msg : ByteArray) :
     BitcoinLedger.AppStateMachine.bitcoinSignedMessageDigest sha256 msg =
-      Spec.AppStateMachine.bitcoinSignedMessageDigest sha256 msg := by
+      InternalSpec.AppStateMachine.bitcoinSignedMessageDigest sha256 msg := by
   unfold BitcoinLedger.AppStateMachine.bitcoinSignedMessageDigest
-    Spec.AppStateMachine.bitcoinSignedMessageDigest
+    InternalSpec.AppStateMachine.bitcoinSignedMessageDigest
   dsimp only
   rw [bitcoinSignedMessagePreimage_eq]
 
@@ -170,27 +170,27 @@ theorem compactHeaderBaseByte_eq (h : CompactSigHeaderBase) :
   cases h <;> rfl
 
 theorem formatCompactRecoverableSig_eq (headerBase : CompactSigHeaderBase) (recId : UInt8)
-    (r s : Spec.Musig2.Bytes32) :
+    (r s : InternalSpec.Musig2.Bytes32) :
     BitcoinLedger.AppStateMachine.formatCompactRecoverableSig headerBase recId r s =
-      Spec.AppStateMachine.formatCompactRecoverableSig headerBase recId r s := by
+      InternalSpec.AppStateMachine.formatCompactRecoverableSig headerBase recId r s := by
   unfold BitcoinLedger.AppStateMachine.formatCompactRecoverableSig
-    Spec.AppStateMachine.formatCompactRecoverableSig
+    InternalSpec.AppStateMachine.formatCompactRecoverableSig
   rw [decide_ite_eq, compactHeaderBaseByte_eq]
   rfl
 
-theorem formatBolosSignMessageSig_eq (recId : UInt8) (r s : Spec.Musig2.Bytes32) :
+theorem formatBolosSignMessageSig_eq (recId : UInt8) (r s : InternalSpec.Musig2.Bytes32) :
     BitcoinLedger.AppStateMachine.formatBolosSignMessageSig recId r s =
-      Spec.AppStateMachine.formatBolosSignMessageSig recId r s := by
+      InternalSpec.AppStateMachine.formatBolosSignMessageSig recId r s := by
   unfold BitcoinLedger.AppStateMachine.formatBolosSignMessageSig
-    Spec.AppStateMachine.formatBolosSignMessageSig
+    InternalSpec.AppStateMachine.formatBolosSignMessageSig
   rw [decide_ite_eq]
   rfl
 
 theorem isPathSafeForPubkeyExport_eq (coinType : UInt32) (path : List UInt32) :
     BitcoinLedger.AppStateMachine.isPathSafeForPubkeyExport coinType path =
-      Spec.AppStateMachine.isPathSafeForPubkeyExport coinType path := by
+      InternalSpec.AppStateMachine.isPathSafeForPubkeyExport coinType path := by
   unfold BitcoinLedger.AppStateMachine.isPathSafeForPubkeyExport
-    Spec.AppStateMachine.isPathSafeForPubkeyExport
+    InternalSpec.AppStateMachine.isPathSafeForPubkeyExport
   cases path with
   | nil => rfl
   | cons p0 t1 =>
@@ -225,12 +225,12 @@ theorem isPathSafeForPubkeyExport_eq (coinType : UInt32) (path : List UInt32) :
              | some hLen =>
                if (p0 :: p1 :: p2 :: rest).length < hLen then false
                else
-                 Spec.Musig2.listAll (fun step => step >= Spec.AppStateMachine.hardenedFlag)
+                 InternalSpec.Musig2.listAll (fun step => step >= InternalSpec.AppStateMachine.hardenedFlag)
                    ((p0 :: p1 :: p2 :: rest).take hLen) &&
-                 Spec.Musig2.listAll (fun step => step < Spec.AppStateMachine.hardenedFlag)
+                 InternalSpec.Musig2.listAll (fun step => step < InternalSpec.AppStateMachine.hardenedFlag)
                    ((p0 :: p1 :: p2 :: rest).drop hLen) &&
                  decide ((p1 &&& 0x7FFFFFFF) = coinType) &&
-                 ((p2 &&& 0x7FFFFFFF) ≤ Spec.AppStateMachine.maxBip44AccountRecommended) &&
+                 ((p2 &&& 0x7FFFFFFF) ≤ InternalSpec.AppStateMachine.maxBip44AccountRecommended) &&
                  (if decide ((p0 &&& 0x7FFFFFFF) = 48) then
                     match rest with
                     | p3 :: _ => decide ((p3 &&& 0x7FFFFFFF) = 1) || decide ((p3 &&& 0x7FFFFFFF) = 2)
@@ -247,7 +247,7 @@ theorem isPathSafeForPubkeyExport_eq (coinType : UInt32) (path : List UInt32) :
 
 theorem classifyIdentityPath_eq (path : List UInt32) :
     BitcoinLedger.AppStateMachine.classifyIdentityPath path =
-      Spec.AppStateMachine.classifyIdentityPath path := by
+      InternalSpec.AppStateMachine.classifyIdentityPath path := by
   cases path with
   | nil => rfl
   | cons a t =>
@@ -258,28 +258,28 @@ theorem classifyIdentityPath_eq (path : List UInt32) :
 
 theorem isValidCompressedSec1Prefix_eq (pk : CompressedPubKey) :
     BitcoinLedger.AppStateMachine.isValidCompressedSec1Prefix pk =
-      Spec.AppStateMachine.isValidCompressedSec1Prefix pk := rfl
+      InternalSpec.AppStateMachine.isValidCompressedSec1Prefix pk := rfl
 
 theorem buildIdentityMessage_eq (msgType object : ByteArray) :
     BitcoinLedger.AppStateMachine.buildIdentityMessage msgType object =
-      Spec.AppStateMachine.buildIdentityMessage msgType object := rfl
+      InternalSpec.AppStateMachine.buildIdentityMessage msgType object := rfl
 
-theorem computeIdentityRegistrationId_eq (sha256 : ByteArray → Spec.Musig2.Bytes32)
+theorem computeIdentityRegistrationId_eq (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (name : String) (pubkey : CompressedPubKey) :
     BitcoinLedger.AppStateMachine.computeIdentityRegistrationId sha256 name pubkey =
-      Spec.AppStateMachine.computeIdentityRegistrationId sha256 name pubkey := by
+      InternalSpec.AppStateMachine.computeIdentityRegistrationId sha256 name pubkey := by
   unfold BitcoinLedger.AppStateMachine.computeIdentityRegistrationId
-    Spec.AppStateMachine.computeIdentityRegistrationId
+    InternalSpec.AppStateMachine.computeIdentityRegistrationId
   dsimp only
   rw [Proofs.SilentPayments.nat_beq_eq_decide]
   rfl
 
-theorem validCrossChainOpReturn_eq (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (out : ExternalOutputView) (expectedPayinHash : Spec.Musig2.Bytes32) :
+theorem validCrossChainOpReturn_eq (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (out : ExternalOutputView) (expectedPayinHash : InternalSpec.Musig2.Bytes32) :
     BitcoinLedger.AppStateMachine.validCrossChainOpReturn sha256 out expectedPayinHash =
-      Spec.AppStateMachine.validCrossChainOpReturn sha256 out expectedPayinHash := by
+      InternalSpec.AppStateMachine.validCrossChainOpReturn sha256 out expectedPayinHash := by
   unfold BitcoinLedger.AppStateMachine.validCrossChainOpReturn
-    Spec.AppStateMachine.validCrossChainOpReturn
+    InternalSpec.AppStateMachine.validCrossChainOpReturn
   cases decide (out.amount ≠ 0) with
   | true => rfl
   | false =>
@@ -299,18 +299,18 @@ theorem validCrossChainOpReturn_eq (sha256 : ByteArray → Spec.Musig2.Bytes32)
             simp only [Proofs.Musig2.nat_bne_eq_decide_ne, sizedBytes32_beq_eq_decide]
       · simp [hb0]
 
-theorem isDefaultPor_eq (porOpt : Option Spec.Musig2.Bytes32) :
+theorem isDefaultPor_eq (porOpt : Option InternalSpec.Musig2.Bytes32) :
     BitcoinLedger.AppStateMachine.isDefaultPor porOpt =
-      Spec.AppStateMachine.isDefaultPor porOpt := by
+      InternalSpec.AppStateMachine.isDefaultPor porOpt := by
   cases porOpt with
   | none => rfl
   | some por => exact Proofs.Musig2.isAllZeros_eq por
 
-theorem validSwapPsbt_eq {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+theorem validSwapPsbt_eq {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (lock : SwapLock) (req : PsbtSignRequest Affine) :
     BitcoinLedger.AppStateMachine.validSwapPsbt sha256 lock req =
-      Spec.AppStateMachine.validSwapPsbt sha256 lock req := by
-  unfold BitcoinLedger.AppStateMachine.validSwapPsbt Spec.AppStateMachine.validSwapPsbt
+      InternalSpec.AppStateMachine.validSwapPsbt sha256 lock req := by
+  unfold BitcoinLedger.AppStateMachine.validSwapPsbt InternalSpec.AppStateMachine.validSwapPsbt
   cases req.account with
   | silentPayment _ _ _ => rfl
   | walletPolicy wp =>
@@ -342,26 +342,26 @@ theorem validSwapPsbt_eq {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Byt
 
 theorem classifyBolosApdu_refines_spec (inSwapMode : Bool) (hdr : BolosApduHeader) :
     BitcoinLedger.AppStateMachine.classifyBolosApdu inSwapMode hdr =
-      Spec.AppStateMachine.classifyBolosApdu inSwapMode hdr := by
-  unfold BitcoinLedger.AppStateMachine.classifyBolosApdu Spec.AppStateMachine.classifyBolosApdu
+      InternalSpec.AppStateMachine.classifyBolosApdu inSwapMode hdr := by
+  unfold BitcoinLedger.AppStateMachine.classifyBolosApdu InternalSpec.AppStateMachine.classifyBolosApdu
   have hVer : BitcoinLedger.AppStateMachine.bolosCurrentProtocolVersion =
-      Spec.AppStateMachine.bolosCurrentProtocolVersion := rfl
+      InternalSpec.AppStateMachine.bolosCurrentProtocolVersion := rfl
   rw [hVer]
   cases inSwapMode with
   | true =>
     simp only [↓reduceIte]
-    rw [decide_ite_eq (hdr.p2 > Spec.AppStateMachine.bolosCurrentProtocolVersion)]
+    rw [decide_ite_eq (hdr.p2 > InternalSpec.AppStateMachine.bolosCurrentProtocolVersion)]
     rfl
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte]
-    rw [decide_ite_eq (hdr.p2 > Spec.AppStateMachine.bolosCurrentProtocolVersion)]
+    rw [decide_ite_eq (hdr.p2 > InternalSpec.AppStateMachine.bolosCurrentProtocolVersion)]
     rfl
 
 theorem decodeVanadiumRequestTag_refines_spec (tag : Nat) :
     BitcoinLedger.AppStateMachine.decodeVanadiumRequestTag tag =
-      Spec.AppStateMachine.decodeVanadiumRequestTag tag := by
+      InternalSpec.AppStateMachine.decodeVanadiumRequestTag tag := by
   unfold BitcoinLedger.AppStateMachine.decodeVanadiumRequestTag
-    Spec.AppStateMachine.decodeVanadiumRequestTag
+    InternalSpec.AppStateMachine.decodeVanadiumRequestTag
   rfl
 
 theorem isCommandReadOnly_eq {Affine : Type} (cmd : AppCommand Affine) :
@@ -370,7 +370,7 @@ theorem isCommandReadOnly_eq {Affine : Type} (cmd : AppCommand Affine) :
 
 theorem isAllowedInSwap_eq {Affine : Type} (cmd : AppCommand Affine) :
     BitcoinLedger.AppStateMachine.isAllowedInSwap cmd =
-      Spec.AppStateMachine.isAllowedInSwap cmd := by
+      InternalSpec.AppStateMachine.isAllowedInSwap cmd := by
   cases cmd <;> rfl
 
 theorem checkSelfPubnonce_eq {Affine : Type} (hw : HardwareOracle Affine) (profile : TargetProfile) :
@@ -379,10 +379,10 @@ theorem checkSelfPubnonce_eq {Affine : Type} (hw : HardwareOracle Affine) (profi
 
 theorem validateAccountAuth_refines_spec {Affine : Type}
     (profile : TargetProfile) (hw : HardwareOracle Affine)
-    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option Spec.Musig2.Bytes32) :
+    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option InternalSpec.Musig2.Bytes32) :
     BitcoinLedger.AppStateMachine.validateAccountAuth profile hw inSwapMode account porOpt =
-      Spec.AppStateMachine.validateAccountAuth profile hw inSwapMode account porOpt := by
-  unfold BitcoinLedger.AppStateMachine.validateAccountAuth Spec.AppStateMachine.validateAccountAuth
+      InternalSpec.AppStateMachine.validateAccountAuth profile hw inSwapMode account porOpt := by
+  unfold BitcoinLedger.AppStateMachine.validateAccountAuth InternalSpec.AppStateMachine.validateAccountAuth
   cases account with
   | walletPolicy wp =>
     cases porOpt with
@@ -403,16 +403,16 @@ theorem validateAccountAuth_refines_spec {Affine : Type}
         | some por =>
           simp only [Bool.false_eq_true, ↓reduceIte]
           have hH : BitcoinLedger.AppStateMachine.hardenedFlag =
-              Spec.AppStateMachine.hardenedFlag := rfl
+              InternalSpec.AppStateMachine.hardenedFlag := rfl
           rw [hH, sizedBytes32_beq_eq_decide]
 
 theorem maybeSignIdentityObject_refines_spec {Affine : Type}
     (profile : TargetProfile) (hw : HardwareOracle Affine)
     (identityIndex : Option UInt32) (msgType object : ByteArray) :
     BitcoinLedger.AppStateMachine.maybeSignIdentityObject profile hw identityIndex msgType object =
-      Spec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex msgType object := by
+      InternalSpec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex msgType object := by
   unfold BitcoinLedger.AppStateMachine.maybeSignIdentityObject
-    Spec.AppStateMachine.maybeSignIdentityObject
+    InternalSpec.AppStateMachine.maybeSignIdentityObject
   cases identityIndex with
   | none => rfl
   | some idx =>
@@ -421,12 +421,12 @@ theorem maybeSignIdentityObject_refines_spec {Affine : Type}
     | vanadium _ =>
       dsimp only
       have hH : BitcoinLedger.AppStateMachine.hardenedFlag =
-          Spec.AppStateMachine.hardenedFlag := rfl
-      rw [hH, decide_ite_eq (idx ≥ Spec.AppStateMachine.hardenedFlag), buildIdentityMessage_eq]
-      cases decide (idx ≥ Spec.AppStateMachine.hardenedFlag) with
+          InternalSpec.AppStateMachine.hardenedFlag := rfl
+      rw [hH, decide_ite_eq (idx ≥ InternalSpec.AppStateMachine.hardenedFlag), buildIdentityMessage_eq]
+      cases decide (idx ≥ InternalSpec.AppStateMachine.hardenedFlag) with
       | true => rfl
       | false =>
-        cases Spec.AppStateMachine.buildIdentityMessage msgType object with
+        cases InternalSpec.AppStateMachine.buildIdentityMessage msgType object with
         | none => rfl
         | some msg =>
           cases hw.signWithIdentityKey idx msg <;> rfl
@@ -496,10 +496,10 @@ private theorem verifyKeySigsLoop_eq_forIn {Affine : Type}
             match sigOpt with
             | none => pure ()
             | some sig =>
-              if !Spec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey then
+              if !InternalSpec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey then
                 Except.error AppError.signatureFail
-              let msg ← match Spec.AppStateMachine.buildIdentityMessage
-                                Spec.AppStateMachine.identityMsgTypeXpub keyPayload with
+              let msg ← match InternalSpec.AppStateMachine.buildIdentityMessage
+                                InternalSpec.AppStateMachine.identityMsgTypeXpub keyPayload with
                 | some m => Except.ok m
                 | none => Except.error AppError.incorrectData
               if !hw.verifySchnorr sig.identityPubkey msg sig.signature then
@@ -519,14 +519,14 @@ private theorem verifyKeySigsLoop_eq_forIn {Affine : Type}
     | some sig =>
       dsimp only
       have hX : BitcoinLedger.AppStateMachine.identityMsgTypeXpub =
-          Spec.AppStateMachine.identityMsgTypeXpub := rfl
+          InternalSpec.AppStateMachine.identityMsgTypeXpub := rfl
       rw [isValidCompressedSec1Prefix_eq, hX, buildIdentityMessage_eq]
-      cases (!Spec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey) with
+      cases (!InternalSpec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey) with
       | true => rfl
       | false =>
         simp only [Bool.false_eq_true, ↓reduceIte]
-        cases Spec.AppStateMachine.buildIdentityMessage
-                Spec.AppStateMachine.identityMsgTypeXpub keyPayload with
+        cases InternalSpec.AppStateMachine.buildIdentityMessage
+                InternalSpec.AppStateMachine.identityMsgTypeXpub keyPayload with
         | none => rfl
         | some msg =>
           dsimp only
@@ -543,19 +543,19 @@ theorem verifyRegisteredIdentityAuth_refines_spec {Affine : Type}
     (keyInfos : List ByteArray)
     (keySigs : List (Option IdentitySignature)) :
     BitcoinLedger.AppStateMachine.verifyRegisteredIdentityAuth hw entries keyInfos keySigs =
-      Spec.AppStateMachine.verifyRegisteredIdentityAuth hw entries keyInfos keySigs := by
+      InternalSpec.AppStateMachine.verifyRegisteredIdentityAuth hw entries keyInfos keySigs := by
   unfold BitcoinLedger.AppStateMachine.verifyRegisteredIdentityAuth
-    Spec.AppStateMachine.verifyRegisteredIdentityAuth
+    InternalSpec.AppStateMachine.verifyRegisteredIdentityAuth
   have hTail : BitcoinLedger.AppStateMachine.verifyKeySigsLoop hw (keyInfos.zip keySigs) =
       (do
         for (keyPayload, sigOpt) in keyInfos.zip keySigs do
           match sigOpt with
           | none => pure ()
           | some sig =>
-            if !Spec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey then
+            if !InternalSpec.AppStateMachine.isValidCompressedSec1Prefix sig.identityPubkey then
               Except.error AppError.signatureFail
-            let msg ← match Spec.AppStateMachine.buildIdentityMessage
-                              Spec.AppStateMachine.identityMsgTypeXpub keyPayload with
+            let msg ← match InternalSpec.AppStateMachine.buildIdentityMessage
+                              InternalSpec.AppStateMachine.identityMsgTypeXpub keyPayload with
               | some m => Except.ok m
               | none => Except.error AppError.incorrectData
             if !hw.verifySchnorr sig.identityPubkey msg sig.signature then
@@ -564,10 +564,10 @@ theorem verifyRegisteredIdentityAuth_refines_spec {Affine : Type}
   dsimp only [List.mapM, Bind.bind, Except.bind, Pure.pure, Except.pure] at hTail ⊢
   have hfStep :
       ∀ entry : RegisteredIdentityEntry,
-        (if !Spec.AppStateMachine.isValidCompressedSec1Prefix entry.pubkey then
+        (if !InternalSpec.AppStateMachine.isValidCompressedSec1Prefix entry.pubkey then
            Except.error AppError.signatureFail
          else
-           match Spec.AppStateMachine.computeIdentityRegistrationId
+           match InternalSpec.AppStateMachine.computeIdentityRegistrationId
                    hw.musigCrypto.sha256 entry.name entry.pubkey with
            | some id =>
              if hw.computePorHmac id != entry.por then
@@ -588,11 +588,11 @@ theorem verifyRegisteredIdentityAuth_refines_spec {Affine : Type}
                Except.ok entry.pubkey) := by
     intro entry
     rw [isValidCompressedSec1Prefix_eq, computeIdentityRegistrationId_eq]
-    cases (!Spec.AppStateMachine.isValidCompressedSec1Prefix entry.pubkey) with
+    cases (!InternalSpec.AppStateMachine.isValidCompressedSec1Prefix entry.pubkey) with
     | true => rfl
     | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
-      cases Spec.AppStateMachine.computeIdentityRegistrationId
+      cases InternalSpec.AppStateMachine.computeIdentityRegistrationId
               hw.musigCrypto.sha256 entry.name entry.pubkey with
       | none => rfl
       | some regId =>
@@ -622,18 +622,18 @@ theorem verifyRegisteredIdentityAuth_refines_spec {Affine : Type}
 theorem allowUnderfundedInputs_eq {Affine : Type} (profile : TargetProfile) (inSwap : Bool)
     (psbt : PsbtSignRequest Affine) :
     BitcoinLedger.AppStateMachine.allowUnderfundedInputs profile inSwap psbt =
-      Spec.AppStateMachine.allowUnderfundedInputs profile inSwap psbt := rfl
+      InternalSpec.AppStateMachine.allowUnderfundedInputs profile inSwap psbt := rfl
 
 theorem round1NeedsApproval_eq (profile : TargetProfile) (spShares : List SilentPaymentShareOut) :
     BitcoinLedger.AppStateMachine.round1NeedsApproval profile spShares =
-      Spec.AppStateMachine.round1NeedsApproval profile spShares := rfl
+      InternalSpec.AppStateMachine.round1NeedsApproval profile spShares := rfl
 
-theorem authorizePsbtStep_eq {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+theorem authorizePsbtStep_eq {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (swapLock : Option SwapLock) (ui : UserApprovalOracle Affine)
     (psbt : PsbtSignRequest Affine) :
     BitcoinLedger.AppStateMachine.authorizePsbtStep sha256 swapLock ui psbt =
-      Spec.AppStateMachine.authorizePsbtStep sha256 swapLock ui psbt := by
-  unfold BitcoinLedger.AppStateMachine.authorizePsbtStep Spec.AppStateMachine.authorizePsbtStep
+      InternalSpec.AppStateMachine.authorizePsbtStep sha256 swapLock ui psbt := by
+  unfold BitcoinLedger.AppStateMachine.authorizePsbtStep InternalSpec.AppStateMachine.authorizePsbtStep
   cases swapLock with
   | none => rfl
   | some lock => dsimp only; rw [validSwapPsbt_eq]
@@ -642,9 +642,9 @@ theorem computePsbtSpOutputs_eq {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine)
     (spTxOpt : Option (PsbtSpTx Affine)) :
     BitcoinLedger.AppStateMachine.computePsbtSpOutputs profile hw spTxOpt =
-      Spec.AppStateMachine.computePsbtSpOutputs profile hw spTxOpt := by
+      InternalSpec.AppStateMachine.computePsbtSpOutputs profile hw spTxOpt := by
   unfold BitcoinLedger.AppStateMachine.computePsbtSpOutputs
-    Spec.AppStateMachine.computePsbtSpOutputs
+    InternalSpec.AppStateMachine.computePsbtSpOutputs
   cases spTxOpt with
   | none => rfl
   | some spTx =>
@@ -653,11 +653,11 @@ theorem computePsbtSpOutputs_eq {Affine : Type} [DecidableEq Affine]
     | vanadium _ =>
       dsimp only
       rw [Proofs.SilentPayments.finalizePsbtSilentPayments_refines_spec]
-      cases Spec.SilentPayments.finalizePsbtSilentPayments hw.spCrypto spTx hw.freshDleqAuxRand <;> rfl
+      cases InternalSpec.SilentPayments.finalizePsbtSilentPayments hw.spCrypto spTx hw.freshDleqAuxRand <;> rfl
 
 theorem abortSwapIfFailed_eq (e : AppError) (s : AppPersistentState) :
     BitcoinLedger.AppStateMachine.abortSwapIfFailed e s =
-      Spec.AppStateMachine.abortSwapIfFailed e s := rfl
+      InternalSpec.AppStateMachine.abortSwapIfFailed e s := rfl
 
 private theorem signStandardInputs_loop_eq {Affine : Type} (hw : HardwareOracle Affine)
     (f : StandardInputSigRequest → Except AppError StandardInputSignature)
@@ -694,8 +694,8 @@ private theorem signStandardInputs_loop_eq {Affine : Type} (hw : HardwareOracle 
 theorem signStandardInputs_eq {Affine : Type} (hw : HardwareOracle Affine)
     (tasks : List StandardInputSigRequest) :
     BitcoinLedger.AppStateMachine.signStandardInputs hw tasks =
-      Spec.AppStateMachine.signStandardInputs hw tasks := by
-  unfold Spec.AppStateMachine.signStandardInputs
+      InternalSpec.AppStateMachine.signStandardInputs hw tasks := by
+  unfold InternalSpec.AppStateMachine.signStandardInputs
   dsimp only [List.mapM]
   rw [signStandardInputs_loop_eq hw _ (by
     intro req
@@ -711,14 +711,14 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
     (cmd : AppCommand Affine)
     (s : AppPersistentState) :
     BitcoinLedger.AppStateMachine.stepAppCommand profile hw ui cmd s =
-      Spec.AppStateMachine.stepAppCommand profile hw ui cmd s := by
-  unfold BitcoinLedger.AppStateMachine.stepAppCommand Spec.AppStateMachine.stepAppCommand
+      InternalSpec.AppStateMachine.stepAppCommand profile hw ui cmd s := by
+  unfold BitcoinLedger.AppStateMachine.stepAppCommand InternalSpec.AppStateMachine.stepAppCommand
   rw [isAllowedInSwap_eq]
   cases (s.swapLock.isSome && s.swapAborted) with
   | true => rfl
   | false =>
     simp only [Bool.false_eq_true, ↓reduceIte]
-    cases (s.swapLock.isSome && !Spec.AppStateMachine.isAllowedInSwap cmd) with
+    cases (s.swapLock.isSome && !InternalSpec.AppStateMachine.isAllowedInSwap cmd) with
     | true => rfl
     | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
@@ -734,9 +734,9 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
         · simp [hLen]
         · simp only [hLen, ↓reduceIte]
           have hIdXpub : BitcoinLedger.AppStateMachine.identityMsgTypeXpub =
-              Spec.AppStateMachine.identityMsgTypeXpub := rfl
+              InternalSpec.AppStateMachine.identityMsgTypeXpub := rfl
           have hVanMax : BitcoinLedger.AppStateMachine.vanadiumStandardMaxBip32PathSteps =
-              Spec.AppStateMachine.vanadiumStandardMaxBip32PathSteps := rfl
+              InternalSpec.AppStateMachine.vanadiumStandardMaxBip32PathSteps := rfl
           cases profile with
           | bolos ct =>
             cases tree with
@@ -749,7 +749,7 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
               | true => rfl
               | false =>
                 simp only [Bool.false_eq_true, ↓reduceIte]
-                by_cases hSafe : (!Spec.AppStateMachine.isPathSafeForPubkeyExport ct path && !display) = true
+                by_cases hSafe : (!InternalSpec.AppStateMachine.isPathSafeForPubkeyExport ct path && !display) = true
                 · simp [hSafe]
                 · simp only [hSafe]
                   cases hw.deriveExtendedPubkey .standard s.residentKeys path with
@@ -761,8 +761,8 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                     | true => rfl
                     | false =>
                       simp only [Bool.false_eq_true, ↓reduceIte]
-                      cases Spec.AppStateMachine.maybeSignIdentityObject (.bolos ct) hw identityIndex
-                        Spec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl
+                      cases InternalSpec.AppStateMachine.maybeSignIdentityObject (.bolos ct) hw identityIndex
+                        InternalSpec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl
           | vanadium ct =>
             cases tree with
             | resident =>
@@ -781,8 +781,8 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                   | true => rfl
                   | false =>
                     simp only [Bool.false_eq_true, ↓reduceIte]
-                    cases Spec.AppStateMachine.maybeSignIdentityObject (.vanadium ct) hw identityIndex
-                      Spec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl
+                    cases InternalSpec.AppStateMachine.maybeSignIdentityObject (.vanadium ct) hw identityIndex
+                      InternalSpec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl
             | standard =>
               dsimp only
               simp only [keyTree_bne_standard_eq, hVanMax, classifyIdentityPath_eq,
@@ -791,7 +791,7 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
               | true => rfl
               | false =>
                 simp only [Bool.false_eq_true, ↓reduceIte]
-                cases decide (path.length > Spec.AppStateMachine.vanadiumStandardMaxBip32PathSteps) with
+                cases decide (path.length > InternalSpec.AppStateMachine.vanadiumStandardMaxBip32PathSteps) with
                 | true => rfl
                 | false =>
                   simp only [Bool.false_eq_true, ↓reduceIte]
@@ -802,25 +802,25 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                     dsimp only
                     have hPromptEq :
                         (match TargetProfile.vanadium ct, KeyTree.standard,
-                               Spec.AppStateMachine.classifyIdentityPath path with
+                               InternalSpec.AppStateMachine.classifyIdentityPath path with
                          | .vanadium _, .standard, some idKind =>
                            UserPrompt.confirmIdentityPubkey (Affine := Affine) idKind xpub
                          | _, _, _ => UserPrompt.confirmExtendedPubkey .standard path xpub) =
-                        (match Spec.AppStateMachine.classifyIdentityPath path with
+                        (match InternalSpec.AppStateMachine.classifyIdentityPath path with
                          | some idKind => UserPrompt.confirmIdentityPubkey idKind xpub
                          | none => UserPrompt.confirmExtendedPubkey .standard path xpub) := by
-                      cases Spec.AppStateMachine.classifyIdentityPath path <;> rfl
-                    cases Spec.AppStateMachine.classifyIdentityPath path <;> dsimp only <;> (
+                      cases InternalSpec.AppStateMachine.classifyIdentityPath path <;> rfl
+                    cases InternalSpec.AppStateMachine.classifyIdentityPath path <;> dsimp only <;> (
                       cases (display && !ui.approve _) with
                       | true => rfl
                       | false =>
                         simp only [Bool.false_eq_true, ↓reduceIte]
-                        cases Spec.AppStateMachine.maybeSignIdentityObject (.vanadium ct) hw identityIndex
-                          Spec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl)
+                        cases InternalSpec.AppStateMachine.maybeSignIdentityObject (.vanadium ct) hw identityIndex
+                          InternalSpec.AppStateMachine.identityMsgTypeXpub xpub <;> rfl)
       | getAddress display account porOpt coordinates identityIndex =>
         dsimp only
         rw [validateAccountAuth_refines_spec]
-        cases Spec.AppStateMachine.validateAccountAuth profile hw s.swapLock.isSome account porOpt with
+        cases InternalSpec.AppStateMachine.validateAccountAuth profile hw s.swapLock.isSome account porOpt with
         | error _ => rfl
         | ok _ =>
           dsimp only
@@ -831,18 +831,18 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
             | walletPolicy isChange addrIdx =>
               dsimp only
               have hH : BitcoinLedger.AppStateMachine.hardenedFlag =
-                  Spec.AppStateMachine.hardenedFlag := rfl
+                  InternalSpec.AppStateMachine.hardenedFlag := rfl
               have hMaxDef : BitcoinLedger.AppStateMachine.maxDefaultAddressIndex =
-                  Spec.AppStateMachine.maxDefaultAddressIndex := rfl
+                  InternalSpec.AppStateMachine.maxDefaultAddressIndex := rfl
               have hIdOut : BitcoinLedger.AppStateMachine.identityMsgTypeOutput =
-                  Spec.AppStateMachine.identityMsgTypeOutput := rfl
-              rw [hH, hMaxDef, hIdOut, decide_ite_eq (addrIdx ≥ Spec.AppStateMachine.hardenedFlag),
+                  InternalSpec.AppStateMachine.identityMsgTypeOutput := rfl
+              rw [hH, hMaxDef, hIdOut, decide_ite_eq (addrIdx ≥ InternalSpec.AppStateMachine.hardenedFlag),
                   isDefaultPor_eq]
-              by_cases hHard : addrIdx ≥ Spec.AppStateMachine.hardenedFlag
+              by_cases hHard : addrIdx ≥ InternalSpec.AppStateMachine.hardenedFlag
               · simp [hHard]
               · simp only [hHard, ↓reduceIte]
-                by_cases hDef : Spec.AppStateMachine.isDefaultPor porOpt = true
-                · by_cases hCap : addrIdx > Spec.AppStateMachine.maxDefaultAddressIndex
+                by_cases hDef : InternalSpec.AppStateMachine.isDefaultPor porOpt = true
+                · by_cases hCap : addrIdx > InternalSpec.AppStateMachine.maxDefaultAddressIndex
                   · simp [hDef, hCap]
                   · simp only [hDef, hCap, decide_false, Bool.and_false, Bool.false_eq_true, ↓reduceIte]
                     cases hw.deriveWalletPolicyOutput wp isChange addrIdx with
@@ -851,8 +851,8 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                       rcases pair with ⟨addr, scriptBytes⟩
                       dsimp only
                       rw [maybeSignIdentityObject_refines_spec]
-                      cases Spec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex
-                        Spec.AppStateMachine.identityMsgTypeOutput scriptBytes <;> rfl
+                      cases InternalSpec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex
+                        InternalSpec.AppStateMachine.identityMsgTypeOutput scriptBytes <;> rfl
                 · simp only [Bool.not_eq_true] at hDef
                   simp only [hDef, Bool.false_and, Bool.false_eq_true, ↓reduceIte]
                   cases hw.deriveWalletPolicyOutput wp isChange addrIdx with
@@ -861,8 +861,8 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                     rcases pair with ⟨addr, scriptBytes⟩
                     dsimp only
                     rw [maybeSignIdentityObject_refines_spec]
-                    cases Spec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex
-                      Spec.AppStateMachine.identityMsgTypeOutput scriptBytes <;> rfl
+                    cases InternalSpec.AppStateMachine.maybeSignIdentityObject profile hw identityIndex
+                      InternalSpec.AppStateMachine.identityMsgTypeOutput scriptBytes <;> rfl
           | silentPayment name spAcc accId =>
             cases coordinates with
             | walletPolicy _ _ => rfl
@@ -873,7 +873,7 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
               | false =>
                 simp only [Bool.false_eq_true, ↓reduceIte]
                 rw [profileCoinType_eq, Proofs.SilentPayments.deriveAccountSpAddress_refines_spec]
-                cases Spec.SilentPayments.deriveAccountSpAddress hw.spCrypto hw.bech32m
+                cases InternalSpec.SilentPayments.deriveAccountSpAddress hw.spCrypto hw.bech32m
                   (if decide (profile.coinType = 0) then .sp else .tsp) spAcc spCoords <;> rfl
       | registerAccount account regIdentities keySigs showCleartext =>
         dsimp only
@@ -910,7 +910,7 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
               | vanadium _ =>
                 dsimp only
                 rw [verifyRegisteredIdentityAuth_refines_spec]
-                cases Spec.AppStateMachine.verifyRegisteredIdentityAuth
+                cases InternalSpec.AppStateMachine.verifyRegisteredIdentityAuth
                         hw regIdentities wp.keysInfoPayloads keySigs with
                 | error _ => rfl
                 | ok _ =>
@@ -938,7 +938,7 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                 | false =>
                   simp only [Bool.false_eq_true, ↓reduceIte]
                   rw [profileCoinType_eq, Proofs.SilentPayments.deriveAccountSpAddress_refines_spec]
-                  cases Spec.SilentPayments.deriveAccountSpAddress hw.spCrypto hw.bech32m
+                  cases InternalSpec.SilentPayments.deriveAccountSpAddress hw.spCrypto hw.bech32m
                     (if decide ((TargetProfile.vanadium ct).coinType = 0) then .sp else .tsp) spAcc (.code none) with
                   | error _ => rfl
                   | ok _ =>
@@ -950,18 +950,18 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
         | vanadium _ =>
           dsimp only
           rw [isValidCompressedSec1Prefix_eq, computeIdentityRegistrationId_eq]
-          cases (!Spec.AppStateMachine.isValidCompressedSec1Prefix pubkey) with
+          cases (!InternalSpec.AppStateMachine.isValidCompressedSec1Prefix pubkey) with
           | true => rfl
           | false =>
             simp only [Bool.false_eq_true, ↓reduceIte]
-            cases Spec.AppStateMachine.computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey <;> rfl
+            cases InternalSpec.AppStateMachine.computeIdentityRegistrationId hw.musigCrypto.sha256 name pubkey <;> rfl
       | exportSpScanKey callerHrp accountIndex =>
         cases profile with
         | bolos _ => rfl
         | vanadium ct =>
           dsimp only
           rw [profileSpScanHrp_eq, Proofs.SilentPayments.exportSpScanKey_refines_spec]
-          cases Spec.SilentPayments.exportSpScanKey hw.spCrypto hw.bech32m (TargetProfile.vanadium ct).spScanHrp
+          cases InternalSpec.SilentPayments.exportSpScanKey hw.spCrypto hw.bech32m (TargetProfile.vanadium ct).spScanHrp
             hw.deriveSpAccount accountIndex (ui.approve (.confirmExportSpScanKey accountIndex)) with
           | ok _ => rfl
           | error spErr => cases spErr <;> rfl
@@ -971,33 +971,33 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
         | bolos _ =>
           dsimp only
           have hBMax : BitcoinLedger.AppStateMachine.bolosMaxBip32PathSteps =
-              Spec.AppStateMachine.bolosMaxBip32PathSteps := rfl
+              InternalSpec.AppStateMachine.bolosMaxBip32PathSteps := rfl
           have hMMax : BitcoinLedger.AppStateMachine.maxSignMessageLength =
-              Spec.AppStateMachine.maxSignMessageLength := rfl
+              InternalSpec.AppStateMachine.maxSignMessageLength := rfl
           rw [hBMax, hMMax,
-              decide_ite_eq (path.length > Spec.AppStateMachine.bolosMaxBip32PathSteps),
-              decide_ite_eq (message.size ≥ Spec.AppStateMachine.maxSignMessageLength),
+              decide_ite_eq (path.length > InternalSpec.AppStateMachine.bolosMaxBip32PathSteps),
+              decide_ite_eq (message.size ≥ InternalSpec.AppStateMachine.maxSignMessageLength),
               isPrintableAsciiMessage_eq, bitcoinSignedMessageDigest_eq]
-          by_cases h1 : path.length > Spec.AppStateMachine.bolosMaxBip32PathSteps
+          by_cases h1 : path.length > InternalSpec.AppStateMachine.bolosMaxBip32PathSteps
           · simp [h1]
           · simp only [h1, ↓reduceIte]
-            by_cases h2 : message.size ≥ Spec.AppStateMachine.maxSignMessageLength
+            by_cases h2 : message.size ≥ InternalSpec.AppStateMachine.maxSignMessageLength
             · simp [h2]
             · simp only [h2, ↓reduceIte]
               cases (!ui.approve (.confirmSignMessage path
-                (if Spec.AppStateMachine.isPrintableAsciiMessage message then .cleartextAscii message
+                (if InternalSpec.AppStateMachine.isPrintableAsciiMessage message then .cleartextAscii message
                  else .sha256Digest (hw.musigCrypto.sha256 message)))) with
               | true => rfl
               | false =>
                 simp only [Bool.false_eq_true, ↓reduceIte]
                 cases hw.signRecoverableEcdsa path
-                  (Spec.AppStateMachine.bitcoinSignedMessageDigest hw.musigCrypto.sha256 message) with
+                  (InternalSpec.AppStateMachine.bitcoinSignedMessageDigest hw.musigCrypto.sha256 message) with
                 | none => rfl
                 | some triple =>
                   rcases triple with ⟨recId, r, sScalar⟩
                   dsimp only
                   rw [formatBolosSignMessageSig_eq]
-                  cases Spec.AppStateMachine.formatBolosSignMessageSig recId r sScalar <;> rfl
+                  cases InternalSpec.AppStateMachine.formatBolosSignMessageSig recId r sScalar <;> rfl
       | signPsbt psbt =>
         dsimp only
         cases (s.swapLock.isSome && psbt.isBip322MessageSigning) with
@@ -1005,26 +1005,26 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
         | false =>
           simp only [Bool.false_eq_true, ↓reduceIte]
           rw [validateAccountAuth_refines_spec]
-          cases Spec.AppStateMachine.validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
+          cases InternalSpec.AppStateMachine.validateAccountAuth profile hw s.swapLock.isSome psbt.account psbt.por with
           | error _ => rfl
           | ok _ =>
             dsimp only
             rw [allowUnderfundedInputs_eq, computePsbtSpOutputs_eq]
             have hAmtCond :
-                ((!Spec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
+                ((!InternalSpec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
                   decide (psbt.inputsTotalAmount < psbt.outputsTotalAmount)) ||
                  decide (psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount)) =
-                ((!Spec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
+                ((!InternalSpec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
                   (psbt.inputsTotalAmount < psbt.outputsTotalAmount : Bool)) ||
                  (psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount : Bool)) := rfl
             rw [hAmtCond]
-            cases ((!Spec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
+            cases ((!InternalSpec.AppStateMachine.allowUnderfundedInputs profile s.swapLock.isSome psbt &&
                     (psbt.inputsTotalAmount < psbt.outputsTotalAmount : Bool)) ||
                    (psbt.outputsTotalAmount < psbt.changeOutputsTotalAmount : Bool)) with
             | true => rfl
             | false =>
               simp only [Bool.false_eq_true, ↓reduceIte]
-              cases Spec.AppStateMachine.computePsbtSpOutputs profile hw psbt.silentPaymentTx with
+              cases InternalSpec.AppStateMachine.computePsbtSpOutputs profile hw psbt.silentPaymentTx with
               | error _ => rfl
               | ok spPair =>
                 rcases spPair with ⟨spShares, spScripts⟩
@@ -1038,36 +1038,36 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                   | true => rfl
                   | false =>
                     simp only [Bool.false_eq_true, ↓reduceIte]
-                    cases (Spec.AppStateMachine.round1NeedsApproval profile spShares &&
+                    cases (InternalSpec.AppStateMachine.round1NeedsApproval profile spShares &&
                            !ui.approve (.confirmSignPsbt psbt)) with
                     | true => rfl
                     | false =>
                       simp only [Bool.false_eq_true, ↓reduceIte]
-                      cases Spec.Musig2.executeRound1Pass hw.musigCrypto profile.musigAggPkMode
+                      cases InternalSpec.Musig2.executeRound1Pass hw.musigCrypto profile.musigAggPkMode
                               s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
                       | error p => cases p; rfl
                       | ok p => cases p; rfl
                 | none =>
                   dsimp only
                   rw [authorizePsbtStep_eq, signStandardInputs_eq]
-                  cases Spec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                  cases InternalSpec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
                   | error _ => rfl
                   | ok isSwap =>
                     dsimp only
-                    cases Spec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks <;> rfl
+                    cases InternalSpec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks <;> rfl
                 | round1AndStandard sid r1Tasks =>
                   dsimp only
                   rw [authorizePsbtStep_eq, signStandardInputs_eq,
                       profileMusigAggPkMode_eq, Proofs.Musig2.executeRound1Pass_refines_spec]
-                  cases Spec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                  cases InternalSpec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
                   | error _ => rfl
                   | ok isSwap =>
                     dsimp only
-                    cases Spec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks with
+                    cases InternalSpec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks with
                     | error _ => rfl
                     | ok stdSigs =>
                       dsimp only
-                      cases Spec.Musig2.executeRound1Pass hw.musigCrypto profile.musigAggPkMode
+                      cases InternalSpec.Musig2.executeRound1Pass hw.musigCrypto profile.musigAggPkMode
                               s.musigSessions sid hw.freshMusigRandRoot r1Tasks with
                       | error p => cases p; rfl
                       | ok p => cases p; rfl
@@ -1080,42 +1080,42 @@ theorem stepAppCommand_refines_spec {Affine : Type} [DecidableEq Affine]
                   | true => rfl
                   | false =>
                     simp only [Bool.false_eq_true, ↓reduceIte]
-                    cases Spec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
+                    cases InternalSpec.AppStateMachine.authorizePsbtStep hw.musigCrypto.sha256 s.swapLock ui psbt with
                     | error _ => rfl
                     | ok isSwap =>
                       dsimp only
-                      cases Spec.Musig2.executeRound2Pass hw.musigCrypto profile.musigAggPkMode
+                      cases InternalSpec.Musig2.executeRound2Pass hw.musigCrypto profile.musigAggPkMode
                               s.musigSessions sid r2Inputs (hw.checkSelfPubnonce profile) with
                       | error p => cases p; rfl
                       | ok p =>
                         cases p
                         dsimp only
-                        cases Spec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks <;> rfl
+                        cases InternalSpec.AppStateMachine.signStandardInputs hw psbt.standardSignTasks <;> rfl
 
 theorem extractPostState_eq
     (res : Except (AppError × AppPersistentState) (AppResponse × AppPersistentState)) :
     BitcoinLedger.AppStateMachine.extractPostState res =
-      Spec.AppStateMachine.extractPostState res := by
+      InternalSpec.AppStateMachine.extractPostState res := by
   cases res <;> rfl
 
 theorem stepPostState_eq {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
     (cmd : AppCommand Affine) (s : AppPersistentState) :
     BitcoinLedger.AppStateMachine.stepPostState profile hw ui cmd s =
-      Spec.AppStateMachine.stepPostState profile hw ui cmd s := by
-  unfold BitcoinLedger.AppStateMachine.stepPostState Spec.AppStateMachine.stepPostState
+      InternalSpec.AppStateMachine.stepPostState profile hw ui cmd s := by
+  unfold BitcoinLedger.AppStateMachine.stepPostState InternalSpec.AppStateMachine.stepPostState
   rw [extractPostState_eq, stepAppCommand_refines_spec]
 
 theorem runAppTrace_refines_spec {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine) :
     ∀ (cmds : List (AppCommand Affine)) (s : AppPersistentState),
       BitcoinLedger.AppStateMachine.runAppTrace profile hw ui cmds s =
-        Spec.AppStateMachine.runAppTrace profile hw ui cmds s
+        InternalSpec.AppStateMachine.runAppTrace profile hw ui cmds s
   | [], _ => rfl
   | cmd :: rest, s => by
-    simp only [BitcoinLedger.AppStateMachine.runAppTrace, Spec.AppStateMachine.runAppTrace,
+    simp only [BitcoinLedger.AppStateMachine.runAppTrace, InternalSpec.AppStateMachine.runAppTrace,
       stepAppCommand_refines_spec]
-    cases Spec.AppStateMachine.stepAppCommand profile hw ui cmd s with
+    cases InternalSpec.AppStateMachine.stepAppCommand profile hw ui cmd s with
     | ok pair =>
       rcases pair with ⟨resp, s'⟩
       simp only [runAppTrace_refines_spec profile hw ui rest s']
@@ -1128,9 +1128,9 @@ theorem stepUsedMusigRandRoot_eq {Affine : Type} [DecidableEq Affine]
     (res : Except (AppError × AppPersistentState) (AppResponse × AppPersistentState))
     (s : AppPersistentState) (rr : RandRoot) :
     BitcoinLedger.AppStateMachine.stepUsedMusigRandRoot cmd res s rr =
-      Spec.AppStateMachine.stepUsedMusigRandRoot cmd res s rr := by
+      InternalSpec.AppStateMachine.stepUsedMusigRandRoot cmd res s rr := by
   unfold BitcoinLedger.AppStateMachine.stepUsedMusigRandRoot
-    Spec.AppStateMachine.stepUsedMusigRandRoot
+    InternalSpec.AppStateMachine.stepUsedMusigRandRoot
   cases cmd with
   | signPsbt psbt =>
     cases res with
@@ -1153,42 +1153,42 @@ theorem countMusigRound2StepsForRandRoot_eq {Affine : Type} [DecidableEq Affine]
     (rr : RandRoot) :
     ∀ (cmds : List (AppCommand Affine)) (s : AppPersistentState),
       BitcoinLedger.AppStateMachine.countMusigRound2StepsForRandRoot profile hw ui rr cmds s =
-        Spec.AppStateMachine.countMusigRound2StepsForRandRoot profile hw ui rr cmds s
+        InternalSpec.AppStateMachine.countMusigRound2StepsForRandRoot profile hw ui rr cmds s
   | [], _ => rfl
   | cmd :: rest, s => by
     simp only [BitcoinLedger.AppStateMachine.countMusigRound2StepsForRandRoot,
-      Spec.AppStateMachine.countMusigRound2StepsForRandRoot,
+      InternalSpec.AppStateMachine.countMusigRound2StepsForRandRoot,
       stepUsedMusigRandRoot_eq, stepAppCommand_refines_spec, stepPostState_eq,
       countMusigRound2StepsForRandRoot_eq profile hw ui rr rest]
 
 theorem responseEmitsSecretDerivedMaterial_eq (resp : AppResponse) :
     BitcoinLedger.AppStateMachine.responseEmitsSecretDerivedMaterial resp =
-      Spec.AppStateMachine.responseEmitsSecretDerivedMaterial resp := by
+      InternalSpec.AppStateMachine.responseEmitsSecretDerivedMaterial resp := by
   cases resp <;> rfl
 
 theorem verifyPsbtMerkleBundle_refines_spec
-    (sha256 : ByteArray → Spec.Psbt.Bytes32) (nInputs nOutputs : Nat)
+    (sha256 : ByteArray → InternalSpec.Psbt.Bytes32) (nInputs nOutputs : Nat)
     (bundle : PsbtMerkleOpeningBundle) :
     BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle sha256 nInputs nOutputs bundle =
-      Spec.Unified.verifyPsbtMerkleBundle sha256 nInputs nOutputs bundle := by
-  unfold BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle Spec.Unified.verifyPsbtMerkleBundle
+      InternalSpec.Unified.verifyPsbtMerkleBundle sha256 nInputs nOutputs bundle := by
+  unfold BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle InternalSpec.Unified.verifyPsbtMerkleBundle
   rw [appListAll_eq_List_all, appListAll_eq_List_all]
 
 theorem buildVerifiedPsbtSignRequest_refines_spec
     {Affine : Type}
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (swapLockOpt : Option SwapLock)
     (standardSignTasks : List StandardInputSigRequest)
@@ -1197,52 +1197,52 @@ theorem buildVerifiedPsbtSignRequest_refines_spec
     BitcoinLedger.AppStateMachine.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
       allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
       swapLockOpt standardSignTasks musigPlan silentPaymentTx =
-    Spec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
+    InternalSpec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
       allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
       swapLockOpt standardSignTasks musigPlan silentPaymentTx := by
   unfold BitcoinLedger.AppStateMachine.buildVerifiedPsbtSignRequest
-    Spec.Unified.buildVerifiedPsbtSignRequest
+    InternalSpec.Unified.buildVerifiedPsbtSignRequest
   have hPolProf : BitcoinLedger.AppStateMachine.policyProfileOfTarget profile =
-      Spec.Unified.policyProfileOfTarget profile := by
+      InternalSpec.Unified.policyProfileOfTarget profile := by
     cases profile <;> rfl
   have hPsbtCrypto : BitcoinLedger.AppStateMachine.mkPsbtCryptoOracles profile net hw hash160 =
-      Spec.Unified.mkPsbtCryptoOracles profile net hw hash160 := by
+      InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160 := by
     cases profile <;> rfl
   have hCfg : BitcoinLedger.AppStateMachine.signingConfigOfTarget profile allowNonDefaultSighash =
-      Spec.Unified.signingConfigOfTarget profile allowNonDefaultSighash := by
+      InternalSpec.Unified.signingConfigOfTarget profile allowNonDefaultSighash := by
     cases profile <;> rfl
   have hPsbtPol : ∀ p, BitcoinLedger.AppStateMachine.toPsbtWalletPolicySpec p dev policyOra policy =
-      Spec.Unified.toPsbtWalletPolicySpec p dev policyOra policy := fun _ => rfl
+      InternalSpec.Unified.toPsbtWalletPolicySpec p dev policyOra policy := fun _ => rfl
   have hAppPol : ∀ p, BitcoinLedger.AppStateMachine.toAppWalletPolicySpec p dev
       descriptorTemplate walletId keysInfoPayloads policy =
-      Spec.Unified.toAppWalletPolicySpec p dev
+      InternalSpec.Unified.toAppWalletPolicySpec p dev
         descriptorTemplate walletId keysInfoPayloads policy := fun _ => rfl
   have hSwapMap : ∀ l, BitcoinLedger.AppStateMachine.appSwapLockToPsbtSwapParams l =
-      Spec.Unified.appSwapLockToPsbtSwapParams l := by
+      InternalSpec.Unified.appSwapLockToPsbtSwapParams l := by
     intro l; cases l.mode <;> rfl
   dsimp only
   rw [hPolProf]
-  cases Spec.WalletPolicy.checkPolicyWellFormed (Spec.Unified.policyProfileOfTarget profile) policy with
+  cases InternalSpec.WalletPolicy.checkPolicyWellFormed (InternalSpec.Unified.policyProfileOfTarget profile) policy with
   | error _ => rfl
   | ok _ =>
     dsimp only
     rw [hPsbtCrypto]
     have hMerkleBranch :
-        ∀ k1 k2 : Except VerifiedPsbtSignError (Spec.Psbt.ValidatedPsbt × PsbtSignRequest Affine),
+        ∀ k1 k2 : Except VerifiedPsbtSignError (InternalSpec.Psbt.ValidatedPsbt × PsbtSignRequest Affine),
           k1 = k2 →
           (if !(match merkleOpt with
                 | none => true
                 | some bundle =>
                   BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle
-                    (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
+                    (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
                     psbt.inputs.size psbt.outputs.size bundle) then
              Except.error VerifiedPsbtSignError.merkleVerificationFailed
            else k1) =
           (if !(match merkleOpt with
                 | none => true
                 | some bundle =>
-                  Spec.Unified.verifyPsbtMerkleBundle
-                    (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
+                  InternalSpec.Unified.verifyPsbtMerkleBundle
+                    (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
                     psbt.inputs.size psbt.outputs.size bundle) then
              Except.error VerifiedPsbtSignError.merkleVerificationFailed
            else k2) := by
@@ -1257,10 +1257,10 @@ theorem buildVerifiedPsbtSignRequest_refines_spec
     | none =>
       dsimp only
       rw [hCfg, hPsbtPol]
-      cases Spec.Psbt.authorizePsbtSigning
-        (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160)
-        (Spec.Unified.signingConfigOfTarget profile allowNonDefaultSighash)
-        (Spec.Unified.toPsbtWalletPolicySpec (Spec.Unified.policyProfileOfTarget profile) dev policyOra policy)
+      cases InternalSpec.Psbt.authorizePsbtSigning
+        (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160)
+        (InternalSpec.Unified.signingConfigOfTarget profile allowNonDefaultSighash)
+        (InternalSpec.Unified.toPsbtWalletPolicySpec (InternalSpec.Unified.policyProfileOfTarget profile) dev policyOra policy)
         psbt none with
       | error _ => rfl
       | ok validated =>
@@ -1269,15 +1269,15 @@ theorem buildVerifiedPsbtSignRequest_refines_spec
     | some lock =>
       dsimp only
       rw [hSwapMap]
-      cases Spec.Unified.appSwapLockToPsbtSwapParams lock with
+      cases InternalSpec.Unified.appSwapLockToPsbtSwapParams lock with
       | none => rfl
       | some sp =>
         dsimp only
         rw [hCfg, hPsbtPol]
-        cases Spec.Psbt.authorizePsbtSigning
-          (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160)
-          (Spec.Unified.signingConfigOfTarget profile allowNonDefaultSighash)
-          (Spec.Unified.toPsbtWalletPolicySpec (Spec.Unified.policyProfileOfTarget profile) dev policyOra policy)
+        cases InternalSpec.Psbt.authorizePsbtSigning
+          (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160)
+          (InternalSpec.Unified.signingConfigOfTarget profile allowNonDefaultSighash)
+          (InternalSpec.Unified.toPsbtWalletPolicySpec (InternalSpec.Unified.policyProfileOfTarget profile) dev policyOra policy)
           psbt (some sp) with
         | error _ => rfl
         | ok validated =>
@@ -1287,19 +1287,19 @@ theorem buildVerifiedPsbtSignRequest_refines_spec
 theorem stepVerifiedPsbtSign_refines_spec
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
@@ -1308,22 +1308,22 @@ theorem stepVerifiedPsbtSign_refines_spec
     BitcoinLedger.AppStateMachine.stepVerifiedPsbtSign profile net hw ui dev policyOra hash160
       allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
       standardSignTasks musigPlan silentPaymentTx s =
-    Spec.Unified.stepVerifiedPsbtSign profile net hw ui dev policyOra hash160
+    InternalSpec.Unified.stepVerifiedPsbtSign profile net hw ui dev policyOra hash160
       allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
       standardSignTasks musigPlan silentPaymentTx s := by
-  unfold BitcoinLedger.AppStateMachine.stepVerifiedPsbtSign Spec.Unified.stepVerifiedPsbtSign
+  unfold BitcoinLedger.AppStateMachine.stepVerifiedPsbtSign InternalSpec.Unified.stepVerifiedPsbtSign
   rw [buildVerifiedPsbtSignRequest_refines_spec]
-  cases Spec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
+  cases InternalSpec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
           allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt
           merkleOpt s.swapLock standardSignTasks musigPlan silentPaymentTx with
   | error vErr =>
     dsimp only
-    cases s.swapLock <;> cases vErr <;> (try cases ‹Spec.Psbt.PsbtError›) <;> rfl
+    cases s.swapLock <;> cases vErr <;> (try cases ‹InternalSpec.Psbt.PsbtError›) <;> rfl
   | ok pair =>
     rcases pair with ⟨validated, req⟩
     dsimp only
     rw [stepAppCommand_refines_spec]
-    cases Spec.AppStateMachine.stepAppCommand profile hw ui (.signPsbt req) s with
+    cases InternalSpec.AppStateMachine.stepAppCommand profile hw ui (.signPsbt req) s with
     | error p => cases p; rfl
     | ok p => cases p; rfl
 
@@ -1337,7 +1337,7 @@ theorem impl_classifyBolosApdu_allows_arbitrary_p1
     BitcoinLedger.AppStateMachine.classifyBolosApdu inSwapMode
       { cla := BitcoinLedger.AppStateMachine.bolosClaApp, ins := ins, p1 := p1', p2 := p2 } := by
   rw [classifyBolosApdu_refines_spec, classifyBolosApdu_refines_spec]
-  exact Spec.AppStateMachine.classifyBolosApdu_allows_arbitrary_p1 inSwapMode ins p1 p1' p2
+  exact InternalSpec.AppStateMachine.classifyBolosApdu_allows_arbitrary_p1 inSwapMode ins p1 p1' p2
 
 /-- **Read-Only Purity (`s' = s`)**:
     Every `.ok` execution of `GET_VERSION`, `GET_MASTER_FINGERPRINT`, `GET_EXTENDED_PUBKEY`, or `GET_ADDRESS`
@@ -1355,7 +1355,7 @@ theorem impl_readOnly_purity {Affine : Type} [DecidableEq Affine]
       s'.residentKeys = s.residentKeys) := by
   rw [isCommandReadOnly_eq] at hRO
   simp only [stepAppCommand_refines_spec]
-  exact Spec.AppStateMachine.readOnly_purity profile hw ui cmd s s' hRO
+  exact InternalSpec.AppStateMachine.readOnly_purity profile hw ui cmd s s' hRO
 
 theorem impl_getVersion_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
@@ -1381,7 +1381,7 @@ theorem impl_getExtendedPubkey_purity {Affine : Type} [DecidableEq Affine]
 
 theorem impl_getAddress_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
-    (display : Bool) (acc : AccountSpec Affine) (por : Option Spec.Musig2.Bytes32)
+    (display : Bool) (acc : AccountSpec Affine) (por : Option InternalSpec.Musig2.Bytes32)
     (coords : AddressCoordinates) (idIdx : Option UInt32)
     (s s' : AppPersistentState) (resp : AppResponse)
     (h : BitcoinLedger.AppStateMachine.stepAppCommand profile hw ui
@@ -1401,7 +1401,7 @@ theorem impl_atomic_error_rollback {Affine : Type} [DecidableEq Affine]
     (∀ rr, BitcoinLedger.Musig2.isRandRootConsumed s.musigSessions rr = true →
       BitcoinLedger.Musig2.isRandRootConsumed s'.musigSessions rr = true) := by
   rw [stepAppCommand_refines_spec] at hErr
-  have hSpec := Spec.AppStateMachine.atomic_error_rollback profile hw ui cmd s s' e hErr
+  have hSpec := InternalSpec.AppStateMachine.atomic_error_rollback profile hw ui cmd s s' e hErr
   refine ⟨hSpec.1, hSpec.2.1, hSpec.2.2.1, ?_⟩
   intro rr hC
   rw [Proofs.Musig2.isRandRootConsumed_eq] at hC ⊢
@@ -1417,7 +1417,7 @@ theorem impl_user_consent_gate_signMessage {Affine : Type} [DecidableEq Affine]
     BitcoinLedger.AppStateMachine.stepAppCommand profile hw ui (.signMessage path msg hdrBase) s ≠
       .ok (resp, s') := by
   rw [stepAppCommand_refines_spec]
-  exact Spec.AppStateMachine.user_consent_gate_signMessage profile hw ui path msg hdrBase s s' resp hDeny
+  exact InternalSpec.AppStateMachine.user_consent_gate_signMessage profile hw ui path msg hdrBase s s' resp hDeny
 
 /-- **User-Consent Gate for `SIGN_PSBT`**:
     Without user approval, `SIGN_PSBT` never emits any standard signature, MuSig2 partial signature,
@@ -1434,7 +1434,7 @@ theorem impl_user_consent_gate_signPsbt {Affine : Type} [DecidableEq Affine]
   rw [stepAppCommand_refines_spec] at hOk
   rw [responseEmitsSecretDerivedMaterial_eq] at hSig
   obtain ⟨lock, hLock, hVal⟩ :=
-    Spec.AppStateMachine.user_consent_gate_signPsbt profile hw ui psbt s s' resp hDeny hOk hSig
+    InternalSpec.AppStateMachine.user_consent_gate_signPsbt profile hw ui psbt s s' resp hDeny hOk hSig
   rw [← validSwapPsbt_eq] at hVal
   exact ⟨lock, hLock, hVal⟩
 
@@ -1449,7 +1449,7 @@ theorem impl_vanadium_round1Only_requires_user_consent {Affine : Type} [Decidabl
     BitcoinLedger.AppStateMachine.stepAppCommand (.vanadium ct) hw ui (.signPsbt psbt) s ≠
       .ok (resp, s') := by
   rw [stepAppCommand_refines_spec]
-  exact Spec.AppStateMachine.vanadium_round1Only_requires_user_consent ct hw ui psbt sid r1Tasks s s' resp hPlan hDeny
+  exact InternalSpec.AppStateMachine.vanadium_round1Only_requires_user_consent ct hw ui psbt sid r1Tasks s s' resp hPlan hDeny
 
 /-- **User-Consent Gate for BIP-392 `exportSpScanKey`**:
     `exportSpScanKey` never exports a secret scan key unless `ui.approve (.confirmExportSpScanKey accountIndex) = true`. -/
@@ -1495,7 +1495,7 @@ theorem impl_musig2_nonce_anti_replay {Affine : Type} [DecidableEq Affine]
     (rr : RandRoot) (cmds : List (AppCommand Affine)) (s : AppPersistentState) :
     BitcoinLedger.AppStateMachine.countMusigRound2StepsForRandRoot profile hw ui rr cmds s ≤ 1 := by
   rw [countMusigRound2StepsForRandRoot_eq]
-  exact Spec.AppStateMachine.musig2_nonce_anti_replay profile hw ui rr cmds s
+  exact InternalSpec.AppStateMachine.musig2_nonce_anti_replay profile hw ui rr cmds s
 
 /-- **Immediate MuSig2 Round-2 Replay Rejected with `.musigError .missingSession`**: -/
 theorem impl_app_musig2_immediate_replay_missingSession {Affine : Type} [DecidableEq Affine]
@@ -1516,7 +1516,7 @@ theorem impl_app_musig2_immediate_replay_missingSession {Affine : Type} [Decidab
       .error (.musigError .missingSession, s') := by
   rw [stepAppCommand_refines_spec] at hOk1 ⊢
   rw [validateAccountAuth_refines_spec] at hAuth2
-  exact Spec.AppStateMachine.app_musig2_immediate_replay_missingSession profile hw ui psbt1 psbt2
+  exact InternalSpec.AppStateMachine.app_musig2_immediate_replay_missingSession profile hw ui psbt1 psbt2
     sid r2Inputs1 r2Inputs2 s s' resp hNoSwap hPlan1 hPlan2 hAuth2 hAmt2 hSp2 hOk1
 
 /-- **Swap Session Lock Termination on Failure**:
@@ -1540,7 +1540,7 @@ theorem impl_swap_bip322_rejected_and_abort_latches :
     let defaultWp : WalletPolicySpec := {
       name := "", version := 2, descriptorTemplate := "wpkh(@0/**)",
       nKeys := 1, nInternalKeys := 1, isDefaultPolicy := true, isSignable := true,
-      walletId := Spec.Musig2.oneByte32, keysInfoPayloads := []
+      walletId := InternalSpec.Musig2.oneByte32, keysInfoPayloads := []
     }
     let bip322Req : PsbtSignRequest Unit := {
       account := .walletPolicy defaultWp, por := none, isBip322MessageSigning := true,
@@ -1553,64 +1553,64 @@ theorem impl_swap_bip322_rejected_and_abort_latches :
     }
     let s0 : AppPersistentState := { swapLock := some lock }
     let sAborted : AppPersistentState := { swapLock := some lock, swapAborted := true }
-    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) Spec.AppStateMachine.toyHardwareOracle
+    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) InternalSpec.AppStateMachine.toyHardwareOracle
       ⟨fun _ => false⟩ (.signPsbt bip322Req) s0 = .error (.notSupported, s0) ∧
-    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) Spec.AppStateMachine.toyHardwareOracle
+    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) InternalSpec.AppStateMachine.toyHardwareOracle
       ⟨fun _ => false⟩ (.signPsbt wrongFeeReq) s0 = .error (.failSwap, sAborted) ∧
-    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) Spec.AppStateMachine.toyHardwareOracle
+    BitcoinLedger.AppStateMachine.stepAppCommand (.bolos 0) InternalSpec.AppStateMachine.toyHardwareOracle
       ⟨fun _ => false⟩ (.getMasterFingerprint .standard) sAborted = .error (.failSwap, sAborted) := by
   simp only [stepAppCommand_refines_spec]
-  exact Spec.AppStateMachine.swap_bip322_rejected_and_abort_latches
+  exact InternalSpec.AppStateMachine.swap_bip322_rejected_and_abort_latches
 
 /-- **End-to-End `stepVerifiedPsbtSign` Soundness on `BitcoinLedger.AppStateMachine`**: -/
 theorem impl_stepVerifiedPsbtSign_soundness
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
     (silentPaymentTx : Option (PsbtSpTx Affine))
     (s s' : AppPersistentState)
-    (validated : Spec.Psbt.ValidatedPsbt)
+    (validated : InternalSpec.Psbt.ValidatedPsbt)
     (resp : AppResponse)
     (hStep : BitcoinLedger.AppStateMachine.stepVerifiedPsbtSign profile net hw ui dev policyOra hash160
                allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt
                merkleOpt standardSignTasks musigPlan silentPaymentTx s = .ok (validated, resp, s')) :
-    let polProf := Spec.Unified.policyProfileOfTarget profile
-    let psbtCrypto := Spec.Unified.mkPsbtCryptoOracles profile net hw hash160
-    let psbtPolicy := Spec.Unified.toPsbtWalletPolicySpec polProf dev policyOra policy
-    let cfg := Spec.Unified.signingConfigOfTarget profile allowNonDefaultSighash
-    Spec.WalletPolicy.checkPolicyWellFormed polProf policy = .ok () ∧
+    let polProf := InternalSpec.Unified.policyProfileOfTarget profile
+    let psbtCrypto := InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160
+    let psbtPolicy := InternalSpec.Unified.toPsbtWalletPolicySpec polProf dev policyOra policy
+    let cfg := InternalSpec.Unified.signingConfigOfTarget profile allowNonDefaultSighash
+    InternalSpec.WalletPolicy.checkPolicyWellFormed polProf policy = .ok () ∧
     (∀ bundle, merkleOpt = some bundle →
       BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle
         psbtCrypto.sha256 psbt.inputs.size psbt.outputs.size bundle = true) ∧
-    (∃ (req : PsbtSignRequest Affine) (swapParamsOpt : Option Spec.Psbt.SwapParams),
-      Spec.Psbt.authorizePsbtSigning psbtCrypto cfg psbtPolicy psbt swapParamsOpt = .ok validated ∧
+    (∃ (req : PsbtSignRequest Affine) (swapParamsOpt : Option InternalSpec.Psbt.SwapParams),
+      InternalSpec.Psbt.authorizePsbtSigning psbtCrypto cfg psbtPolicy psbt swapParamsOpt = .ok validated ∧
       BitcoinLedger.AppStateMachine.stepAppCommand profile hw ui (.signPsbt req) s = .ok (resp, s') ∧
       (BitcoinLedger.AppStateMachine.responseEmitsSecretDerivedMaterial resp = true →
        (∀ p, ui.approve p = false) →
-       ∃ (lock : SwapLock) (sp : Spec.Psbt.SwapParams),
+       ∃ (lock : SwapLock) (sp : InternalSpec.Psbt.SwapParams),
          s.swapLock = some lock ∧
          BitcoinLedger.AppStateMachine.appSwapLockToPsbtSwapParams lock = some sp ∧
          swapParamsOpt = some sp ∧
-         Spec.Psbt.validateSwapPsbt psbtCrypto psbtPolicy psbt validated sp = .ok () ∧
+         InternalSpec.Psbt.validateSwapPsbt psbtCrypto psbtPolicy psbt validated sp = .ok () ∧
          BitcoinLedger.AppStateMachine.validSwapPsbt hw.musigCrypto.sha256 lock req = true)) := by
   rw [stepVerifiedPsbtSign_refines_spec] at hStep
   obtain ⟨hWf, hMerkle, ⟨req, swapParamsOpt, hAuth, hApp, hGate⟩⟩ :=
-    Spec.Unified.stepVerifiedPsbtSign_soundness profile net hw ui dev policyOra hash160
+    InternalSpec.Unified.stepVerifiedPsbtSign_soundness profile net hw ui dev policyOra hash160
       allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
       standardSignTasks musigPlan silentPaymentTx s s' validated resp hStep
   refine ⟨hWf, ?_, ⟨req, swapParamsOpt, hAuth, ?_, ?_⟩⟩
@@ -1623,7 +1623,7 @@ theorem impl_stepVerifiedPsbtSign_soundness
     obtain ⟨lock, sp, hL, hSp, hOpt, hValPsbt, hValApp⟩ := hGate hEmits hDeny
     have hSpImpl : BitcoinLedger.AppStateMachine.appSwapLockToPsbtSwapParams lock = some sp := by
       have hEq : BitcoinLedger.AppStateMachine.appSwapLockToPsbtSwapParams lock =
-          Spec.Unified.appSwapLockToPsbtSwapParams lock := by
+          InternalSpec.Unified.appSwapLockToPsbtSwapParams lock := by
         cases lock.mode <;> rfl
       rw [hEq]; exact hSp
     rw [← validSwapPsbt_eq] at hValApp
@@ -1633,19 +1633,19 @@ theorem impl_stepVerifiedPsbtSign_soundness
 theorem impl_stepVerifiedPsbtSign_error_rollback
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
@@ -1661,7 +1661,7 @@ theorem impl_stepVerifiedPsbtSign_error_rollback
     (∀ rr, BitcoinLedger.Musig2.isRandRootConsumed s.musigSessions rr = true →
       BitcoinLedger.Musig2.isRandRootConsumed s'.musigSessions rr = true) := by
   rw [stepVerifiedPsbtSign_refines_spec] at hErr
-  have hSpec := Spec.Unified.stepVerifiedPsbtSign_error_rollback profile net hw ui dev policyOra
+  have hSpec := InternalSpec.Unified.stepVerifiedPsbtSign_error_rollback profile net hw ui dev policyOra
     hash160 allowNonDefaultSighash descriptorTemplate walletId keysInfoPayloads por policy psbt
     merkleOpt standardSignTasks musigPlan silentPaymentTx s s' err hErr
   refine ⟨hSpec.1, hSpec.2.1, hSpec.2.2.1, ?_⟩
@@ -1675,43 +1675,43 @@ theorem impl_stepVerifiedPsbtSign_error_rollback
     2. `psbt.bip322Message = some message`,
     3. BIP-388 `checkPolicyWellFormed` accepted `policy`,
     4. Any supplied `PsbtMerkleOpeningBundle` passed `verifyPsbtMerkleBundle`,
-    5. `Spec.Psbt.validateBip322Psbt` verified `psbt` & `message` (including `bip322ToSpendTxid` challenge!),
+    5. `InternalSpec.Psbt.validateBip322Psbt` verified `psbt` & `message` (including `bip322ToSpendTxid` challenge!),
     6. **Unconditional User Consent** (no Swap bypass exists for BIP-322): if `resp` emits any secret-derived
        material, the user CANNOT have rejected all prompts (`¬(∀ p, ui.approve p = false)`). -/
 theorem impl_verifyPsbtSignMessage_soundness
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
     (message : ByteArray)
-    (psbt : Spec.Psbt.PsbtTx)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
     (s s' : AppPersistentState)
-    (validated : Spec.Psbt.ValidatedPsbt)
+    (validated : InternalSpec.Psbt.ValidatedPsbt)
     (resp : AppResponse)
     (hOk : BitcoinLedger.AppStateMachine.verifyPsbtSignMessage profile net hw ui dev policyOra hash160
              descriptorTemplate walletId keysInfoPayloads por policy message psbt merkleOpt
              standardSignTasks musigPlan s = .ok (validated, resp, s')) :
-    let polProf := Spec.Unified.policyProfileOfTarget profile
-    let psbtCrypto := Spec.Unified.mkPsbtCryptoOracles profile net hw hash160
+    let polProf := InternalSpec.Unified.policyProfileOfTarget profile
+    let psbtCrypto := InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160
     s.swapLock = none ∧
     psbt.bip322Message = some message ∧
-    Spec.WalletPolicy.checkPolicyWellFormed polProf policy = .ok () ∧
+    InternalSpec.WalletPolicy.checkPolicyWellFormed polProf policy = .ok () ∧
     (∀ bundle, merkleOpt = some bundle →
       BitcoinLedger.AppStateMachine.verifyPsbtMerkleBundle
         psbtCrypto.sha256 psbt.inputs.size psbt.outputs.size bundle = true) ∧
-    Spec.Psbt.validateBip322Psbt psbtCrypto.sha256 false psbt validated message = .ok () ∧
+    InternalSpec.Psbt.validateBip322Psbt psbtCrypto.sha256 false psbt validated message = .ok () ∧
     (BitcoinLedger.AppStateMachine.responseEmitsSecretDerivedMaterial resp = true →
       ¬(∀ p, ui.approve p = false)) := by
   unfold BitcoinLedger.AppStateMachine.verifyPsbtSignMessage at hOk
@@ -1748,13 +1748,13 @@ theorem impl_verifyPsbtSignMessage_soundness
         descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
         standardSignTasks musigPlan none s s' validated resp hStepOk
     -- Extract `validateBip322Psbt ... = .ok ()` directly from `hBuild` when `swapLockOpt = none`:
-    have hBip322Ok : Spec.Psbt.validateBip322Psbt
-        (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
+    have hBip322Ok : InternalSpec.Psbt.validateBip322Psbt
+        (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
         false psbt validated message = .ok () := by
       rw [stepVerifiedPsbtSign_refines_spec] at hStepOk
-      unfold Spec.Unified.stepVerifiedPsbtSign at hStepOk
+      unfold InternalSpec.Unified.stepVerifiedPsbtSign at hStepOk
       rw [hSwap] at hStepOk
-      cases hBuild : Spec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
+      cases hBuild : InternalSpec.Unified.buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160
                        false descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt
                        none standardSignTasks musigPlan none with
       | error _ => rw [hBuild] at hStepOk; contradiction
@@ -1763,7 +1763,7 @@ theorem impl_verifyPsbtSignMessage_soundness
         rw [hBuild] at hStepOk
         dsimp only at hStepOk
         have hVal0Eq : val0 = validated := by
-          cases hStepApp : Spec.AppStateMachine.stepAppCommand profile hw ui (.signPsbt req0) s with
+          cases hStepApp : InternalSpec.AppStateMachine.stepAppCommand profile hw ui (.signPsbt req0) s with
           | error _ => rw [hStepApp] at hStepOk; contradiction
           | ok ap =>
             rw [hStepApp] at hStepOk
@@ -1771,7 +1771,7 @@ theorem impl_verifyPsbtSignMessage_soundness
             exact congrArg Prod.fst hT
         subst val0
         obtain ⟨_, _, ⟨sp0, hRel0, hAuth0⟩, _⟩ :=
-          Spec.Unified.buildVerifiedPsbtSignRequest_soundness profile net hw dev policyOra hash160
+          InternalSpec.Unified.buildVerifiedPsbtSignRequest_soundness profile net hw dev policyOra hash160
             false descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt none
             standardSignTasks musigPlan none validated req0 hBuild
         have hSp0None : sp0 = none := by
@@ -1779,18 +1779,18 @@ theorem impl_verifyPsbtSignMessage_soundness
           | inl hN => exact hN.2
           | inr hS => rcases hS with ⟨_, _, hC, _⟩; cases hC
         subst sp0
-        unfold Spec.Psbt.authorizePsbtSigning at hAuth0
-        cases hVp : Spec.Psbt.validatePsbt
-            (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160)
-            (Spec.Unified.signingConfigOfTarget profile false)
-            (Spec.Unified.toPsbtWalletPolicySpec (Spec.Unified.policyProfileOfTarget profile) dev policyOra policy)
+        unfold InternalSpec.Psbt.authorizePsbtSigning at hAuth0
+        cases hVp : InternalSpec.Psbt.validatePsbt
+            (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160)
+            (InternalSpec.Unified.signingConfigOfTarget profile false)
+            (InternalSpec.Unified.toPsbtWalletPolicySpec (InternalSpec.Unified.policyProfileOfTarget profile) dev policyOra policy)
             psbt with
         | error _ => rw [hVp] at hAuth0; contradiction
         | ok v1 =>
           rw [hVp, hMsgEq] at hAuth0
           dsimp only [Option.isSome] at hAuth0
-          cases hB322 : Spec.Psbt.validateBip322Psbt
-              (Spec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
+          cases hB322 : InternalSpec.Psbt.validateBip322Psbt
+              (InternalSpec.Unified.mkPsbtCryptoOracles profile net hw hash160).sha256
               false psbt v1 message with
           | error _ => rw [hB322] at hAuth0; contradiction
           | ok u =>
@@ -1809,19 +1809,19 @@ theorem impl_verifyPsbtSignMessage_soundness
 theorem impl_verifyPsbtSignMessage_error_rollback
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
     (message : ByteArray)
-    (psbt : Spec.Psbt.PsbtTx)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
@@ -1864,19 +1864,19 @@ theorem impl_verifyPsbtSignMessage_error_rollback
 theorem impl_nonvacuous_stepVerifiedPsbtSign_ok :
     ∃ validated resp s',
       let prof := TargetProfile.bolos 0
-      let hw := Spec.AppStateMachine.toyHardwareOracle
-      let dev := Spec.WalletPolicy.witnessDeviceOracle
-      let polOra := Spec.WalletPolicy.witnessCryptoOracle
+      let hw := InternalSpec.AppStateMachine.toyHardwareOracle
+      let dev := InternalSpec.WalletPolicy.witnessDeviceOracle
+      let polOra := InternalSpec.WalletPolicy.witnessCryptoOracle
       let hash160 := polOra.hash160
-      let policy := Spec.WalletPolicy.witnessBip84Policy
-      let psbtSha256 : ByteArray → Spec.Psbt.Bytes32 :=
+      let policy := InternalSpec.WalletPolicy.witnessBip84Policy
+      let psbtSha256 : ByteArray → InternalSpec.Psbt.Bytes32 :=
         fun bs => BitcoinLedger.AppStateMachine.musigBytes32ToPsbt (hw.musigCrypto.sha256 bs)
       let k0 := ByteArray.mk #[0x01]
       let v0 := ByteArray.mk #[0xAA]
-      let singleMap := Spec.MerkleProtocol.commitMerkleMap psbtSha256 [(k0, v0)]
-      let singleOp : Spec.MerkleProtocol.MerkleElementOpening := {
+      let singleMap := InternalSpec.MerkleProtocol.commitMerkleMap psbtSha256 [(k0, v0)]
+      let singleOp : InternalSpec.MerkleProtocol.MerkleElementOpening := {
         element := k0
-        leafHash := Spec.MerkleProtocol.merkleLeafHash psbtSha256 k0
+        leafHash := InternalSpec.MerkleProtocol.merkleLeafHash psbtSha256 k0
         siblingsBottomUp := []
       }
       let merkleBundle : PsbtMerkleOpeningBundle := {
@@ -1886,50 +1886,50 @@ theorem impl_nonvacuous_stepVerifiedPsbtSign_ok :
         outputMaps := [(singleMap, [singleOp]), (singleMap, [singleOp])]
       }
       let inSpk : ByteArray :=
-        Spec.mkP2WPKH (hash160 (ByteArray.mk (#[0x02, 0x01, 0x00] ++ Array.replicate 30 0x44)))
+        InternalSpec.mkP2WPKH (hash160 (ByteArray.mk (#[0x02, 0x01, 0x00] ++ Array.replicate 30 0x44)))
       let chgSpk : ByteArray :=
-        Spec.mkP2WPKH (hash160 (ByteArray.mk (#[0x02, 0x01, 0x01] ++ Array.replicate 30 0x44)))
-      let inp0 : Spec.Psbt.PsbtInput := {
-        prevout := { txid := Spec.Psbt.zeroBytes32, vout := 0 }
+        InternalSpec.mkP2WPKH (hash160 (ByteArray.mk (#[0x02, 0x01, 0x01] ++ Array.replicate 30 0x44)))
+      let inp0 : InternalSpec.Psbt.PsbtInput := {
+        prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := 0 }
         witnessUtxo := some { amount := 100000, scriptPubKey := inSpk }
         derivations := [{
           pubkey := ByteArray.mk (#[0x02, 0x01, 0x00] ++ Array.replicate 30 0x44)
           origin := {
             fingerprint := 0x73C5DA0A
-            path := [Spec.WalletPolicy.hardened 84, Spec.WalletPolicy.hardened 0, Spec.WalletPolicy.hardened 0, 0, 0]
+            path := [InternalSpec.WalletPolicy.hardened 84, InternalSpec.WalletPolicy.hardened 0, InternalSpec.WalletPolicy.hardened 0, 0, 0]
           }
         }]
       }
-      let outDest : Spec.Psbt.PsbtOutput := { amount := 0, scriptPubKey := some (ByteArray.mk #[0x6a]) }
-      let outChg : Spec.Psbt.PsbtOutput := {
+      let outDest : InternalSpec.Psbt.PsbtOutput := { amount := 0, scriptPubKey := some (ByteArray.mk #[0x6a]) }
+      let outChg : InternalSpec.Psbt.PsbtOutput := {
         amount := 99000
         scriptPubKey := some chgSpk
         derivations := [{
           pubkey := ByteArray.mk (#[0x02, 0x01, 0x01] ++ Array.replicate 30 0x44)
           origin := {
             fingerprint := 0x73C5DA0A
-            path := [Spec.WalletPolicy.hardened 84, Spec.WalletPolicy.hardened 0, Spec.WalletPolicy.hardened 0, 1, 0]
+            path := [InternalSpec.WalletPolicy.hardened 84, InternalSpec.WalletPolicy.hardened 0, InternalSpec.WalletPolicy.hardened 0, 1, 0]
           }
         }]
       }
-      let psbt : Spec.Psbt.PsbtTx := {
+      let psbt : InternalSpec.Psbt.PsbtTx := {
         txVersion := 2, fallbackLocktime := some 0, inputs := #[inp0], outputs := #[outDest, outChg]
       }
       let stdTask : StandardInputSigRequest := {
         inputIndex := 0
-        derivationPath := [Spec.WalletPolicy.hardened 84, Spec.WalletPolicy.hardened 0, Spec.WalletPolicy.hardened 0, 0, 0]
-        sighash := Spec.Musig2.sighashByte32
+        derivationPath := [InternalSpec.WalletPolicy.hardened 84, InternalSpec.WalletPolicy.hardened 0, InternalSpec.WalletPolicy.hardened 0, 0, 0]
+        sighash := InternalSpec.Musig2.sighashByte32
         isSchnorr := false
         leafHash := none
       }
       BitcoinLedger.AppStateMachine.stepVerifiedPsbtSign prof .mainnet hw ⟨fun _ => true⟩ dev polOra
-        hash160 false "wpkh(@0/<0;1>/*)" Spec.Musig2.oneByte32 [] none policy psbt (some merkleBundle)
+        hash160 false "wpkh(@0/<0;1>/*)" InternalSpec.Musig2.oneByte32 [] none policy psbt (some merkleBundle)
         [stdTask] .none none (BitcoinLedger.AppStateMachine.emptyStateForProfile prof) =
         .ok (validated, resp, s') ∧
       validated.fee = some 1000 ∧
       validated.changeOutputs.length = 1 ∧
       BitcoinLedger.AppStateMachine.responseEmitsSecretDerivedMaterial resp = true := by
-  obtain ⟨validated, resp, s', hOk, hFee, hChg, hEmits⟩ := Spec.Unified.nonvacuous_stepVerifiedPsbtSign_ok
+  obtain ⟨validated, resp, s', hOk, hFee, hChg, hEmits⟩ := InternalSpec.Unified.nonvacuous_stepVerifiedPsbtSign_ok
   refine ⟨validated, resp, s', ?_, hFee, hChg, ?_⟩
   · rw [emptyStateForProfile_eq, stepVerifiedPsbtSign_refines_spec]
     exact hOk
@@ -1962,7 +1962,7 @@ theorem impl_nonvacuous_multistep_musig_trace :
         .ok cmd1 r1Resp2,
         .ok cmd3 r2Resp2
       ] := by
-  rcases Spec.AppStateMachine.nonvacuous_multistep_musig_trace with
+  rcases InternalSpec.AppStateMachine.nonvacuous_multistep_musig_trace with
     ⟨sid, rr1, rr2, hw1, hw2, cmd1, cmd3, r1Resp, r2Resp, r1Resp2, r2Resp2, sAfter4, sAfter6, hRest⟩
   refine ⟨sid, rr1, rr2, hw1, hw2, cmd1, cmd3, r1Resp, r2Resp, r1Resp2, r2Resp2, sAfter4, sAfter6, ?_⟩
   dsimp only at hRest ⊢

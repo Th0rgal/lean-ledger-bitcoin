@@ -9,7 +9,7 @@
       `apps/bitcoin/app/src/handlers/musig_signing.rs`)
 -/
 
-namespace Spec.Musig2
+namespace InternalSpec.Musig2
 
 /-! ## 1. Core Domain Constants & Fixed-Width Byte Wrappers -/
 
@@ -1813,4 +1813,4 @@ theorem nonvacuous_deriveMusigPerInputInfo_keypath_and_tapscript :
       keyAggCoeffInternal, maxPubkeysPerMusig, hStep1, hStep5, hDecomp, hHash, hOneMod,
       hMul1, hAddAff, hComp, hCkd, Bind.bind, Except.bind]
 
-end Spec.Musig2
+end InternalSpec.Musig2

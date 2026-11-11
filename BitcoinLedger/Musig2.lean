@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 
 /-!
 # `BitcoinLedger.Musig2` — Executable BIP-327 MuSig2 & BIP-328 Implementation
@@ -20,7 +20,7 @@ loops) for clean freestanding 32-bit compilation and constructive refinement pro
 
 namespace BitcoinLedger.Musig2
 
-open Spec.Musig2 (
+open InternalSpec.Musig2 (
   SizedBytes Bytes32 CompressedPubKey XOnlyPubKey PubNonce
   PsbtSessionId RandRoot PartialSig SchnorrSig
   CurvePoint MusigCrypto MusigError KeyAggContext MusigTweak

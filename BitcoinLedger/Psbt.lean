@@ -1,8 +1,8 @@
-import Spec
+import InternalSpec
 
 namespace BitcoinLedger.Psbt
 
-open Spec.Psbt
+open InternalSpec.Psbt
 
 /-!
 # `BitcoinLedger.Psbt` — Executable PSBTv0/v2 Normalization, Security Validation & Sighash Engine
@@ -10,16 +10,16 @@ open Spec.Psbt
 Pure, constructive, freestanding-friendly Lean 4 implementation of the Ledger Bitcoin
 PSBT signing validation and digest engine, deduced from `LedgerHQ/app-bitcoin`
 (`f010982d3050e02813cd7129bebd68cf2d1f2099`) and `LedgerHQ/vanadium` (`apps/bitcoin`
-`ace8e96982408959dea9e7fbc59ee36e8c54e645`), refined against `Spec.Psbt`.
+`ace8e96982408959dea9e7fbc59ee36e8c54e645`), refined against `InternalSpec.Psbt`.
 
 Key design properties:
 - **Strict 64-bit checked satoshi arithmetic** (`MAX_MONEY_SATS = 2_100_000_000_000_000 : UInt64`):
   avoids unbounded bignum arithmetic in amount summation and fee calculation while proving exact
-  equivalence with `Spec.Psbt`'s mathematical `Nat` sums.
+  equivalence with `InternalSpec.Psbt`'s mathematical `Nat` sums.
 - **Zero `Classical.choice`, zero `sorry`, zero `@[extern]` `ByteArray.beq`**:
   all byte, digest, script, and integer comparisons use constructive structural decision procedures.
 - **Non-trivial algorithmic refinement**:
-  - Single-pass iterative `determineLocktime` (`LocktimeScanState`) vs `Spec.Psbt`'s multi-pass list scans.
+  - Single-pass iterative `determineLocktime` (`LocktimeScanState`) vs `InternalSpec.Psbt`'s multi-pass list scans.
   - Tail-recursive index-loop `normalizePsbtV0ToV2` vs `Array.ofFn` dependent-index construction.
   - Checked `UInt64` satoshi accumulators (`checkedAddSats?`, `checkedSubSats?`) in input/output loops.
 -/
@@ -1069,7 +1069,7 @@ def validatePsbtTransaction
                             }
                           }
 
-/-- Alias matching `Spec.Psbt.validatePsbt`. -/
+/-- Alias matching `InternalSpec.Psbt.validatePsbt`. -/
 abbrev validatePsbt := validatePsbtTransaction
 
 /-! ## 7. Executable Sighash Digest Engine (Legacy, BIP-143 SegWit v0, BIP-341/342 Taproot) -/

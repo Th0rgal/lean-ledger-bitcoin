@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 
 namespace BitcoinLedger.Script
@@ -6,7 +6,7 @@ namespace BitcoinLedger.Script
 /-!
 # `BitcoinLedger.Script` — Executable Script Classifier, `MINIMALDATA`, Base58Check & Bech32/Bech32m
 
-Executable implementation refining `Spec.Script`:
+Executable implementation refining `InternalSpec.Script`:
 1. Standard Bitcoin script constructors & classifier (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`,
    `OpReturn`, and forward-compatible `UnknownWitness` `v0..v16` programs)
 2. `MINIMALDATA` pushdata encoder/decoder and standard `OP_RETURN` canonicality validator
@@ -189,7 +189,7 @@ def isValidOpReturnScript (script : ByteArray) : Bool :=
     | 0x6A :: tail => checkMinimalPushesBounded MAX_STANDARD_OP_RETURN_PUSHES tail
     | _ => false
 
-abbrev StandardScript := Spec.StandardScript
+abbrev StandardScript := InternalSpec.StandardScript
 
 /-- Serialize a `StandardScript` into its raw `scriptPubKey` bytes. -/
 def standardScriptToPubKey : StandardScript → ByteArray
@@ -260,7 +260,7 @@ def asciiCharsOfString? (s : String) : Option (List Char) :=
     none
 
 /-- Bitcoin Base58 alphabet (`58` characters). -/
-def BASE58_ALPHABET : List Char := Spec.BASE58_ALPHABET
+def BASE58_ALPHABET : List Char := InternalSpec.BASE58_ALPHABET
 
 /-- Decode a Base58 character into its digit value in `0..57`. -/
 def base58CharToDigit? (c : Char) : Option Nat :=
@@ -279,7 +279,7 @@ def digitsToNat58 (ds : List Nat) : Nat :=
   ds.foldl (fun acc d => 58 * acc + d) 0
 
 /-- Count leading elements satisfying predicate `p`. -/
-def countLeading {α : Type} (p : α → Bool) : List α → Nat := Spec.countLeading p
+def countLeading {α : Type} (p : α → Bool) : List α → Nat := InternalSpec.countLeading p
 
 def natToBytesBEAux : Nat → Nat → List UInt8 → List UInt8
   | 0, _, acc => acc
@@ -293,7 +293,7 @@ def natToDigits58Aux : Nat → Nat → List Nat → List Nat
 
 /-- Canonical Bitcoin Base58 encoder (preserving leading `0x00` bytes as `'1'`). -/
 def encodeBase58? (raw : ByteArray) : Option String :=
-  Spec.encodeBase58? raw
+  InternalSpec.encodeBase58? raw
 
 /-- Canonical **Base58Check** encoder over `(version, payload)` using `doubleSha256`. -/
 def encodeBase58Check?
@@ -310,7 +310,7 @@ def encodeBase58Check?
 
 /-- Decode a Base58 string into raw bytes, enforcing canonical leading-`'1'` preservation. -/
 def decodeBase58? (encoded : String) : Option ByteArray :=
-  Spec.decodeBase58? encoded
+  InternalSpec.decodeBase58? encoded
 
 /-- Decode and verify a Base58Check string against `doubleSha256`, returning `version ++ payload`. -/
 def decodeBase58Check? (doubleSha256 : ByteArray → ByteArray) (addr : String) : Option ByteArray :=
@@ -335,7 +335,7 @@ def decodeBase58Check? (doubleSha256 : ByteArray → ByteArray) (addr : String) 
 
 /-! ## 4. BIP-173 & BIP-350 Bech32 / Bech32m Polymod, 8↔5 Bit Codec & SegWit Addresses -/
 
-abbrev Bech32Encoding := Spec.Bech32Encoding
+abbrev Bech32Encoding := InternalSpec.Bech32Encoding
 
 def bech32FinalConstant : Bech32Encoding → UInt32
   | .bech32  => 1
@@ -346,8 +346,8 @@ def SILENT_PAYMENT_BECH32M_MAX_LEN : Nat := 1023
 def BECH32_MIN_HRP_LEN : Nat := 1
 def BECH32_MAX_HRP_LEN : Nat := 83
 
-def bech32CharToVal? : Char → Option UInt8 := Spec.bech32CharToVal?
-def bech32ValToChar? : UInt8 → Option Char := Spec.bech32ValToChar?
+def bech32CharToVal? : Char → Option UInt8 := InternalSpec.bech32CharToVal?
+def bech32ValToChar? : UInt8 → Option Char := InternalSpec.bech32ValToChar?
 
 /-- Single GF(32) BCH generator step (`app-bitcoin/src/common/segwit_addr.c:31-38`). -/
 def bech32PolymodStep (pre : UInt32) (val : UInt8) : UInt32 :=
@@ -408,16 +408,16 @@ def isValidHrpCharLower (c : Char) : Bool :=
   decide ((33 : UInt32) ≤ c.val) && decide (c.val ≤ 126) && !isAsciiUpper c
 
 def lastSeparatorOneIndex? (chars : List Char) : Option Nat :=
-  Spec.lastSeparatorOneIndex? chars
+  InternalSpec.lastSeparatorOneIndex? chars
 
 /-- Decode a Bech32 or Bech32m string (up to `maxLen` characters), enforcing printable ASCII,
     no mixed case, BIP-173 HRP bounds `1..83`, and valid Bech32/Bech32m checksum. -/
 def decodeBech32Raw? (maxLen : Nat) (input : String) : Option (Bech32Encoding × String × List UInt8) :=
-  Spec.decodeBech32Raw? maxLen input
+  InternalSpec.decodeBech32Raw? maxLen input
 
 /-- Encode `(enc, hrp, data5)` as a lowercase Bech32 / Bech32m string (up to `maxLen` characters). -/
 def encodeBech32Raw? (maxLen : Nat) (enc : Bech32Encoding) (hrp : String) (data5 : List UInt8) : Option String :=
-  Spec.encodeBech32Raw? maxLen enc hrp data5
+  InternalSpec.encodeBech32Raw? maxLen enc hrp data5
 
 def extract5BitChunks : Nat → UInt32 → UInt32 → List UInt8
   | 0, _, _ => []
@@ -535,7 +535,7 @@ def decodeSegwitAddr? (expectedHrp : String) (addr : String) : Option (UInt8 × 
                   else
                     none
 
-abbrev AddressTarget := Spec.AddressTarget
+abbrev AddressTarget := InternalSpec.AddressTarget
 
 /-- Format a classified `StandardScript` into a Bitcoin address string for `(target, net)`. -/
 def standardScriptToAddress?

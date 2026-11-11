@@ -1,9 +1,9 @@
-import Spec
+import InternalSpec
 
 namespace BitcoinLedger.MerkleProtocol
 
-open Spec.Psbt
-open Spec.MerkleProtocol (
+open InternalSpec.Psbt
+open InternalSpec.MerkleProtocol (
   MerkleDir
   MerkleElementOpening
   MerkleMapCommitment
@@ -536,7 +536,7 @@ def verifyMerkleMapLookup
   verifyMerkleLeafHashProof sha256 map.keysRoot map.size proof.index keyHash proof.keySiblingsBottomUp &&
   verifyMerkleElementOpening sha256 map.valuesRoot map.size proof.index proof.valueOpening
 
-/-- Alias matching `Spec.MerkleProtocol.verifyMapLookupProof`. -/
+/-- Alias matching `InternalSpec.MerkleProtocol.verifyMapLookupProof`. -/
 abbrev verifyMapLookupProof := verifyMerkleMapLookup
 
 /-- Device-side interactive leaf element fetch (`call_get_merkle_leaf_element`). -/

@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 
 namespace BitcoinLedger.WalletPolicy
 
@@ -39,31 +39,31 @@ local instance (priority := high) : LawfulBEq UInt32 where
 
 /-! ## Section 1: Core Domain Aliases, Constants & Byte Encoders -/
 
-abbrev Network := Spec.WalletPolicy.Network
-abbrev PolicyFormat := Spec.WalletPolicy.PolicyFormat
-abbrev KeyOrigin := Spec.WalletPolicy.KeyOrigin
-abbrev ExtendedPubKey := Spec.WalletPolicy.ExtendedPubKey
-abbrev WalletKeyInfo := Spec.WalletPolicy.KeyInformation
-abbrev DerivationSpec := Spec.WalletPolicy.DerivationSpec
-abbrev KeyExpr := Spec.WalletPolicy.KeyExpr
-abbrev MiniscriptWrapper := Spec.WalletPolicy.MiniscriptWrapper
-abbrev Miniscript := Spec.WalletPolicy.Miniscript
-abbrev WshScript := Spec.WalletPolicy.WshScript
-abbrev ShScript := Spec.WalletPolicy.ShScript
-abbrev TapLeafScript := Spec.WalletPolicy.TapLeafScript
-abbrev TapTree := Spec.WalletPolicy.TapTree
-abbrev DescriptorTemplate := Spec.WalletPolicy.DescriptorTemplate
-abbrev WalletPolicy := Spec.WalletPolicy.WalletPolicy
-abbrev PolicyError := Spec.WalletPolicy.PolicyError
-abbrev MiniscriptCtx := Spec.WalletPolicy.MiniscriptCtx
-abbrev BasicType := Spec.WalletPolicy.BasicType
-abbrev MiniscriptType := Spec.WalletPolicy.MiniscriptType
-abbrev MiniscriptExtInfo := Spec.WalletPolicy.MiniscriptExtInfo
-abbrev PolicyProfile := Spec.WalletPolicy.PolicyProfile
-abbrev DeviceRegistrationOracle := Spec.WalletPolicy.DeviceRegistrationOracle
-abbrev PolicyKeyRole := Spec.WalletPolicy.PolicyKeyRole
-abbrev PolicyAuthorization := Spec.WalletPolicy.PolicyAuthorization
-abbrev CryptoPolicyOracle := Spec.WalletPolicy.CryptoPolicyOracle
+abbrev Network := InternalSpec.WalletPolicy.Network
+abbrev PolicyFormat := InternalSpec.WalletPolicy.PolicyFormat
+abbrev KeyOrigin := InternalSpec.WalletPolicy.KeyOrigin
+abbrev ExtendedPubKey := InternalSpec.WalletPolicy.ExtendedPubKey
+abbrev WalletKeyInfo := InternalSpec.WalletPolicy.KeyInformation
+abbrev DerivationSpec := InternalSpec.WalletPolicy.DerivationSpec
+abbrev KeyExpr := InternalSpec.WalletPolicy.KeyExpr
+abbrev MiniscriptWrapper := InternalSpec.WalletPolicy.MiniscriptWrapper
+abbrev Miniscript := InternalSpec.WalletPolicy.Miniscript
+abbrev WshScript := InternalSpec.WalletPolicy.WshScript
+abbrev ShScript := InternalSpec.WalletPolicy.ShScript
+abbrev TapLeafScript := InternalSpec.WalletPolicy.TapLeafScript
+abbrev TapTree := InternalSpec.WalletPolicy.TapTree
+abbrev DescriptorTemplate := InternalSpec.WalletPolicy.DescriptorTemplate
+abbrev WalletPolicy := InternalSpec.WalletPolicy.WalletPolicy
+abbrev PolicyError := InternalSpec.WalletPolicy.PolicyError
+abbrev MiniscriptCtx := InternalSpec.WalletPolicy.MiniscriptCtx
+abbrev BasicType := InternalSpec.WalletPolicy.BasicType
+abbrev MiniscriptType := InternalSpec.WalletPolicy.MiniscriptType
+abbrev MiniscriptExtInfo := InternalSpec.WalletPolicy.MiniscriptExtInfo
+abbrev PolicyProfile := InternalSpec.WalletPolicy.PolicyProfile
+abbrev DeviceRegistrationOracle := InternalSpec.WalletPolicy.DeviceRegistrationOracle
+abbrev PolicyKeyRole := InternalSpec.WalletPolicy.PolicyKeyRole
+abbrev PolicyAuthorization := InternalSpec.WalletPolicy.PolicyAuthorization
+abbrev CryptoPolicyOracle := InternalSpec.WalletPolicy.CryptoPolicyOracle
 
 def hardenedBit : UInt32 := 0x80000000
 
@@ -81,7 +81,7 @@ def xpubVersionOfNetwork : Network → UInt32
   | .mainnet => 0x0488B21E
   | .testnet => 0x043587CF
 
-def specNetworkOfPolicyNetwork : Network → Spec.Network
+def specNetworkOfPolicyNetwork : Network → InternalSpec.Network
   | .mainnet => .mainnet
   | .testnet => .testnet
 
@@ -448,7 +448,7 @@ def parseWalletKeyInfo (profile : PolicyProfile) (fmt : PolicyFormat)
       .error .invalidKeyInfo
     else
       let xpubStr := String.ofList (xpubBytes.map Char.ofUInt8)
-      match Spec.decodeBase58Check? doubleSha256 xpubStr with
+      match InternalSpec.decodeBase58Check? doubleSha256 xpubStr with
       | none => .error .invalidKeyInfo
       | some raw78 =>
         match deserializeXpub78 raw78 with
@@ -2215,18 +2215,18 @@ def deriveWalletPolicyScript (profile : PolicyProfile) (dev : DeviceRegistration
   authorizePolicyUse profile dev policy auth addressIndex
   deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex
 
-/-- Alias matching `Spec.WalletPolicy.deriveAuthorizedWalletScriptPubKey`. -/
+/-- Alias matching `InternalSpec.WalletPolicy.deriveAuthorizedWalletScriptPubKey`. -/
 abbrev deriveAuthorizedWalletScriptPubKey := deriveWalletPolicyScript
 
 /-- Derive the formatted Bitcoin address (`Base58Check`, `Bech32`, or `Bech32m`) for an authorized
     wallet policy at `(isChange, addressIndex)` (`GET_WALLET_ADDRESS` / `GetAddress`). -/
-def deriveWalletPolicyAddress (target : Spec.AddressTarget) (profile : PolicyProfile)
+def deriveWalletPolicyAddress (target : InternalSpec.AddressTarget) (profile : PolicyProfile)
     (dev : DeviceRegistrationOracle) (ora : CryptoPolicyOracle) (policy : WalletPolicy)
     (auth : PolicyAuthorization) (isChange : Bool) (addressIndex : UInt32) :
     Except PolicyError String := do
   let spk ← deriveWalletPolicyScript profile dev ora policy auth isChange addressIndex
   let net := specNetworkOfPolicyNetwork profile.network
-  match Spec.scriptToAddress? target (hash256 ora) net spk with
+  match InternalSpec.scriptToAddress? target (hash256 ora) net spk with
   | some addr => .ok addr
   | none => .error .invalidScriptContext
 

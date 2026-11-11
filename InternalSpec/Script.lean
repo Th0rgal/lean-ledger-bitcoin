@@ -1,9 +1,9 @@
-import Spec.Basic
+import InternalSpec.Basic
 
-namespace Spec
+namespace InternalSpec
 
 /-!
-# `Spec.Script` — Standard Scripts, Pushdata Canonicality, Base58Check, and Bech32/Bech32m
+# `InternalSpec.Script` — Standard Scripts, Pushdata Canonicality, Base58Check, and Bech32/Bech32m
 
 Implementation-independent plain Lean 4 specifications for:
 1. Standard Bitcoin script classification & construction (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`,
@@ -1231,4 +1231,4 @@ theorem scriptToAddress?_bolos_vs_vanadium_segwit_v2 :
       some (16, ByteArray.mk (List.replicate 20 0x11).toArray) := by
   decide
 
-end Spec
+end InternalSpec

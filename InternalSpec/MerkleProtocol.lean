@@ -15,11 +15,11 @@
     `get_merkleized_map_value.c`.
 -/
 
-import Spec.Psbt
+import InternalSpec.Psbt
 
-namespace Spec.MerkleProtocol
+namespace InternalSpec.MerkleProtocol
 
-open Spec.Psbt
+open InternalSpec.Psbt
 
 /-! ## 0. Pure Constructive Byte Equality & BOLOS Protocol Bounds -/
 
@@ -2903,4 +2903,4 @@ theorem non_vacuity_end_to_end_lookup_uniqueness
   exact sorted_merkle_map_lookup_proof_unique
     concretePool_collisionFree witnessKeyOpenings_valid hSortedSub hSub hHonestSub hValid hHonestLookup
 
-end Spec.MerkleProtocol
+end InternalSpec.MerkleProtocol
