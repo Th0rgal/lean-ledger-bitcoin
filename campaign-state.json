@@ -1,7 +1,7 @@
 {
   "campaign": "lean-ledger-bitcoin",
   "created_at": "2026-11-10T15:55:00Z",
-  "last_updated": "2026-11-10T22:27:00Z",
+  "last_updated": "2026-11-11T02:09:30Z",
   "coordinator_mission_id": "734c3bb7-f8bf-4b1b-bd1e-e0e6f366aaed",
   "allowed_providers_policy": {
     "allowed": [
@@ -26,6 +26,7 @@
   },
   "reference_pins": {
     "lean_ledger_bitcoin_base_sha": "2a845af7cd299684cf201ba7a3b9d9b8246d33e5",
+    "lean_ledger_bitcoin_wave2_merged_sha": "0331e64d0e282424fed3a58fa840a31226426958",
     "turbo_lean_base_sha": "82a940653812ad7552ae7087f2c5a3164e56e7ff",
     "turbo_lean_head_sha": "94f42551de5b1910a8c71cd7981008584dc841d7",
     "turbo_lean_branch": "feat/ledger-32bit-llvm",
@@ -34,13 +35,15 @@
     "lean_toolchain": "leanprover/lean4:v4.35.0",
     "warm_snapshot": "orb-snap-health-manager-ledger-hub-warm-v1-eevr"
   },
-  "current_wave": "wave2_pure_lean_implementation_and_proofs",
+  "current_wave": "wave3_bolos_speculos_and_vanadium_integration",
   "spec_freeze": {
     "frozen": true,
     "frozen_at": "2026-11-10T22:16:00Z",
     "spec_sha": "2a845af7cd299684cf201ba7a3b9d9b8246d33e5",
-    "spec_declarations_audited": 6492,
-    "spec_theorems_audited": 1581,
+    "spec_declarations_audited": 6563,
+    "spec_theorems_audited": 1652,
+    "proof_declarations_audited": 859,
+    "proof_theorems_audited": 743,
     "disallowed_axioms": 0,
     "allowed_axioms": [
       "propext",
@@ -51,147 +54,112 @@
       "wave1.5/remed-r2a": "bd144b5bd119e827f884cce4daff990ee1dfce62",
       "wave1.5/remed-r2b": "e0e8a243f946b0463290d4d66fd91d2a95633a99"
     },
+    "wave2_branches": {
+      "wave2/impl-i1-primitives": "40ed89b62d016f4f9ea56722cbcaec8d8a4ef9e3",
+      "wave2/impl-i2-wallet-policy": "c820e234a75a429552ff9d0b2ccfd65b79a8c347",
+      "wave2/impl-i3-psbt-merkle": "74cbd14c3fe02f04f36f88dffdfb88cfc009a549",
+      "wave2/impl-i4-musig-sp-state": "01722b8e4186cb11fac40676186d242186e6133c",
+      "wave2/impl-i5-ffi-shims": "f775ff50fc5fda633b592659b3874e9ef2641f6d",
+      "wave2/impl-unified": "0331e64d0e282424fed3a58fa840a31226426958"
+    },
     "spec_cards": [
       "docs/spec-cards/000-initial-unified-spec.md",
       "docs/spec-cards/vanadium-upstream-bugs.md"
     ]
   },
   "ownership_ledger": {
-    "W2_I1_primitives": {
-      "owner_mission_id": "105fc9e7-833e-4e6d-97f3-a6f8c0433bd4",
-      "track": "llb-w2-i1-primitives",
-      "branch": "wave2/impl-i1-primitives",
+    "W3_T1_bolos_speculos": {
+      "owner_mission_id": "817e271c-daac-4762-9135-3187897aab26",
+      "track": "llb-w3-t1-bolos-speculos",
+      "branch": "wave3/test-t1-bolos",
       "owned_paths": [
-        "BitcoinLedger/Basic.lean",
-        "BitcoinLedger/Bip32.lean",
-        "BitcoinLedger/Script.lean",
-        "BitcoinLedger/FreestandingKernels.lean",
-        "Proofs/Basic.lean",
-        "Proofs/Bip32.lean",
-        "Proofs/Script.lean",
-        "Proofs/FreestandingKernels.lean"
-      ]
-    },
-    "W2_I2_wallet_policy": {
-      "owner_mission_id": "a103b9a1-43d3-4cf1-b9e8-e78668bcaa9a",
-      "track": "llb-w2-i2-wallet-policy",
-      "branch": "wave2/impl-i2-wallet-policy",
-      "owned_paths": [
-        "BitcoinLedger/WalletPolicy.lean",
-        "Proofs/WalletPolicy.lean"
-      ]
-    },
-    "W2_I3_psbt_merkle": {
-      "owner_mission_id": "6e1a5aa5-8083-44f6-be71-28f3ab3b62de",
-      "track": "llb-w2-i3-psbt-merkle",
-      "branch": "wave2/impl-i3-psbt-merkle",
-      "owned_paths": [
-        "BitcoinLedger/Psbt.lean",
-        "BitcoinLedger/MerkleProtocol.lean",
-        "Proofs/Psbt.lean",
-        "Proofs/MerkleProtocol.lean"
-      ]
-    },
-    "W2_I4_musig_sp_state": {
-      "owner_mission_id": "671a2ff4-a353-4984-a89b-d389abc3f619",
-      "track": "llb-w2-i4-musig-sp-state",
-      "branch": "wave2/impl-i4-musig-sp-state",
-      "owned_paths": [
-        "BitcoinLedger/Musig2.lean",
-        "BitcoinLedger/SilentPayments.lean",
-        "BitcoinLedger/AppStateMachine.lean",
-        "Proofs/Musig2.lean",
-        "Proofs/SilentPayments.lean",
-        "Proofs/AppStateMachine.lean"
-      ]
-    },
-    "W2_I5_ffi_shims": {
-      "owner_mission_id": "55f1e48c-047b-4ac2-a829-dac73fc61549",
-      "track": "llb-w2-i5-ffi-shims",
-      "branch": "wave2/impl-i5-ffi-shims",
-      "owned_paths": [
+        "Tests/BolosDifferential.lean",
         "ffi/bolos/",
+        "docs/spec-cards/bolos-integration-report.md"
+      ]
+    },
+    "W3_T2_vanadium_vapp": {
+      "owner_mission_id": "79ac9da9-8f67-4580-9380-00bdd917255a",
+      "track": "llb-w3-t2-vanadium-vapp",
+      "branch": "wave3/test-t2-vanadium",
+      "owned_paths": [
+        "Tests/VanadiumDifferential.lean",
         "ffi/vanadium/",
-        "scripts/build-freestanding.sh"
+        "docs/spec-cards/vanadium-integration-report.md"
       ]
     }
   },
   "machines": {
-    "mm4nydm6vk": {
-      "name": "large-e",
-      "node_id": "managed-mm4nydm6vk",
-      "size": "large",
-      "provider": "boat",
-      "role": "Wave 2 Shard I1 (Primitives, BIP32, Script, FreestandingKernels)",
-      "state": "online"
-    },
-    "mmdapy2nbj": {
-      "name": "large-f",
-      "node_id": "managed-mmdapy2nbj",
-      "size": "large",
-      "provider": "boat",
-      "role": "Wave 2 Shard I2 (WalletPolicy & Miniscript)",
-      "state": "online"
-    },
-    "mm8f7dys32": {
-      "name": "large-d",
-      "node_id": "managed-mm8f7dys32",
-      "size": "large",
-      "provider": "boat",
-      "role": "Wave 2 Shard I3 (PSBT & MerkleProtocol)",
-      "state": "online"
-    },
-    "mmtvztqhwj": {
+    "mmfzhpdwau": {
       "name": "large-c",
-      "node_id": "managed-mmtvztqhwj",
+      "node_id": "managed-mmfzhpdwau",
       "size": "large",
       "provider": "boat",
-      "role": "Wave 2 Shard I4 (MuSig2, SilentPayments, AppStateMachine)",
+      "role": "Wave 3 Shard T1 (BOLOS Speculos, C Unit Tests & Pure Lean Differential Suite)",
       "state": "online"
     },
-    "mm6qubjg7r": {
-      "name": "large-g",
-      "node_id": "managed-mm6qubjg7r",
+    "mmvgxqm3t3": {
+      "name": "large-d",
+      "node_id": "managed-mmvgxqm3t3",
       "size": "large",
       "provider": "boat",
-      "role": "Wave 2 Shard I5 (BOLOS & Vanadium 32-bit FFI Shims)",
+      "role": "Wave 3 Shard T2 (Vanadium V-App, RISC-V Link & Pure Lean Differential Suite)",
       "state": "online"
     }
   },
   "missions": {
     "W2_I1_primitives": {
-      "mission_id": "105fc9e7-833e-4e6d-97f3-a6f8c0433bd4",
+      "mission_id": "59cbca5c-4824-4370-b233-155a49a814df",
       "backend": "antigravity",
       "model_effort": "low",
-      "remote_node_id": "managed-mm4nydm6vk",
-      "status": "active"
+      "remote_node_id": "managed-mmq2txn5za",
+      "status": "completed",
+      "commit_sha": "40ed89b62d016f4f9ea56722cbcaec8d8a4ef9e3"
     },
     "W2_I2_wallet_policy": {
       "mission_id": "a103b9a1-43d3-4cf1-b9e8-e78668bcaa9a",
       "backend": "antigravity",
       "model_effort": "low",
       "remote_node_id": "managed-mmdapy2nbj",
-      "status": "active"
+      "status": "completed",
+      "commit_sha": "c820e234a75a429552ff9d0b2ccfd65b79a8c347"
     },
     "W2_I3_psbt_merkle": {
       "mission_id": "6e1a5aa5-8083-44f6-be71-28f3ab3b62de",
       "backend": "antigravity",
       "model_effort": "low",
       "remote_node_id": "managed-mm8f7dys32",
-      "status": "active"
+      "status": "completed",
+      "commit_sha": "74cbd14c3fe02f04f36f88dffdfb88cfc009a549"
     },
     "W2_I4_musig_sp_state": {
       "mission_id": "671a2ff4-a353-4984-a89b-d389abc3f619",
       "backend": "antigravity",
       "model_effort": "low",
       "remote_node_id": "managed-mmtvztqhwj",
-      "status": "active"
+      "status": "completed",
+      "commit_sha": "01722b8e4186cb11fac40676186d242186e6133c"
     },
     "W2_I5_ffi_shims": {
       "mission_id": "55f1e48c-047b-4ac2-a829-dac73fc61549",
       "backend": "opencode",
       "model_override": "ethereumfoundation/glm-5.3",
       "remote_node_id": "managed-mm6qubjg7r",
+      "status": "completed",
+      "commit_sha": "f775ff50fc5fda633b592659b3874e9ef2641f6d"
+    },
+    "W3_T1_bolos_speculos": {
+      "mission_id": "817e271c-daac-4762-9135-3187897aab26",
+      "backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mmfzhpdwau",
+      "status": "active"
+    },
+    "W3_T2_vanadium_vapp": {
+      "mission_id": "79ac9da9-8f67-4580-9380-00bdd917255a",
+      "backend": "antigravity",
+      "model_effort": "low",
+      "remote_node_id": "managed-mmvgxqm3t3",
       "status": "active"
     }
   },
