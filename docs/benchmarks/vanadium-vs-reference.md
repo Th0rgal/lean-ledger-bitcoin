@@ -4,7 +4,7 @@
 
 We benchmarked our Lean-verified, size/RAM/speed-optimized Vanadium Bitcoin V-App (`vnd-bitcoin`, RV32IMAC `riscv32imac-unknown-none-elf`) integrated with `llb-vanadium-ffi` (`BitcoinLedger/FreestandingKernels.lean` @ packed kernel version `0x00020401`) against the **100% unmodified upstream `LedgerHQ/vanadium` reference** (`ace8e96982408959dea9e7fbc59ee36e8c54e645`) on Ledger Flex (`Speculos --model flex`, `480x600` E-Ink).
 
-Simultaneously enforcing **all 9 formal Lean security fixes (`VND-BUG-001..009`)** and passing **all `176/176` unit & Speculos E2E tests** (`16` FFI + `80` `vnd-bitcoin-common` + `87` `vnd-bitcoin` + `5` `vnd-bitcoin-client` unit + `4` Speculos Flex E2E — up from `166` upstream tests), our Lean-integrated `vnd-bitcoin` strictly dominates the unmodified reference across **every** dimension:
+Simultaneously enforcing **all 9 formal Lean security fixes (`VND-BUG-001..009`)** and passing **all `192/192` unit & Speculos E2E tests** (`176` Vanadium workspace tests — `80` `vnd-bitcoin-common` + `87` `vnd-bitcoin` + `5` `vnd-bitcoin-client` unit + `4` Speculos Flex E2E, up from `166` upstream tests — plus `16` `llb-vanadium-ffi` kernel unit tests), our Lean-integrated `vnd-bitcoin` strictly dominates the unmodified reference across **every** dimension:
 
 | Dimension | Unmodified Reference (`ace8e969`) | Lean-Optimized `vnd-bitcoin` | Delta |
 |---|---:|---:|---:|
