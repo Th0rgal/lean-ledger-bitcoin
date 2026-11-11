@@ -23,11 +23,24 @@ fn try_auto_emit(manifest_dir: &PathBuf, dir: &PathBuf, target: &str) {
         return;
     }
 
-    let hub = env::var("LEDGER_HUB")
-        .unwrap_or_else(|_| "/var/lib/orb-node/work/caches/ledger-hub".to_string());
     let lean_native = env::var("LEAN_NATIVE")
+        .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
+        .filter(|p| p.is_file())
+        .or_else(|| {
+            let sibling = repo_root
+                .join("..")
+                .join("turbo-lean")
+                .join("lean")
+                .join(".lake")
+                .join("build")
+                .join("bin")
+                .join("lean-native");
+            sibling.is_file().then_some(sibling)
+        })
+        .unwrap_or_else(|| {
+            let hub = env::var("LEDGER_HUB")
+                .unwrap_or_else(|_| "/var/lib/orb-node/work/caches/ledger-hub".to_string());
             PathBuf::from(hub)
                 .join("turbo-lean")
                 .join("lean")

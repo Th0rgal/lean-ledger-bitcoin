@@ -34,8 +34,27 @@ NSP_SDK="${HUB}/dev-tools-rootfs/opt/nanosplus-secure-sdk"
 NX_SDK="${HUB}/dev-tools-rootfs/opt/nanox-secure-sdk"
 
 SKIP_REBUILD=0
-if [ "${1:-}" = "--skip-rebuild" ]; then
-  SKIP_REBUILD=1
+HOTSPOTS_ONLY=0
+for arg in "$@"; do
+  case "${arg}" in
+    --skip-rebuild) SKIP_REBUILD=1 ;;
+    --hotspots-only) HOTSPOTS_ONLY=1; SKIP_REBUILD=1 ;;
+  esac
+done
+
+CLANG_BIN=""
+for c in clang-21 /usr/lib/llvm-18/bin/clang clang; do
+  if command -v "${c}" >/dev/null 2>&1; then
+    CLANG_BIN="$(command -v "${c}")"
+    break
+  elif [ -x "${c}" ]; then
+    CLANG_BIN="${c}"
+    break
+  fi
+done
+if [ -z "${CLANG_BIN}" ]; then
+  echo "[bolos-bench] ERROR: clang not found" >&2
+  exit 1
 fi
 
 build_app_variant() {
@@ -49,7 +68,9 @@ build_app_variant() {
   cp "${app_dir}/debug/app.asm" "${out_dir}/app.asm"
 }
 
-if [ "${SKIP_REBUILD}" -eq 0 ]; then
+if [ "${HOTSPOTS_ONLY}" -eq 1 ]; then
+  :
+elif [ "${SKIP_REBUILD}" -eq 0 ]; then
   echo "[bolos-bench] 1/5 Emitting freestanding Lean LTO bundle..."
   "${REPO_ROOT}/scripts/build-freestanding.sh" >/dev/null
   cp "${REPO_ROOT}/ffi/bolos/build/lto/"* "${LEAN_APP}/src/lean_kernels/"
@@ -76,13 +97,18 @@ fi
 
 echo "[bolos-bench] 3/5 Running x86_64 LTO rdtscp hotspot microbenchmarks..."
 HOTSPOT_BIN="/tmp/w4_bench_bolos_hotspots_$$"
-clang-21 -O2 -flto -march=x86-64 -Wno-override-module \
+"${CLANG_BIN}" -O2 -flto -march=x86-64 -Wno-override-module \
   -I"${REPO_ROOT}/ffi/bolos/build/lto" \
   "${REPO_ROOT}/ffi/bolos/bench_bolos_hotspots.c" \
   "${REPO_ROOT}/ffi/bolos/build/lto/liblean_ledger_bitcoin_host.ll" \
   -o "${HOTSPOT_BIN}"
 HOTSPOT_JSON="$(taskset -c 0 "${HOTSPOT_BIN}")"
 rm -f "${HOTSPOT_BIN}"
+
+if [ "${HOTSPOTS_ONLY}" -eq 1 ]; then
+  printf '%s\n' "${HOTSPOT_JSON}"
+  exit 0
+fi
 
 echo "[bolos-bench] 4/5 Collecting storage, RAM, stack, ARM instruction counts & host C suite timings..."
 echo "[bolos-bench] 5/5 Measuring interleaved Speculos APDU wall-clock latencies on Nano S+ & Nano X..."

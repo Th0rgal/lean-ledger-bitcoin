@@ -75,10 +75,150 @@ index 42bad5c..18e3bc8 100644
  
          let end_idx = min(total_bytes_sent + CHUNK_LENGTH, msg.len());
 diff --git a/app-sdk/src/lib.rs b/app-sdk/src/lib.rs
-index 0321d99..1232ce9 100644
+index 0321d99..8e5bf18 100644
 --- a/app-sdk/src/lib.rs
 +++ b/app-sdk/src/lib.rs
-@@ -100,18 +100,8 @@ pub fn exit(status: i32) -> ! {
+@@ -49,6 +49,9 @@ mod ux_generated {
+     include!(concat!(env!("OUT_DIR"), "/ux_generated.rs"));
+ }
+ 
++use core::alloc::{GlobalAlloc, Layout};
++use core::sync::atomic::{AtomicUsize, Ordering};
++
+ #[cfg(feature = "target_vanadium_ledger")]
+ use embedded_alloc::Heap;
+ 
+@@ -58,15 +61,126 @@ include!(concat!(env!("OUT_DIR"), "/heap_config.rs"));
+ #[cfg(feature = "target_vanadium_ledger")]
+ static mut HEAP_MEM: [u8; VAPP_HEAP_SIZE] = [0; VAPP_HEAP_SIZE];
+ 
+-#[cfg(feature = "target_vanadium_ledger")]
++static CURRENT_HEAP_BYTES: AtomicUsize = AtomicUsize::new(0);
++static PEAK_HEAP_BYTES: AtomicUsize = AtomicUsize::new(0);
++
++#[inline]
++fn record_alloc(size: usize) {
++    let prev = CURRENT_HEAP_BYTES.fetch_add(size, Ordering::Relaxed);
++    let cur = prev.saturating_add(size);
++    let mut peak = PEAK_HEAP_BYTES.load(Ordering::Relaxed);
++    while cur > peak {
++        match PEAK_HEAP_BYTES.compare_exchange_weak(
++            peak,
++            cur,
++            Ordering::Relaxed,
++            Ordering::Relaxed,
++        ) {
++            Ok(_) => break,
++            Err(actual) => peak = actual,
++        }
++    }
++}
++
++#[inline]
++fn record_dealloc(size: usize) {
++    let mut cur = CURRENT_HEAP_BYTES.load(Ordering::Relaxed);
++    loop {
++        let next = cur.saturating_sub(size);
++        match CURRENT_HEAP_BYTES.compare_exchange_weak(
++            cur,
++            next,
++            Ordering::Relaxed,
++            Ordering::Relaxed,
++        ) {
++            Ok(_) => break,
++            Err(actual) => cur = actual,
++        }
++    }
++}
++
++struct TrackingHeap {
++    #[cfg(feature = "target_vanadium_ledger")]
++    inner: Heap,
++    #[cfg(feature = "target_native")]
++    inner: std::alloc::System,
++}
++
++impl TrackingHeap {
++    #[cfg(feature = "target_vanadium_ledger")]
++    const fn new() -> Self {
++        Self {
++            inner: Heap::empty(),
++        }
++    }
++
++    #[cfg(feature = "target_native")]
++    const fn new() -> Self {
++        Self {
++            inner: std::alloc::System,
++        }
++    }
++}
++
++unsafe impl GlobalAlloc for TrackingHeap {
++    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
++        let ptr = unsafe { self.inner.alloc(layout) };
++        if !ptr.is_null() {
++            record_alloc(layout.size());
++        }
++        ptr
++    }
++
++    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
++        unsafe { self.inner.dealloc(ptr, layout) };
++        record_dealloc(layout.size());
++    }
++
++    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
++        let ptr = unsafe { self.inner.alloc_zeroed(layout) };
++        if !ptr.is_null() {
++            record_alloc(layout.size());
++        }
++        ptr
++    }
++
++    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
++        let new_ptr = unsafe { self.inner.realloc(ptr, layout, new_size) };
++        if !new_ptr.is_null() {
++            if new_size >= layout.size() {
++                record_alloc(new_size - layout.size());
++            } else {
++                record_dealloc(layout.size() - new_size);
++            }
++        }
++        new_ptr
++    }
++}
++
+ #[global_allocator]
+-static HEAP: Heap = Heap::empty();
++static HEAP: TrackingHeap = TrackingHeap::new();
++
++#[inline]
++pub fn current_heap_bytes() -> usize {
++    CURRENT_HEAP_BYTES.load(Ordering::Relaxed)
++}
++
++#[inline]
++pub fn peak_heap_bytes() -> usize {
++    PEAK_HEAP_BYTES.load(Ordering::Relaxed)
++}
++
++#[inline]
++pub fn reset_peak_heap_bytes() -> usize {
++    let cur = CURRENT_HEAP_BYTES.load(Ordering::Relaxed);
++    PEAK_HEAP_BYTES.swap(cur, Ordering::Relaxed)
++}
+ 
+ #[cfg(feature = "target_vanadium_ledger")]
+ fn init_heap() {
+     unsafe {
+         #[allow(static_mut_refs)]
+-        HEAP.init(HEAP_MEM.as_mut_ptr() as usize, VAPP_HEAP_SIZE);
++        HEAP.inner.init(HEAP_MEM.as_mut_ptr() as usize, VAPP_HEAP_SIZE);
+     }
+ }
+ 
+@@ -100,18 +214,8 @@ pub fn exit(status: i32) -> ! {
  
  #[cfg(feature = "target_vanadium_ledger")]
  #[panic_handler]
@@ -169,11 +309,32 @@ index d36fea0..67d48b1 100644
                  return Err(Error::DerivationPathTooLong);
              }
              Secp256k1::derive_hd_node(path).map_err(|_| Error::KeyDerivationFailed)
+diff --git a/apps/bitcoin/app/src/constants.rs b/apps/bitcoin/app/src/constants.rs
+index c5e6f7c..b4b6349 100644
+--- a/apps/bitcoin/app/src/constants.rs
++++ b/apps/bitcoin/app/src/constants.rs
+@@ -1,4 +1,5 @@
+ pub const COIN_TICKER: &'static str = "TEST";
++pub const BIP44_COIN_TYPE: u32 = 1;
+ 
+ /// The human-readable part of silent payment addresses (BIP-352): `tsp` on the test networks.
+ pub const SILENT_PAYMENT_HRP: &str = "tsp";
 diff --git a/apps/bitcoin/app/src/handlers/get_extended_pubkey.rs b/apps/bitcoin/app/src/handlers/get_extended_pubkey.rs
-index f2323f6..233d65e 100644
+index f2323f6..48bfade 100644
 --- a/apps/bitcoin/app/src/handlers/get_extended_pubkey.rs
 +++ b/apps/bitcoin/app/src/handlers/get_extended_pubkey.rs
-@@ -135,7 +135,7 @@ pub async fn handle_get_extended_pubkey(
+@@ -4,7 +4,9 @@ use common::{errors::Error, identity, message::Response};
+ use sdk::curve::{EcfpPrivateKey, Secp256k1, ToPublicKey};
+ 
+ use crate::{
+-    bip32::KeyTree, constants::BIP32_TESTNET_PUBKEY_VERSION, identity::compute_identity_signature,
++    bip32::KeyTree,
++    constants::{BIP32_TESTNET_PUBKEY_VERSION, BIP44_COIN_TYPE},
++    identity::compute_identity_signature,
+ };
+ 
+ const AUTO_APPROVE: bool = cfg!(any(test, feature = "autoapprove"));
+@@ -135,7 +137,7 @@ pub async fn handle_get_extended_pubkey(
      display: bool,
      identity_index: Option<u32>,
  ) -> Result<Response, Error> {
@@ -182,7 +343,20 @@ index f2323f6..233d65e 100644
          return Err(Error::DerivationPathTooLong);
      }
  
-@@ -149,15 +149,6 @@ pub async fn handle_get_extended_pubkey(
+@@ -144,20 +146,19 @@ pub async fn handle_get_extended_pubkey(
+         return Err(Error::InvalidParameter);
+     }
+ 
++    // Silent xpub export (`display == false`) is restricted to standard BIP-44/49/84/86/48
++    // export prefixes validated by the freestanding Lean classifier (`VND-07`).
++    // Identity key paths (`m/1229210958'` and `m/1229210958'/i`) and any non-standard path
++    // require explicit on-device user confirmation (`display == true`).
++    if !display && !llb_vanadium_ffi::bip32_check_export_path(&bip32_path.0, BIP44_COIN_TYPE) {
++        return Err(Error::InvalidParameter);
++    }
++
+     let hd_node = crate::bip32::derive_hd_node(tree, &bip32_path.0)?;
+     let privkey: EcfpPrivateKey<Secp256k1, 32> = EcfpPrivateKey::new(*hd_node.privkey);
      let pubkey = privkey.to_public_key();
      let pubkey_bytes = pubkey.as_ref().to_bytes();
  
@@ -198,7 +372,7 @@ index f2323f6..233d65e 100644
      let depth = bip32_path.0.len() as u8;
  
      let parent_fpr: u32 = if bip32_path.0.is_empty() {
-@@ -190,24 +181,18 @@ pub async fn handle_get_extended_pubkey(
+@@ -190,24 +191,18 @@ pub async fn handle_get_extended_pubkey(
      if display {
          let xpub_base58 = bitcoin::base58::encode_check(&xpub);
          // identity keys are displayed in hex, rather than as an xpub
@@ -234,25 +408,19 @@ index f2323f6..233d65e 100644
              display_xpub(app, tree, &xpub_base58, &bip32_path.0).await
          };
 diff --git a/apps/bitcoin/app/src/handlers/musig_signing.rs b/apps/bitcoin/app/src/handlers/musig_signing.rs
-index a3b5e2a..5d682a3 100644
+index a3b5e2a..4e88d74 100644
 --- a/apps/bitcoin/app/src/handlers/musig_signing.rs
 +++ b/apps/bitcoin/app/src/handlers/musig_signing.rs
-@@ -361,7 +361,13 @@ pub fn compute_per_input_info(
+@@ -361,7 +361,7 @@ pub fn compute_per_input_info(
          keys.push(xpub.public_key.serialize());
          participant_xpubs.push(xpub);
      }
 -    keys.sort();
-+    for i in 1..keys.len() {
-+        let mut j = i;
-+        while j > 0 && keys[j - 1] > keys[j] {
-+            keys.swap(j - 1, j);
-+            j -= 1;
-+        }
-+    }
++    llb_vanadium_ffi::sort_fixed_bytes(&mut keys);
  
      // 2) Aggregate xpub + 2 BIP-32 derivations to (change, address_index).
      let secp = secp256k1::Secp256k1::new();
-@@ -460,7 +466,7 @@ pub fn sign_sighash_musig(
+@@ -460,7 +460,7 @@ pub fn sign_sighash_musig(
  
      // Confirm our own pubnonce is in the PSBT — if not, the client never
      // ran round 1 against this input/placeholder.
@@ -261,7 +429,7 @@ index a3b5e2a..5d682a3 100644
          .get_musig2_pub_nonce(internal_pk, agg_pk, leaf)
          .map_err(|_| Error::FailedToDeserializePsbt)?
          .ok_or(Error::MissingMusigPubnonce)?;
-@@ -476,13 +482,17 @@ pub fn sign_sighash_musig(
+@@ -476,13 +476,17 @@ pub fn sign_sighash_musig(
      }
      let aggnonce = musig::nonce_agg(&pubnonces).map_err(map_musig_err)?;
  
@@ -282,10 +450,22 @@ index a3b5e2a..5d682a3 100644
      // Partial sign.
      let tweaks_slice: &[[u8; 32]] = &per_input_info.tweaks[..per_input_info.n_tweaks];
 diff --git a/apps/bitcoin/app/src/handlers/register_account.rs b/apps/bitcoin/app/src/handlers/register_account.rs
-index 5b4556c..221cc02 100644
+index 5b4556c..4e88835 100644
 --- a/apps/bitcoin/app/src/handlers/register_account.rs
 +++ b/apps/bitcoin/app/src/handlers/register_account.rs
-@@ -268,7 +268,7 @@ pub async fn handle_register_account(
+@@ -187,7 +187,10 @@ pub async fn handle_register_account(
+     app.show_spinner("Processing...");
+ 
+     let wallet_policy = match account {
+-        message::Account::WalletPolicy(wallet_policy) => wallet_policy,
++        message::Account::WalletPolicy(wallet_policy) => {
++            common::miniscript_check::check_wallet_policy_miniscript(wallet_policy)?;
++            wallet_policy
++        }
+         message::Account::SilentPayment(account) => {
+             // a silent payment account has no keys to authenticate
+             if registered_identities.is_some_and(|i| !i.is_empty())
+@@ -268,7 +271,7 @@ pub async fn handle_register_account(
  
      // Label keys as "dummy" or "our key" based on their properties.
      let standard_fpr = crate::bip32::master_fingerprint(KeyTree::Standard)?;
@@ -294,7 +474,7 @@ index 5b4556c..221cc02 100644
      for (i, key_info) in wallet_policy.key_information().iter().enumerate() {
          // Skip keys that already have a label from identity signature verification.
          if key_auth_names[i].is_some() {
-@@ -296,10 +296,20 @@ pub async fn handle_register_account(
+@@ -296,10 +299,20 @@ pub async fn handle_register_account(
  
          let tree = if origin.fingerprint == standard_fpr {
              Some(KeyTree::Standard)
@@ -319,7 +499,7 @@ index 5b4556c..221cc02 100644
          let hd_node = tree.and_then(|t| crate::bip32::derive_hd_node(t, &path).ok());
  
 diff --git a/apps/bitcoin/app/src/handlers/sign_psbt/analyze.rs b/apps/bitcoin/app/src/handlers/sign_psbt/analyze.rs
-index 2c7edde..ca6f454 100644
+index 2c7edde..915215e 100644
 --- a/apps/bitcoin/app/src/handlers/sign_psbt/analyze.rs
 +++ b/apps/bitcoin/app/src/handlers/sign_psbt/analyze.rs
 @@ -25,7 +25,7 @@ use common::{
@@ -331,7 +511,7 @@ index 2c7edde..ca6f454 100644
  use sdk::curve::EcfpPublicKey;
  
  /// A script derivation check to be verified in the background task.
-@@ -155,6 +155,26 @@ pub(super) fn input_prevout<'i>(input: &'i fastpsbt::Input<'_>) -> Result<&'i Tx
+@@ -155,6 +155,31 @@ pub(super) fn input_prevout<'i>(input: &'i fastpsbt::Input<'_>) -> Result<&'i Tx
          .get_witness_utxo()
          .map_err(|_| Error::InvalidWitnessUtxo)?
      {
@@ -351,14 +531,19 @@ index 2c7edde..ca6f454 100644
 +                .output
 +                .get(output_index)
 +                .ok_or(Error::InvalidNonWitnessUtxo)?;
-+            if prev_out != witness_utxo {
++            if !llb_vanadium_ffi::check_dual_utxo(
++                witness_utxo.value.to_sat(),
++                witness_utxo.script_pubkey.as_bytes(),
++                prev_out.value.to_sat(),
++                prev_out.script_pubkey.as_bytes(),
++            ) {
 +                return Err(Error::InvalidWitnessUtxo);
 +            }
 +        }
          return Ok(witness_utxo);
      }
  
-@@ -165,10 +185,14 @@ pub(super) fn input_prevout<'i>(input: &'i fastpsbt::Input<'_>) -> Result<&'i Tx
+@@ -165,10 +190,14 @@ pub(super) fn input_prevout<'i>(input: &'i fastpsbt::Input<'_>) -> Result<&'i Tx
      let output_index = input
          .output_index
          .ok_or(Error::MissingPreviousOutputIndex)? as usize;
@@ -375,7 +560,7 @@ index 2c7edde..ca6f454 100644
  }
  
  /// Lazily materializes the prevouts list shared by all taproot sighashes in
-@@ -210,6 +234,18 @@ fn analyze_input<'i>(
+@@ -210,6 +239,18 @@ fn analyze_input<'i>(
  
      // Only SIGHASH_ALL is supported, and its taproot equivalent SIGHASH_DEFAULT. Without a
      // sighash type, the device signs with SIGHASH_ALL (SIGHASH_DEFAULT for taproot).
@@ -394,7 +579,7 @@ index 2c7edde..ca6f454 100644
      match (input.sighash_type, segwit_version) {
          (None | Some(0x01), _) | (Some(0x00), SegwitVersion::Taproot) => {}
          _ => return Err(Error::UnsupportedSighashType),
-@@ -220,23 +256,22 @@ fn analyze_input<'i>(
+@@ -220,23 +261,22 @@ fn analyze_input<'i>(
      }
  
      let mut amount_unverified = false;
@@ -433,7 +618,7 @@ index 2c7edde..ca6f454 100644
              }
          }
      }
-@@ -246,27 +281,24 @@ fn analyze_input<'i>(
+@@ -246,27 +286,24 @@ fn analyze_input<'i>(
      }
  
      // Resolving the prevout first bounds-checks the attacker-controlled `output_index`
@@ -468,7 +653,7 @@ index 2c7edde..ca6f454 100644
                      return Err(Error::WitnessScriptMismatchWitness);
                  }
              } else {
-@@ -274,7 +306,7 @@ fn analyze_input<'i>(
+@@ -274,7 +311,7 @@ fn analyze_input<'i>(
              }
          }
      } else if let Some(redeem_script) = input.redeem_script {
@@ -477,7 +662,7 @@ index 2c7edde..ca6f454 100644
          if prevout.script_pubkey != redeem_script.to_p2sh() {
              return Err(Error::RedeemScriptMismatch);
          }
-@@ -327,7 +359,7 @@ fn analyze_output(
+@@ -327,7 +364,7 @@ fn analyze_output(
          let proofs = output
              .get_auth_proofs()
              .map_err(|_| Error::InvalidIdentitySignature)?;
@@ -486,7 +671,7 @@ index 2c7edde..ca6f454 100644
  
          let mut first_auth_name: Option<String> = None;
          for proof in proofs {
-@@ -337,7 +369,7 @@ fn analyze_output(
+@@ -337,7 +374,7 @@ fn analyze_output(
                      let ecfp_pubkey =
                          EcfpPublicKey::<sdk::curve::Secp256k1, 32>::from_compressed(&pubkey)
                              .map_err(|_| Error::InvalidIdentitySignature)?;
@@ -495,7 +680,7 @@ index 2c7edde..ca6f454 100644
                          .map_err(|_| Error::InvalidIdentitySignature)?;
                      ecfp_pubkey
                          .schnorr_verify(&msg, &sig)
-@@ -431,8 +463,10 @@ pub(super) fn analyze_transaction(
+@@ -431,8 +468,10 @@ pub(super) fn analyze_transaction(
          });
  
          let value = analyzed.prevout.value.to_sat();
@@ -507,7 +692,7 @@ index 2c7edde..ca6f454 100644
      }
  
      /***** output checks (structural only — script derivation is deferred) *****/
-@@ -449,6 +483,9 @@ pub(super) fn analyze_transaction(
+@@ -449,6 +488,9 @@ pub(super) fn analyze_transaction(
  
      for (output_index, output) in psbt.outputs.iter().enumerate() {
          let amount = output.amount.ok_or(Error::OutputAmountMissing)?;
@@ -517,7 +702,7 @@ index 2c7edde..ca6f454 100644
  
          match analyze_output(
              output,
-@@ -466,10 +503,12 @@ pub(super) fn analyze_transaction(
+@@ -466,10 +508,12 @@ pub(super) fn analyze_transaction(
              }
          }
  
@@ -532,44 +717,7 @@ index 2c7edde..ca6f454 100644
          return Err(Error::InputsLessThanOutputs);
      }
  
-@@ -495,6 +534,36 @@ pub(super) fn analyze_transaction(
- }
- 
- impl DeferredChecks {
-+    /// Synchronous verification path for headless / autoapprove execution without async yield overhead.
-+    pub(super) fn verify_sync(&self, summary: &TransactionSummary) -> Result<(), Error> {
-+        let accounts = &summary.accounts;
-+
-+        for (account_id, account) in accounts.iter().enumerate() {
-+            let PsbtAccount::WalletPolicy(wallet_policy) = account;
-+            let account_name = summary.account_names[account_id].as_deref().unwrap_or("");
-+            let id = wallet_policy.registration_id(account_name);
-+            if self.account_proofs[account_id] != ProofOfRegistration::new(&id) {
-+                return Err(Error::InvalidProofOfRegistration);
-+            }
-+        }
-+
-+        for check in &self.script_checks {
-+            let PsbtAccount::WalletPolicy(wallet_policy) = &accounts[check.account_id as usize];
-+            let derived_script = wallet_policy
-+                .to_script(check.is_change, check.address_index)
-+                .map_err(|_| Error::InvalidWalletPolicy)?;
-+            if derived_script != check.expected_script {
-+                return Err(if check.is_input {
-+                    Error::InputScriptMismatch
-+                } else {
-+                    Error::OutputScriptMismatch
-+                });
-+            }
-+        }
-+
-+        Ok(())
-+    }
-+
-     /// Runs the expensive checks. The caller drives this on a background task so it
-     /// overlaps with the approval UI, yielding between checks to stay responsive.
-     pub(super) async fn verify(&self, summary: &TransactionSummary) -> Result<(), Error> {
-@@ -723,4 +792,26 @@ mod tests {
+@@ -723,4 +767,26 @@ mod tests {
              &[witness_prevout, legacy_prevout]
          );
      }
@@ -597,7 +745,7 @@ index 2c7edde..ca6f454 100644
 +    }
  }
 diff --git a/apps/bitcoin/app/src/handlers/sign_psbt/display.rs b/apps/bitcoin/app/src/handlers/sign_psbt/display.rs
-index 091d6a1..3094ce7 100644
+index 091d6a1..00b6d15 100644
 --- a/apps/bitcoin/app/src/handlers/sign_psbt/display.rs
 +++ b/apps/bitcoin/app/src/handlers/sign_psbt/display.rs
 @@ -9,7 +9,7 @@ use alloc::{
@@ -609,47 +757,30 @@ index 091d6a1..3094ce7 100644
  use sdk::ux::{Icon, TagValue};
  
  use crate::constants::COIN_TICKER;
-@@ -92,9 +92,36 @@ const SATS_PER_BTC: u64 = 100_000_000;
+@@ -88,13 +88,18 @@ pub(super) fn show_transaction_signed(app: &mut sdk::App) {
+     app.show_info(Icon::Success, "Transaction signed");
+ }
+ 
++#[cfg(test)]
+ const SATS_PER_BTC: u64 = 100_000_000;
  
  fn format_amount(value: u64, ticker: &str) -> String {
-     let whole_part = value / SATS_PER_BTC;
+-    let whole_part = value / SATS_PER_BTC;
 -    let fractional_part = value % SATS_PER_BTC;
 -    // Pad fractional part with leading zeros to ensure 8 digits
 -    format!("{}.{:08} {}", whole_part, fractional_part, ticker)
-+    let mut frac = (value % SATS_PER_BTC) as u32;
-+    let mut whole = whole_part;
-+
-+    let mut whole_digits = [0u8; 20];
-+    let mut whole_len = 0usize;
-+    if whole == 0 {
-+        whole_digits[0] = b'0';
-+        whole_len = 1;
-+    } else {
-+        while whole > 0 {
-+            whole_digits[whole_len] = b'0' + (whole % 10) as u8;
-+            whole /= 10;
-+            whole_len += 1;
-+        }
-+        whole_digits[..whole_len].reverse();
++    let mut buf = [0u8; 64];
++    if let Some(s) = llb_vanadium_ffi::format_sats_ascii(value, ticker, true, &mut buf) {
++        return String::from(s);
 +    }
-+
-+    let mut frac_digits = [b'0'; 8];
-+    for i in (0..8).rev() {
-+        frac_digits[i] = b'0' + (frac % 10) as u8;
-+        frac /= 10;
-+    }
-+
-+    let mut out = String::with_capacity(whole_len + 1 + 8 + 1 + ticker.len());
-+    out.push_str(core::str::from_utf8(&whole_digits[..whole_len]).unwrap());
-+    out.push('.');
-+    out.push_str(core::str::from_utf8(&frac_digits).unwrap());
-+    out.push(' ');
-+    out.push_str(ticker);
-+    out
++    let mut vec_buf = alloc::vec![0u8; 32 + ticker.len()];
++    let s = llb_vanadium_ffi::format_sats_ascii(value, ticker, true, &mut vec_buf)
++        .expect("vec_buf sized for u64 sats + ticker");
++    String::from(s)
  }
  
  /// Build the `TagValue` pairs shown to the user during transaction review.
-@@ -162,11 +189,34 @@ pub(super) fn build_display_pairs(
+@@ -162,11 +167,34 @@ pub(super) fn build_display_pairs(
          let address = match silent_payments.and_then(|sp| sp.address(output_index)) {
              Some(address) => address.to_string(),
              None => {
@@ -689,7 +820,7 @@ index 091d6a1..3094ce7 100644
              }
          };
  
-@@ -178,7 +228,7 @@ pub(super) fn build_display_pairs(
+@@ -178,7 +206,7 @@ pub(super) fn build_display_pairs(
                  format!("{}:{}", name, address)
              }
          } else {
@@ -698,7 +829,7 @@ index 091d6a1..3094ce7 100644
          };
  
          pairs.push(TagValue {
-@@ -247,4 +297,22 @@ mod tests {
+@@ -247,4 +275,22 @@ mod tests {
          assert_eq!(pairs[1].value, "0.01000000 TEST"); // 1_000_000 sat in
          assert_eq!(pairs[3].value, "0.00999800 TEST"); // 999_800 sat out
      }
@@ -774,78 +905,19 @@ index 6b972c0..20da99f 100644
  
          let master_path_u32: Vec<u32> = key_origin
 diff --git a/apps/bitcoin/app/src/handlers/sign_psbt/mod.rs b/apps/bitcoin/app/src/handlers/sign_psbt/mod.rs
-index 2765140..cfde816 100644
+index 2765140..3fa08e2 100644
 --- a/apps/bitcoin/app/src/handlers/sign_psbt/mod.rs
 +++ b/apps/bitcoin/app/src/handlers/sign_psbt/mod.rs
-@@ -36,36 +36,44 @@ pub async fn handle_sign_psbt(app: &mut sdk::App, psbt: &[u8]) -> Result<Respons
-     let mut local_keys = key_resolution::LocalKeys::new()?;
+@@ -37,7 +37,8 @@ pub async fn handle_sign_psbt(app: &mut sdk::App, psbt: &[u8]) -> Result<Respons
      let silent_payments = silent_payments::analyze(&psbt, &summary, &mut local_keys)?;
  
--    // Spawn expensive verification (proof-of-registration + script derivation) as a background
+     // Spawn expensive verification (proof-of-registration + script derivation) as a background
 -    // task so it runs concurrently with the UX flows below.
--    let verification_handle = app.spawn_task(async { deferred_checks.verify(&summary).await });
--
--    // Show warnings (runs while verification task progresses in the background)
--    if summary.warn_unverified_inputs && !display::display_warning_unverified_inputs(app).await {
--        return Err(Error::UserRejected);
--        // verification_handle is dropped here → task is cancelled
--    }
-+    const AUTO_APPROVE: bool = cfg!(any(test, feature = "autoapprove"));
-+
-+    if AUTO_APPROVE {
-+        // Validate display pairs & scripts synchronously without allocating a background task/Rc.
-+        let _pairs = display::build_display_pairs(&psbt, &summary, silent_payments.as_ref())?;
-+        deferred_checks.verify_sync(&summary)?;
-+    } else {
-+        // Spawn expensive verification (proof-of-registration + script derivation) as a background
-+        // task so it runs concurrently with the UX flows below.
-+        let verification_handle = app.spawn_task(async { deferred_checks.verify(&summary).await });
-+
-+        // Show warnings (runs while verification task progresses in the background)
-+        if summary.warn_unverified_inputs && !display::display_warning_unverified_inputs(app).await {
-+            return Err(Error::UserRejected);
-+            // verification_handle is dropped here → task is cancelled
-+        }
++    // task so it runs concurrently with the UX flows below (identical control flow in both
++    // plain and autoapprove builds).
+     let verification_handle = app.spawn_task(async { deferred_checks.verify(&summary).await });
  
--    let fee = summary.fee();
--    if summary.inputs_total_amount >= crate::constants::THRESHOLD_WARN_HIGH_FEES_AMOUNT {
--        let fee_percent = fee.saturating_mul(100) / summary.inputs_total_amount;
--        if fee_percent >= crate::constants::THRESHOLD_WARN_HIGH_FEES_PERCENT
--            && !display::display_warning_high_fee(app, fee_percent).await
--        {
-+        let fee = summary.fee();
-+        if summary.inputs_total_amount >= crate::constants::THRESHOLD_WARN_HIGH_FEES_AMOUNT {
-+            let fee_percent = fee.saturating_mul(100) / summary.inputs_total_amount;
-+            if fee_percent >= crate::constants::THRESHOLD_WARN_HIGH_FEES_PERCENT
-+                && !display::display_warning_high_fee(app, fee_percent).await
-+            {
-+                return Err(Error::UserRejected);
-+            }
-+        }
-+
-+        // Display transaction for user approval
-+        let pairs = display::build_display_pairs(&psbt, &summary, silent_payments.as_ref())?;
-+        if !display::display_transaction(app, &pairs).await {
-+            display::show_transaction_rejected(app);
-             return Err(Error::UserRejected);
-         }
--    }
- 
--    // Display transaction for user approval
--    let pairs = display::build_display_pairs(&psbt, &summary, silent_payments.as_ref())?;
--    if !display::display_transaction(app, &pairs).await {
--        display::show_transaction_rejected(app);
--        return Err(Error::UserRejected);
-+        // Wait for verification to complete (likely already done by now)
-+        app.await_task("Verifying...", verification_handle)?;
-     }
- 
--    // Wait for verification to complete (likely already done by now)
--    app.await_task("Verifying...", verification_handle)?;
--
-     // All checks passed — compute the outputs to silent payment codes, then sign
-     app.show_spinner("Signing transaction...");
-     let taptree_hashes = context::TaptreeHashes::new(psbt.inputs.len());
+     // Show warnings (runs while verification task progresses in the background)
 diff --git a/apps/bitcoin/app/src/handlers/sign_psbt/signing.rs b/apps/bitcoin/app/src/handlers/sign_psbt/signing.rs
 index a80a0a0..288b788 100644
 --- a/apps/bitcoin/app/src/handlers/sign_psbt/signing.rs
@@ -980,7 +1052,7 @@ index 6232ef6..caf1313 100644
 +    assert_eq!(result, Err(Error::SigningFailed));
 +}
 diff --git a/apps/bitcoin/app/src/main.rs b/apps/bitcoin/app/src/main.rs
-index 1807eea..5b3bb05 100644
+index 1807eea..a15fa01 100644
 --- a/apps/bitcoin/app/src/main.rs
 +++ b/apps/bitcoin/app/src/main.rs
 @@ -23,7 +23,9 @@ async fn handle_request(
@@ -994,7 +1066,24 @@ index 1807eea..5b3bb05 100644
          Request::Exit => sdk::exit(0),
          Request::GetMasterFingerprint { tree } => handle_get_master_fingerprint(app, *tree),
          Request::GetExtendedPubkey {
-@@ -80,6 +82,12 @@ async fn handle_request(
+@@ -75,11 +77,29 @@ async fn handle_request(
+         Request::ExportSilentPaymentScanKey { account_index } => {
+             handle_export_sp_scan_key(app, *account_index).await
+         }
++        Request::GetHeapStats { reset } => {
++            let current = sdk::current_heap_bytes() as u32;
++            let peak = if *reset {
++                sdk::reset_peak_heap_bytes() as u32
++            } else {
++                sdk::peak_heap_bytes() as u32
++            };
++            Ok(Response::HeapStats {
++                current_bytes: current,
++                peak_bytes: peak,
++            })
++        }
+     }
+ }
  
  #[sdk::handler]
  async fn process_message(app: &mut App, request: &[u8]) -> Vec<u8> {
@@ -1007,7 +1096,7 @@ index 1807eea..5b3bb05 100644
      let mut decoder = minicbor::Decoder::new(request);
      let Ok(decoded_request) = decoder.decode::<Request>() else {
          return minicbor::to_vec(&Response::Error {
-@@ -105,3 +113,89 @@ pub fn main() {
+@@ -105,3 +125,191 @@ pub fn main() {
          .developer("Salvatore Ingala")
          .run();
  }
@@ -1096,6 +1185,108 @@ index 1807eea..5b3bb05 100644
 +        ));
 +        assert_eq!(res, Err(common::errors::Error::DerivationPathTooLong));
 +    }
++
++    #[test]
++    fn bug_006_register_account_rejects_unsane_miniscript_and_accepts_sane() {
++        use common::account::WalletPolicy;
++        use common::script::ToScript;
++
++        let xpub0 = "tpubDCwYjpDhUdPGP5rS3wgNg13mTrrjBuG8V9VpWbyptX6TRPbNoZVXsoVUSkCjmQ8jJycjuDKBb9eataSymXakTTaGifxR6kmVsfFehH1ZgJT";
++        let xpub1 = "tpubDCwYjpDhUdPGQWG6wG6hkBJuWFZEtrn7j3xwG3i8XcQabcGC53xWZm1hSXrUPFS5UvZ3QhdPSjXWNfWmFGTioARHuG5J7XguEjgg7p8PxAm";
++
++        // Unsane timelock mix (older + after in `and_v`) must be rejected by both `to_script` and `handle_register_account`.
++        let unsane_timelock = WalletPolicy::new(
++            "wsh(and_v(v:older(100),and_v(v:after(500000100),pk(@0/**))))",
++            vec![xpub0.try_into().unwrap()],
++        )
++        .unwrap();
++        assert_eq!(
++            unsane_timelock.to_script(false, 0),
++            Err(common::errors::Error::InvalidWalletPolicy)
++        );
++        let mut app = sdk::App::singleton();
++        let reg_res = sdk::executor::block_on(handlers::handle_register_account(
++            &mut app,
++            "Bad policy",
++            &common::message::Account::WalletPolicy(unsane_timelock),
++            None,
++            None,
++            false,
++        ));
++        assert_eq!(reg_res, Err(common::errors::Error::InvalidWalletPolicy));
++
++        // Unsane `older(0)` must be rejected.
++        let older_zero = WalletPolicy::new(
++            "wsh(and_v(v:pk(@0/**),older(0)))",
++            vec![xpub0.try_into().unwrap()],
++        )
++        .unwrap();
++        assert_eq!(
++            older_zero.to_script(false, 0),
++            Err(common::errors::Error::InvalidWalletPolicy)
++        );
++
++        // Sane `andor` policy registers and derives cleanly.
++        let sane = WalletPolicy::new(
++            "wsh(andor(pk(@0/**),older(100),pk(@1/**)))",
++            vec![xpub0.try_into().unwrap(), xpub1.try_into().unwrap()],
++        )
++        .unwrap();
++        assert!(sane.to_script(false, 0).is_ok());
++        let ok_res = sdk::executor::block_on(handlers::handle_register_account(
++            &mut app,
++            "Sane policy",
++            &common::message::Account::WalletPolicy(sane),
++            None,
++            None,
++            false,
++        ));
++        assert!(ok_res.is_ok());
++    }
++
++    #[test]
++    fn vnd_07_get_extended_pubkey_rejects_silent_nonstandard_path() {
++        let mut app = sdk::App::singleton();
++        // Root identity path m/1229210958' must not be exported silently (`display == false`).
++        let id_path = common::message::Bip32Path(vec![0x8000_0000 | 1229210958]);
++        let res = sdk::executor::block_on(handlers::handle_get_extended_pubkey(
++            &mut app,
++            common::message::KeyTree::Standard,
++            &id_path,
++            false,
++            None,
++        ));
++        assert_eq!(res, Err(common::errors::Error::InvalidParameter));
++
++        // With `display == true`, identity export succeeds.
++        let ok_res = sdk::executor::block_on(handlers::handle_get_extended_pubkey(
++            &mut app,
++            common::message::KeyTree::Standard,
++            &id_path,
++            true,
++            None,
++        ));
++        assert!(ok_res.is_ok());
++    }
++
++    #[test]
++    fn heap_stats_tracks_peak_and_reset() {
++        let mut app = sdk::App::singleton();
++        let reset_req = minicbor::to_vec(&Request::GetHeapStats { reset: true }).unwrap();
++        let _ = sdk::executor::block_on(process_message(&mut app, &reset_req));
++
++        let big = alloc::vec![0xABu8; 4096];
++        core::hint::black_box(&big);
++        drop(big);
++
++        let query_req = minicbor::to_vec(&Request::GetHeapStats { reset: false }).unwrap();
++        let resp_bytes = sdk::executor::block_on(process_message(&mut app, &query_req));
++        let resp: Response = minicbor::decode(&resp_bytes).unwrap();
++        match resp {
++            Response::HeapStats { peak_bytes, .. } => assert!(peak_bytes >= 4096),
++            other => panic!("unexpected response: {:?}", other),
++        }
++    }
 +}
 diff --git a/apps/bitcoin/app/vanadium_strip_eh.ld b/apps/bitcoin/app/vanadium_strip_eh.ld
 new file mode 100644
@@ -1112,6 +1303,34 @@ index 0000000..4cb31e5
 +  }
 +}
 +INSERT AFTER .text;
+diff --git a/apps/bitcoin/client/src/client.rs b/apps/bitcoin/client/src/client.rs
+index b6e0686..4bf2a6b 100644
+--- a/apps/bitcoin/client/src/client.rs
++++ b/apps/bitcoin/client/src/client.rs
+@@ -155,6 +155,23 @@ impl<'a> BitcoinClient {
+         }
+     }
+ 
++    pub async fn get_heap_stats(&mut self, reset: bool) -> Result<(u32, u32), BitcoinClientError> {
++        let msg = minicbor::to_vec(&Request::GetHeapStats { reset }).map_err(|_| {
++            BitcoinClientError::GenericError("Failed to serialize GetHeapStats request".to_string())
++        })?;
++        let response_raw = self.send_message(&msg).await?;
++        match Self::parse_response(&response_raw).await? {
++            Response::HeapStats {
++                current_bytes,
++                peak_bytes,
++            } => Ok((current_bytes, peak_bytes)),
++            e => Err(BitcoinClientError::InvalidResponse(format!(
++                "Invalid response: {:?}",
++                e
++            ))),
++        }
++    }
++
+     pub async fn get_extended_pubkey(
+         &mut self,
+         tree: message::KeyTree,
 diff --git a/apps/bitcoin/common/Cargo.toml b/apps/bitcoin/common/Cargo.toml
 index 197d982..08d43c5 100644
 --- a/apps/bitcoin/common/Cargo.toml
@@ -1133,102 +1352,89 @@ index 197d982..08d43c5 100644
  sdk = { package = "vanadium-app-sdk", path = "../../../app-sdk", default-features = false }
  subtle = { version="2.6.1", default-features = false }
 diff --git a/apps/bitcoin/common/src/fastpsbt.rs b/apps/bitcoin/common/src/fastpsbt.rs
-index b95089e..4525793 100644
+index b95089e..4048018 100644
 --- a/apps/bitcoin/common/src/fastpsbt.rs
 +++ b/apps/bitcoin/common/src/fastpsbt.rs
-@@ -230,23 +230,25 @@ impl<'a> Cursor<'a> {
+@@ -229,24 +229,38 @@ impl<'a> Cursor<'a> {
+     }
  
      fn read_compact_size(&mut self) -> Result<u64, PsbtError> {
-         let b = *self.take(1)?.first().unwrap();
+-        let b = *self.take(1)?.first().unwrap();
 -        match b {
 -            n @ 0x00..=0xfc => Ok(n as u64),
-+        let val = match b {
-+            n @ 0x00..=0xfc => n as u64,
-             0xfd => {
-                 let s = self.take(2)?;
+-            0xfd => {
+-                let s = self.take(2)?;
 -                Ok(u16::from_le_bytes([s[0], s[1]]) as u64)
-+                u16::from_le_bytes([s[0], s[1]]) as u64
-             }
-             0xfe => {
-                 let s = self.take(4)?;
+-            }
+-            0xfe => {
+-                let s = self.take(4)?;
 -                Ok(u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as u64)
-+                u32::from_le_bytes([s[0], s[1], s[2], s[3]]) as u64
-             }
-             0xff => {
-                 let s = self.take(8)?;
+-            }
+-            0xff => {
+-                let s = self.take(8)?;
 -                Ok(u64::from_le_bytes([
 -                    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
 -                ]))
-+                u64::from_le_bytes([s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]])
-             }
++        let slice = &self.buf[self.pos..];
++        let Some(&b) = slice.first() else {
++            return Err(PsbtError::UnexpectedEof);
 +        };
-+        if !llb_vanadium_ffi::varint_prefix_is_canonical(b, val) {
-+            return Err(PsbtError::BadValue);
++        if b < 0xff {
++            let needed = match b {
++                0x00..=0xfc => 1usize,
++                0xfd => 3usize,
++                _ => 5usize,
++            };
++            if slice.len() < needed {
++                return Err(PsbtError::UnexpectedEof);
+             }
++            let Some((val, consumed)) =
++                llb_vanadium_ffi::read_compact_size_checked(slice, u32::MAX)
++            else {
++                return Err(PsbtError::BadValue);
++            };
++            self.pos += consumed;
++            return Ok(val as u64);
          }
++        if slice.len() < 9 {
++            return Err(PsbtError::UnexpectedEof);
++        }
++        let val = u64::from_le_bytes([
++            slice[1], slice[2], slice[3], slice[4], slice[5], slice[6], slice[7], slice[8],
++        ]);
++        if !llb_vanadium_ffi::varint_prefix_is_canonical(0xff, val) {
++            return Err(PsbtError::BadValue);
++        }
++        self.pos += 9;
 +        Ok(val)
      }
  
      fn read_len_prefixed(&mut self) -> Result<&'a [u8], PsbtError> {
-@@ -599,38 +601,56 @@ impl<'a> Psbt<'a> {
+@@ -599,38 +613,21 @@ impl<'a> Psbt<'a> {
      }
  
      fn build_unsigned_tx(&self) -> Result<bitcoin::Transaction, PsbtError> {
 -        // Determine lock_time
 -        let mut req_height: Option<u32> = None;
 -        let mut req_time: Option<u32> = None;
-+        // BIP-370 lock_time calculation (VND-BUG-004):
+-
++        // BIP-370 lock_time calculation (VND-BUG-004) via freestanding Lean state machine:
 +        // 1. Validate per-input required height (`1..500_000_000`) and time (`>= 500_000_000`).
 +        // 2. Determine whether all inputs with required locktimes can share height or time mode.
 +        // 3. Only fall back to `fallback_locktime` when NO input specifies a required locktime.
-+        let mut any_required = false;
-+        let mut can_use_height = true;
-+        let mut can_use_time = true;
-+        let mut max_height: u32 = 0;
-+        let mut max_time: u32 = 0;
- 
++        let mut lt_state = llb_vanadium_ffi::psbt_locktime_init();
          for inp in &self.inputs {
-             if let Some(h) = inp.required_height_locktime {
+-            if let Some(h) = inp.required_height_locktime {
 -                req_height = Some(req_height.map_or(h, |m| m.max(h)));
-+                if h == 0 || h >= 500_000_000 {
-+                    return Err(PsbtError::BadValue);
-+                }
-             }
-             if let Some(t) = inp.required_time_locktime {
+-            }
+-            if let Some(t) = inp.required_time_locktime {
 -                req_time = Some(req_time.map_or(t, |m| m.max(t)));
-+                if t < 500_000_000 {
-+                    return Err(PsbtError::BadValue);
-+                }
-+            }
-+            match (inp.required_height_locktime, inp.required_time_locktime) {
-+                (None, None) => {}
-+                (Some(h), None) => {
-+                    any_required = true;
-+                    can_use_time = false;
-+                    max_height = max_height.max(h);
-+                }
-+                (None, Some(t)) => {
-+                    any_required = true;
-+                    can_use_height = false;
-+                    max_time = max_time.max(t);
-+                }
-+                (Some(h), Some(t)) => {
-+                    any_required = true;
-+                    max_height = max_height.max(h);
-+                    max_time = max_time.max(t);
-+                }
-             }
-         }
- 
+-            }
+-        }
+-
 -        // Both height- and time-based requirements cannot be satisfied together.
 -        if req_height.is_some() && req_time.is_some() {
-+        let lock_time: u32 = if !any_required {
-+            self.fallback_locktime.unwrap_or(0)
-+        } else if can_use_height {
-+            max_height
-+        } else if can_use_time {
-+            max_time
-+        } else {
-             return Err(PsbtError::BadValue);
+-            return Err(PsbtError::BadValue);
 -        }
 -
 -        let mut lock_time: u32 = self.fallback_locktime.unwrap_or(0);
@@ -1244,12 +1450,19 @@ index b95089e..4525793 100644
 -                return Err(PsbtError::BadValue);
 -            }
 -            lock_time = lock_time.max(t);
--        }
-+        };
++            lt_state = llb_vanadium_ffi::psbt_locktime_step(
++                lt_state,
++                inp.required_height_locktime,
++                inp.required_time_locktime,
++            );
+         }
++        let lock_time =
++            llb_vanadium_ffi::psbt_locktime_finalize(lt_state, self.fallback_locktime.unwrap_or(0))
++                .ok_or(PsbtError::BadValue)?;
  
          // Build inputs
          let mut ins = Vec::with_capacity(self.inputs.len());
-@@ -1043,15 +1063,28 @@ impl<'a> Input<'a> {
+@@ -1043,15 +1040,28 @@ impl<'a> Input<'a> {
              return Ok(None);
          };
  
@@ -1284,7 +1497,7 @@ index b95089e..4525793 100644
  
          let txout = TxOut {
              value: amount,
-@@ -1117,7 +1150,7 @@ impl<'a> Output<'a> {
+@@ -1117,7 +1127,7 @@ impl<'a> Output<'a> {
                      if pair.value.len() != 8 {
                          return Err(PsbtError::BadValue);
                      }
@@ -1293,7 +1506,7 @@ index b95089e..4525793 100644
                          pair.value[0],
                          pair.value[1],
                          pair.value[2],
-@@ -1126,7 +1159,11 @@ impl<'a> Output<'a> {
+@@ -1126,7 +1136,11 @@ impl<'a> Output<'a> {
                          pair.value[5],
                          pair.value[6],
                          pair.value[7],
@@ -1306,7 +1519,7 @@ index b95089e..4525793 100644
                  }
                  PSBT_OUT_SCRIPT => {
                      script = Some(pair.value);
-@@ -1927,4 +1964,93 @@ mod test {
+@@ -1927,4 +1941,93 @@ mod test {
          psbt.unsigned_tx().unwrap();
          assert_eq!(psbt.set_sp_output_scripts(alloc::vec![]), invalid);
      }
@@ -1400,27 +1613,527 @@ index b95089e..4525793 100644
 +        assert_eq!(txout.script_pubkey.len(), 300);
 +    }
  }
+diff --git a/apps/bitcoin/common/src/lib.rs b/apps/bitcoin/common/src/lib.rs
+index 8b834c4..a7800f9 100644
+--- a/apps/bitcoin/common/src/lib.rs
++++ b/apps/bitcoin/common/src/lib.rs
+@@ -8,6 +8,7 @@ pub mod errors;
+ pub mod fastpsbt;
+ pub mod identity;
+ pub mod message;
++pub mod miniscript_check;
+ pub mod musig;
+ pub mod por;
+ pub mod psbt;
+diff --git a/apps/bitcoin/common/src/message/mod.rs b/apps/bitcoin/common/src/message/mod.rs
+index 6941fe7..c10b50b 100644
+--- a/apps/bitcoin/common/src/message/mod.rs
++++ b/apps/bitcoin/common/src/message/mod.rs
+@@ -230,6 +230,14 @@ pub enum Request {
+         #[n(0)]
+         account_index: u32,
+     },
++
++    /// Queries the V-App global allocator's live and high-water heap usage in bytes.
++    #[n(9)]
++    #[cbor(map)]
++    GetHeapStats {
++        #[n(0)]
++        reset: bool,
++    },
+ }
+ 
+ #[derive(Encode, Decode, Debug, Clone, PartialEq, Eq)]
+@@ -411,6 +419,15 @@ pub enum Response {
+         #[n(0)]
+         scan_key: String,
+     },
++
++    #[n(9)]
++    #[cbor(map)]
++    HeapStats {
++        #[n(0)]
++        current_bytes: u32,
++        #[n(1)]
++        peak_bytes: u32,
++    },
+ }
+ 
+ #[cfg(test)]
+diff --git a/apps/bitcoin/common/src/miniscript_check.rs b/apps/bitcoin/common/src/miniscript_check.rs
+new file mode 100644
+index 0000000..7720ed9
+--- /dev/null
++++ b/apps/bitcoin/common/src/miniscript_check.rs
+@@ -0,0 +1,453 @@
++//! Freestanding Lean Miniscript validation bridge (`VND-BUG-006`).
++//!
++//! Encodes BIP-388 [`DescriptorTemplate`] Miniscript AST nodes into the compact
++//! postfix byte stream specified by `SPEC_ABI.md` (`llb_miniscript_check_postfix`)
++//! and validates type correctness (`B/V/K/W`, `z/o/n/d/u`), BIP-379 non-malleability
++//! (`m`), signature presence (`s`), height/time timelock conflict freedom (`k`),
++//! and BIP-68 `older(n)` / BIP-65 `after(n)` consensus ranges with zero heap
++//! allocation.
++
++use crate::account::{DescriptorTemplate, TapTree, WalletPolicy};
++use crate::errors::Error;
++
++const OP_ZERO: u8 = 0x00;
++const OP_ONE: u8 = 0x01;
++const OP_PK_K: u8 = 0x02;
++const OP_PK_H: u8 = 0x03;
++const OP_PK: u8 = 0x04;
++const OP_PKH: u8 = 0x05;
++const OP_OLDER: u8 = 0x06;
++const OP_AFTER: u8 = 0x07;
++const OP_SHA256: u8 = 0x08;
++const OP_HASH256: u8 = 0x09;
++const OP_RIPEMD160: u8 = 0x0A;
++const OP_HASH160: u8 = 0x0B;
++const OP_MULTI: u8 = 0x0C;
++const OP_MULTI_A: u8 = 0x0D;
++
++const OP_WRAP_A: u8 = 0x10;
++const OP_WRAP_S: u8 = 0x11;
++const OP_WRAP_C: u8 = 0x12;
++const OP_WRAP_T: u8 = 0x13;
++const OP_WRAP_D: u8 = 0x14;
++const OP_WRAP_V: u8 = 0x15;
++const OP_WRAP_J: u8 = 0x16;
++const OP_WRAP_N: u8 = 0x17;
++const OP_WRAP_L: u8 = 0x18;
++const OP_WRAP_U: u8 = 0x19;
++
++const OP_AND_V: u8 = 0x20;
++const OP_AND_B: u8 = 0x21;
++const OP_AND_N: u8 = 0x22;
++const OP_OR_B: u8 = 0x23;
++const OP_OR_C: u8 = 0x24;
++const OP_OR_D: u8 = 0x25;
++const OP_OR_I: u8 = 0x26;
++const OP_ANDOR: u8 = 0x27;
++const OP_THRESH: u8 = 0x28;
++
++/// Require non-malleability (`bit 0`: `top.m`) and at least one signature (`bit 1`: `top.s`),
++/// in addition to `top.base == B` and `top.k` (no height/time timelock mix).
++pub const REQUIRE_SANE_TOPLEVEL: u8 = 0x03;
++
++struct PostfixBuf {
++    bytes: [u8; llb_vanadium_ffi::MINISCRIPT_MAX_POSTFIX_OPS],
++    len: usize,
++}
++
++impl PostfixBuf {
++    #[inline]
++    const fn new() -> Self {
++        Self {
++            bytes: [0u8; llb_vanadium_ffi::MINISCRIPT_MAX_POSTFIX_OPS],
++            len: 0,
++        }
++    }
++
++    #[inline]
++    fn push_u8(&mut self, b: u8) -> Result<(), Error> {
++        if self.len >= self.bytes.len() {
++            return Err(Error::InvalidWalletPolicy);
++        }
++        self.bytes[self.len] = b;
++        self.len += 1;
++        Ok(())
++    }
++
++    #[inline]
++    fn push_u16_le(&mut self, v: u16) -> Result<(), Error> {
++        let le = v.to_le_bytes();
++        self.push_u8(le[0])?;
++        self.push_u8(le[1])
++    }
++
++    #[inline]
++    fn push_u32_le(&mut self, v: u32) -> Result<(), Error> {
++        let le = v.to_le_bytes();
++        self.push_u8(le[0])?;
++        self.push_u8(le[1])?;
++        self.push_u8(le[2])?;
++        self.push_u8(le[3])
++    }
++
++    #[inline]
++    fn as_slice(&self) -> &[u8] {
++        &self.bytes[..self.len]
++    }
++}
++
++fn encode_miniscript_postfix(desc: &DescriptorTemplate, out: &mut PostfixBuf) -> Result<(), Error> {
++    match desc {
++        DescriptorTemplate::Zero => out.push_u8(OP_ZERO),
++        DescriptorTemplate::One => out.push_u8(OP_ONE),
++        DescriptorTemplate::Pk_k(_) => out.push_u8(OP_PK_K),
++        DescriptorTemplate::Pk_h(_) => out.push_u8(OP_PK_H),
++        DescriptorTemplate::Pk(_) => out.push_u8(OP_PK),
++        DescriptorTemplate::Pkh(_) => out.push_u8(OP_PKH),
++        DescriptorTemplate::Older(n) => {
++            out.push_u8(OP_OLDER)?;
++            out.push_u32_le(*n)
++        }
++        DescriptorTemplate::After(n) => {
++            out.push_u8(OP_AFTER)?;
++            out.push_u32_le(*n)
++        }
++        DescriptorTemplate::Sha256(_) => out.push_u8(OP_SHA256),
++        DescriptorTemplate::Hash256(_) => out.push_u8(OP_HASH256),
++        DescriptorTemplate::Ripemd160(_) => out.push_u8(OP_RIPEMD160),
++        DescriptorTemplate::Hash160(_) => out.push_u8(OP_HASH160),
++        DescriptorTemplate::Multi(k, kps) | DescriptorTemplate::Sortedmulti(k, kps) => {
++            let k_u16 = u16::try_from(*k).map_err(|_| Error::InvalidMultisigQuorum)?;
++            let n_u16 = u16::try_from(kps.len()).map_err(|_| Error::TooManyKeys)?;
++            out.push_u8(OP_MULTI)?;
++            out.push_u16_le(k_u16)?;
++            out.push_u16_le(n_u16)
++        }
++        DescriptorTemplate::Multi_a(k, kps) | DescriptorTemplate::Sortedmulti_a(k, kps) => {
++            let k_u16 = u16::try_from(*k).map_err(|_| Error::InvalidMultisigQuorum)?;
++            let n_u16 = u16::try_from(kps.len()).map_err(|_| Error::TooManyKeys)?;
++            out.push_u8(OP_MULTI_A)?;
++            out.push_u16_le(k_u16)?;
++            out.push_u16_le(n_u16)
++        }
++        DescriptorTemplate::A(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_A)
++        }
++        DescriptorTemplate::S(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_S)
++        }
++        DescriptorTemplate::C(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_C)
++        }
++        DescriptorTemplate::T(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_T)
++        }
++        DescriptorTemplate::D(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_D)
++        }
++        DescriptorTemplate::V(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_V)
++        }
++        DescriptorTemplate::J(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_J)
++        }
++        DescriptorTemplate::N(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_N)
++        }
++        DescriptorTemplate::L(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_L)
++        }
++        DescriptorTemplate::U(x) => {
++            encode_miniscript_postfix(x, out)?;
++            out.push_u8(OP_WRAP_U)
++        }
++        DescriptorTemplate::And_v(x, y) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(y, out)?;
++            out.push_u8(OP_AND_V)
++        }
++        DescriptorTemplate::And_b(x, y) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(y, out)?;
++            out.push_u8(OP_AND_B)
++        }
++        DescriptorTemplate::And_n(x, y) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(y, out)?;
++            out.push_u8(OP_AND_N)
++        }
++        DescriptorTemplate::Or_b(x, z) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(z, out)?;
++            out.push_u8(OP_OR_B)
++        }
++        DescriptorTemplate::Or_c(x, z) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(z, out)?;
++            out.push_u8(OP_OR_C)
++        }
++        DescriptorTemplate::Or_d(x, z) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(z, out)?;
++            out.push_u8(OP_OR_D)
++        }
++        DescriptorTemplate::Or_i(x, z) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(z, out)?;
++            out.push_u8(OP_OR_I)
++        }
++        DescriptorTemplate::Andor(x, y, z) => {
++            encode_miniscript_postfix(x, out)?;
++            encode_miniscript_postfix(y, out)?;
++            encode_miniscript_postfix(z, out)?;
++            out.push_u8(OP_ANDOR)
++        }
++        DescriptorTemplate::Thresh(k, subs) => {
++            let k_u16 = u16::try_from(*k).map_err(|_| Error::InvalidWalletPolicy)?;
++            let n_u16 = u16::try_from(subs.len()).map_err(|_| Error::InvalidWalletPolicy)?;
++            for sub in subs {
++                encode_miniscript_postfix(sub, out)?;
++            }
++            out.push_u8(OP_THRESH)?;
++            out.push_u16_le(k_u16)?;
++            out.push_u16_le(n_u16)
++        }
++        // Descriptor wrappers (`sh`, `wsh`, `wpkh`, `tr`) are never valid inside Miniscript.
++        DescriptorTemplate::Sh(_)
++        | DescriptorTemplate::Wsh(_)
++        | DescriptorTemplate::Wpkh(_)
++        | DescriptorTemplate::Tr(_, _) => Err(Error::InvalidScriptContext),
++    }
++}
++
++/// Validates a Miniscript AST fragment in either P2WSH (`is_tapscript == false`) or
++/// BIP-342 Tapscript (`is_tapscript == true`) context using the freestanding Lean
++/// `llb_miniscript_check_postfix` kernel.
++pub fn check_miniscript_expr(
++    desc: &DescriptorTemplate,
++    is_tapscript: bool,
++    require_flags: u8,
++) -> Result<(), Error> {
++    let mut postfix = PostfixBuf::new();
++    encode_miniscript_postfix(desc, &mut postfix)?;
++    let require_non_malleable = (require_flags & 0x01) != 0;
++    let require_sig = (require_flags & 0x02) != 0;
++    if llb_vanadium_ffi::miniscript_check_postfix(
++        postfix.as_slice(),
++        is_tapscript,
++        require_non_malleable,
++        require_sig,
++    ) {
++        Ok(())
++    } else {
++        Err(Error::InvalidWalletPolicy)
++    }
++}
++
++/// Validates every Tapscript leaf in a [`TapTree`] under BIP-379 / BIP-388 sanity rules.
++pub fn check_taptree_miniscript(tree: &TapTree) -> Result<(), Error> {
++    match tree {
++        TapTree::Script(leaf) => check_miniscript_expr(leaf, true, REQUIRE_SANE_TOPLEVEL),
++        TapTree::Branch(l, r) => {
++            check_taptree_miniscript(l)?;
++            check_taptree_miniscript(r)
++        }
++    }
++}
++
++/// Validates a full BIP-388 [`DescriptorTemplate`] against Ledger hardware wallet
++/// script-context and Miniscript sanity rules (`VND-BUG-006`).
++pub fn check_descriptor_template(desc: &DescriptorTemplate) -> Result<(), Error> {
++    match desc {
++        DescriptorTemplate::Pkh(_) | DescriptorTemplate::Wpkh(_) => Ok(()),
++        DescriptorTemplate::Sh(inner) => match inner.as_ref() {
++            DescriptorTemplate::Wpkh(_) => Ok(()),
++            DescriptorTemplate::Multi(k, kps) | DescriptorTemplate::Sortedmulti(k, kps) => {
++                if kps.len() > 20 {
++                    return Err(Error::TooManyKeys);
++                }
++                if *k == 0 || (*k as usize) > kps.len() {
++                    return Err(Error::InvalidMultisigQuorum);
++                }
++                Ok(())
++            }
++            DescriptorTemplate::Wsh(wsh_inner) => {
++                check_miniscript_expr(wsh_inner, false, REQUIRE_SANE_TOPLEVEL)
++            }
++            _ => Err(Error::InvalidScriptContext),
++        },
++        DescriptorTemplate::Wsh(wsh_inner) => {
++            check_miniscript_expr(wsh_inner, false, REQUIRE_SANE_TOPLEVEL)
++        }
++        DescriptorTemplate::Tr(_, None) => Ok(()),
++        DescriptorTemplate::Tr(_, Some(tree)) => check_taptree_miniscript(tree),
++        _ => Err(Error::InvalidScriptContext),
++    }
++}
++
++/// Validates a [`WalletPolicy`]'s descriptor template using [`check_descriptor_template`].
++#[inline]
++pub fn check_wallet_policy_miniscript(policy: &WalletPolicy) -> Result<(), Error> {
++    check_descriptor_template(policy.descriptor_template())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::account::KeyInformation;
++    use crate::script::ToScript;
++    use alloc::vec;
++    use alloc::vec::Vec;
++
++    const XPUB0: &str = "[f5acc2fd/48'/1'/0'/2']tpubDFAqEGNyad35aBCKUAXbQGDjdVhNueno5ZZVEn3sQbW5ci457gLR7HyTmHBg93oourBssgUxuWz1jX5uhc1qaqFo9VsybY1J5FuedLfm4dK";
++    const XPUB1: &str = "[d5365b22/48'/1'/0'/2']tpubDFWK5mCX28dt6hfy74Bc51jjbWrimXow1bTxCMpJrWqesK3AeZiYn8tcLFW3VoBiHhM9FjKdLWaC3GZVVX5PfGNG3zfbM14bMb1SLym36nN";
++
++    fn keys(n: usize) -> Vec<KeyInformation> {
++        let all = [XPUB0, XPUB1];
++        all[..n]
++            .iter()
++            .map(|s| KeyInformation::try_from(*s).unwrap())
++            .collect()
++    }
++
++    #[test]
++    fn bug_006_accepts_sane_wsh_and_tapscript_policies() {
++        let p_andor =
++            WalletPolicy::new("wsh(andor(pk(@0/**),older(100),pk(@1/**)))", keys(2)).unwrap();
++        assert!(check_wallet_policy_miniscript(&p_andor).is_ok());
++        assert!(p_andor.to_script(false, 0).is_ok());
++
++        let p_tr = WalletPolicy::new(
++            "tr(@0/<0;1>/*,and_v(v:pk(@1/<0;1>/*),older(52596)))",
++            keys(2),
++        )
++        .unwrap();
++        assert!(check_wallet_policy_miniscript(&p_tr).is_ok());
++        assert!(p_tr.to_script(false, 0).is_ok());
++    }
++
++    #[test]
++    fn bug_006_rejects_older_zero_and_disable_flag() {
++        assert!(!llb_vanadium_ffi::miniscript_older_ok(0));
++        assert!(!llb_vanadium_ffi::miniscript_older_ok(0x8000_0001));
++        assert!(!llb_vanadium_ffi::miniscript_older_ok(0x0001_0001));
++        assert!(llb_vanadium_ffi::miniscript_older_ok(1));
++        assert!(llb_vanadium_ffi::miniscript_older_ok(0x0040_0001));
++
++        if let Ok(p_zero) = WalletPolicy::new("wsh(and_v(v:pk(@0/**),older(0)))", keys(1)) {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_zero),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_zero.to_script(false, 0).is_err());
++        }
++
++        if let Ok(p_disable) =
++            WalletPolicy::new("wsh(and_v(v:pk(@0/**),older(2147483649)))", keys(1))
++        {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_disable),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_disable.to_script(false, 0).is_err());
++        }
++    }
++
++    #[test]
++    fn bug_006_rejects_after_zero_and_msb_set() {
++        assert!(!llb_vanadium_ffi::miniscript_after_ok(0));
++        assert!(!llb_vanadium_ffi::miniscript_after_ok(0x8000_0000));
++        assert!(llb_vanadium_ffi::miniscript_after_ok(1));
++        assert!(llb_vanadium_ffi::miniscript_after_ok(500_000_000));
++
++        if let Ok(p_zero) = WalletPolicy::new("wsh(and_v(v:pk(@0/**),after(0)))", keys(1)) {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_zero),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_zero.to_script(false, 0).is_err());
++        }
++    }
++
++    #[test]
++    fn bug_006_rejects_timelock_height_time_mixing() {
++        // Mixing block-height `after(100)` (< 500_000_000) and MTP `after(500000000)` in `and_v`
++        // makes the conjunction permanently unsatisfiable / consensus-conflicting (`k == false`).
++        if let Ok(p_mix_after) = WalletPolicy::new(
++            "wsh(and_v(v:pk(@0/**),and_v(v:after(100),after(500000000))))",
++            keys(1),
++        ) {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_mix_after),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_mix_after.to_script(false, 0).is_err());
++        }
++
++        // Mixing block-relative `older(1)` and time-relative `older(4194305)` (`1 | (1 << 22)`).
++        if let Ok(p_mix_older) = WalletPolicy::new(
++            "wsh(and_v(v:pk(@0/**),and_v(v:older(1),older(4194305))))",
++            keys(1),
++        ) {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_mix_older),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_mix_older.to_script(false, 0).is_err());
++        }
++    }
++
++    #[test]
++    fn bug_006_rejects_missing_signature_and_malleable_scripts() {
++        // `older(100)` alone has `s == false` (anyone can spend without a signature once aged).
++        if let Ok(p_nosig) = WalletPolicy::new("wsh(older(100))", vec![]) {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_nosig),
++                Err(Error::InvalidWalletPolicy)
++            );
++        }
++
++        // `or_b(pk(@0/**),s:older(100))` has `s == false` on the aging branch (`top.s == false`).
++        if let Ok(p_or_nosig) =
++            WalletPolicy::new("wsh(or_b(pk(@0/**),s:older(100)))", keys(1))
++        {
++            assert_eq!(
++                check_wallet_policy_miniscript(&p_or_nosig),
++                Err(Error::InvalidWalletPolicy)
++            );
++            assert!(p_or_nosig.to_script(false, 0).is_err());
++        }
++
++        // `d:` in P2WSH lacks `u` (unconditional unit), making `or_i(d:v:pk(@0/**),pk(@1/**))` invalid/malleable;
++        // also test raw postfix `d:v:1` malleability rejection directly.
++        let mut ops = PostfixBuf::new();
++        ops.push_u8(OP_ONE).unwrap();
++        ops.push_u8(OP_WRAP_V).unwrap();
++        ops.push_u8(OP_WRAP_D).unwrap();
++        assert!(!llb_vanadium_ffi::miniscript_check_postfix(
++            ops.as_slice(),
++            false,
++            true,
++            true
++        ));
++
++        // Top-level `K` (`pk_k` without `c:`) is rejected because `top.base != B`.
++        let mut pk_k_ops = PostfixBuf::new();
++        pk_k_ops.push_u8(OP_PK_K).unwrap();
++        assert!(!llb_vanadium_ffi::miniscript_check_postfix(
++            pk_k_ops.as_slice(),
++            false,
++            true,
++            true
++        ));
++    }
++}
 diff --git a/apps/bitcoin/common/src/musig/mod.rs b/apps/bitcoin/common/src/musig/mod.rs
-index 18b1e1d..65f6474 100644
+index 18b1e1d..27d2faa 100644
 --- a/apps/bitcoin/common/src/musig/mod.rs
 +++ b/apps/bitcoin/common/src/musig/mod.rs
-@@ -508,7 +508,13 @@ pub fn aggregate_xpub(participant_xpubs: &[Xpub]) -> Result<Xpub, MusigError> {
+@@ -508,7 +508,7 @@ pub fn aggregate_xpub(participant_xpubs: &[Xpub]) -> Result<Xpub, MusigError> {
          .iter()
          .map(|x| x.public_key.serialize())
          .collect();
 -    pks.sort();
-+    for i in 1..pks.len() {
-+        let mut j = i;
-+        while j > 0 && pks[j - 1] > pks[j] {
-+            pks.swap(j - 1, j);
-+            j -= 1;
-+        }
-+    }
++    llb_vanadium_ffi::sort_fixed_bytes(&mut pks);
      let ctx = key_agg(&pks)?;
  
      // The synthetic xpub must preserve the *natural* parity of `Q`, not
 diff --git a/apps/bitcoin/common/src/script.rs b/apps/bitcoin/common/src/script.rs
-index c7202dd..a687f2c 100644
+index c7202dd..66bb172 100644
 --- a/apps/bitcoin/common/src/script.rs
 +++ b/apps/bitcoin/common/src/script.rs
 @@ -1,4 +1,4 @@
@@ -1429,7 +2142,45 @@ index c7202dd..a687f2c 100644
  
  use bitcoin::bip32::{ChildNumber, Xpub};
  use bitcoin::hashes::{hash160, sha256, Hash};
-@@ -143,7 +143,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+@@ -8,34 +8,11 @@ use bitcoin::script::Builder;
+ use bitcoin::{PubkeyHash, ScriptBuf, ScriptHash, TapNodeHash, WPubkeyHash, WScriptHash};
+ 
+ use crate::errors::Error;
++use crate::miniscript_check::{
++    check_miniscript_expr, check_wallet_policy_miniscript, REQUIRE_SANE_TOPLEVEL,
++};
+ use crate::taproot::GetTapTreeHash;
+ 
+-// Simple generic bubble sort implementation for Vec<[u8; N]>.
+-trait BubbleSort {
+-    fn bubble_sort(&mut self);
+-}
+-
+-impl<const N: usize> BubbleSort for Vec<[u8; N]> {
+-    fn bubble_sort(&mut self) {
+-        let len = self.len();
+-        if len < 2 {
+-            return;
+-        }
+-        for i in 0..len {
+-            let mut swapped = false;
+-            for j in 0..(len - 1 - i) {
+-                if self[j] > self[j + 1] {
+-                    self.swap(j, j + 1);
+-                    swapped = true;
+-                }
+-            }
+-            if !swapped {
+-                break;
+-            }
+-        }
+-    }
+-}
+-
+ use crate::account::{DescriptorTemplate, KeyExpression, KeyInformation, WalletPolicy};
+ 
+ const MAX_PUBKEYS_PER_MULTISIG: usize = 20;
+@@ -143,7 +120,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
  
          builder = match self {
              DescriptorTemplate::Sh(inner) => {
@@ -1438,7 +2189,7 @@ index c7202dd..a687f2c 100644
                      return Err(Error::InvalidScriptContext);
                  }
  
-@@ -157,7 +157,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+@@ -157,7 +134,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
                  )?;
  
                  let script_hash =
@@ -1447,7 +2198,7 @@ index c7202dd..a687f2c 100644
  
                  builder
                      .push_opcode(OP_HASH160)
-@@ -165,7 +165,8 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+@@ -165,9 +142,11 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
                      .push_opcode(OP_EQUAL)
              }
              DescriptorTemplate::Wsh(inner) => {
@@ -1456,8 +2207,11 @@ index c7202dd..a687f2c 100644
 +                if ctx != ScriptContext::None && ctx != ScriptContext::Sh {
                      return Err(Error::InvalidScriptContext);
                  }
++                check_miniscript_expr(inner, false, REQUIRE_SANE_TOPLEVEL)?;
  
-@@ -178,19 +179,19 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                 let mut inner_builder = Builder::new();
+                 inner_builder = inner.to_script_inner(
+@@ -178,19 +157,19 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
                      ScriptContext::Wsh,
                  )?;
                  let script_hash =
@@ -1483,7 +2237,47 @@ index c7202dd..a687f2c 100644
                  builder
                      .push_opcode(OP_DUP)
                      .push_opcode(OP_HASH160)
-@@ -307,11 +308,15 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+@@ -231,8 +210,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                     .collect::<Result<Vec<[u8; 33]>, Error>>()?;
+ 
+                 if matches!(self, DescriptorTemplate::Sortedmulti(_, _)) {
+-                    // O(n^2) sorting, better for small arrays
+-                    keys.bubble_sort();
++                    llb_vanadium_ffi::sort_fixed_bytes(&mut keys);
+                 }
+ 
+                 for key in keys {
+@@ -270,8 +248,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                     .collect::<Result<Vec<[u8; 32]>, Error>>()?;
+ 
+                 if matches!(self, DescriptorTemplate::Sortedmulti_a(_, _)) {
+-                    // O(n^2) sorting, better for small arrays
+-                    keys.bubble_sort();
++                    llb_vanadium_ffi::sort_fixed_bytes(&mut keys);
+                 }
+ 
+                 for (idx, key) in keys.iter().enumerate() {
+@@ -287,6 +264,9 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                 builder.push_int(*k as i64).push_opcode(OP_NUMEQUAL)
+             }
+             DescriptorTemplate::Tr(k, tree) => {
++                if ctx != ScriptContext::None {
++                    return Err(Error::InvalidScriptContext);
++                }
+                 let secp = bitcoin::secp256k1::Secp256k1::new();
+                 let internal_key: UntweakedPublicKey = derive(k)?.to_x_only_pub();
+ 
+@@ -294,8 +274,7 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                     .as_ref()
+                     .map(|t| {
+                         t.get_taptree_hash(key_information, is_change, address_index)
+-                            .map(|t| TapNodeHash::from_byte_array(t))
+-                            .map_err(|_| Error::InvalidKey)
++                            .map(TapNodeHash::from_byte_array)
+                     })
+                     .transpose()?;
+ 
+@@ -307,11 +286,15 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
              }
              DescriptorTemplate::Zero => builder.push_opcode(OP_0),
              DescriptorTemplate::One => builder.push_opcode(OP_PUSHNUM_1),
@@ -1504,19 +2298,81 @@ index c7202dd..a687f2c 100644
              DescriptorTemplate::Pk_k(kp) => {
                  let key = derive(kp)?;
                  if ctx == ScriptContext::Tr {
-@@ -364,12 +369,13 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+@@ -334,8 +317,18 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
+                     .push_slice(&rip.to_byte_array())
+                     .push_opcode(OP_EQUALVERIFY)
+             }
+-            DescriptorTemplate::Older(n) => builder.push_int(*n as i64).push_opcode(OP_CSV),
+-            DescriptorTemplate::After(n) => builder.push_int(*n as i64).push_opcode(OP_CLTV),
++            DescriptorTemplate::Older(n) => {
++                if !llb_vanadium_ffi::miniscript_older_ok(*n) {
++                    return Err(Error::InvalidWalletPolicy);
++                }
++                builder.push_int(*n as i64).push_opcode(OP_CSV)
++            }
++            DescriptorTemplate::After(n) => {
++                if !llb_vanadium_ffi::miniscript_after_ok(*n) {
++                    return Err(Error::InvalidWalletPolicy);
++                }
++                builder.push_int(*n as i64).push_opcode(OP_CLTV)
++            }
+             DescriptorTemplate::Sha256(h) => builder
+                 .push_opcode(OP_SIZE)
+                 .push_int(32)
+@@ -364,13 +357,21 @@ impl ToScriptWithKeyInfoInner for DescriptorTemplate {
                  .push_opcode(OP_HASH160)
                  .push_slice(h)
                  .push_opcode(OP_EQUAL),
-+            // BIP-379 canonical `andor(X,Y,Z)`: `[X] OP_NOTIF [Z] OP_ELSE [Y] OP_ENDIF` (VND-BUG-001).
-             DescriptorTemplate::Andor(x, y, z) => builder
-                 .push_inner_script(x, key_information, is_change, address_index, ctx)?
-                 .push_opcode(OP_NOTIF)
+-            DescriptorTemplate::Andor(x, y, z) => builder
+-                .push_inner_script(x, key_information, is_change, address_index, ctx)?
+-                .push_opcode(OP_NOTIF)
 -                .push_inner_script(y, key_information, is_change, address_index, ctx)?
 -                .push_opcode(OP_ELSE)
-                 .push_inner_script(z, key_information, is_change, address_index, ctx)?
-+                .push_opcode(OP_ELSE)
-+                .push_inner_script(y, key_information, is_change, address_index, ctx)?
-                 .push_opcode(OP_ENDIF),
+-                .push_inner_script(z, key_information, is_change, address_index, ctx)?
+-                .push_opcode(OP_ENDIF),
++            // BIP-379 canonical `andor(X,Y,Z)`: `[X] OP_NOTIF [Z] OP_ELSE [Y] OP_ENDIF` (VND-BUG-001).
++            DescriptorTemplate::Andor(x, y, z) => {
++                debug_assert!(llb_vanadium_ffi::miniscript_andor_branches_valid(
++                    OP_NOTIF.to_u8(),
++                    OP_ELSE.to_u8(),
++                    OP_ENDIF.to_u8()
++                ));
++                builder
++                    .push_inner_script(x, key_information, is_change, address_index, ctx)?
++                    .push_opcode(OP_NOTIF)
++                    .push_inner_script(z, key_information, is_change, address_index, ctx)?
++                    .push_opcode(OP_ELSE)
++                    .push_inner_script(y, key_information, is_change, address_index, ctx)?
++                    .push_opcode(OP_ENDIF)
++            }
              DescriptorTemplate::And_v(x, y) => builder
                  .push_inner_script(x, key_information, is_change, address_index, ctx)?
+                 .push_inner_script(y, key_information, is_change, address_index, ctx)?,
+@@ -494,6 +495,7 @@ impl ToScriptWithKeyInfo for DescriptorTemplate {
+ 
+ impl ToScript for WalletPolicy {
+     fn to_script(&self, is_change: bool, address_index: u32) -> Result<ScriptBuf, Error> {
++        check_wallet_policy_miniscript(self)?;
+         self.descriptor_template().to_script(
+             self.key_information(),
+             is_change,
+diff --git a/apps/bitcoin/common/src/taproot.rs b/apps/bitcoin/common/src/taproot.rs
+index 40df2f9..1b7e646 100644
+--- a/apps/bitcoin/common/src/taproot.rs
++++ b/apps/bitcoin/common/src/taproot.rs
+@@ -6,6 +6,7 @@ use bitcoin::{TapLeafHash, TapNodeHash};
+ use crate::{
+     account::{DescriptorTemplate, KeyInformation, TapTree},
+     errors::Error,
++    miniscript_check::{check_miniscript_expr, REQUIRE_SANE_TOPLEVEL},
+     script::{ScriptContext, ToScriptWithKeyInfo},
+ };
+ 
+@@ -60,6 +61,7 @@ impl GetTapLeafHash for DescriptorTemplate {
+         is_change: bool,
+         address_index: u32,
+     ) -> Result<TapLeafHash, Error> {
++        check_miniscript_expr(self, true, REQUIRE_SANE_TOPLEVEL)?;
+         let script =
+             self.to_script(key_information, is_change, address_index, ScriptContext::Tr)?;
+         Ok(TapLeafHash::from_script(

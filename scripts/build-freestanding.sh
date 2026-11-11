@@ -41,10 +41,33 @@ if [ -z "${LEAN_NATIVE:-}" ]; then
     LEAN_NATIVE="${HUB}/turbo-lean/lean/.lake/build/bin/lean-native"
   fi
 fi
+find_llvm_tool() {
+  local name="$1"
+  local cand
+  if command -v "${name}" >/dev/null 2>&1; then
+    command -v "${name}"
+    return 0
+  fi
+  for cand in \
+    "/usr/lib/llvm-21/bin/${name}" \
+    "/usr/lib/llvm-20/bin/${name}" \
+    "/usr/lib/llvm-19/bin/${name}" \
+    "/usr/lib/llvm-18/bin/${name}" \
+    "${HUB}/dev-tools-rootfs/usr/lib/llvm-21/bin/${name}"; do
+    if [ -x "${cand}" ]; then
+      printf '%s\n' "${cand}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 LLB_KERNEL="${LLB_KERNEL:-BitcoinLedger/FreestandingKernels.lean}"
 LLB_STACK_BUDGET="${LLB_STACK_BUDGET:-1024}"
-CLANG="${CLANG:-clang}"
-LLVM_NM="${LLVM_NM:-$(command -v llvm-nm || command -v nm)}"
+CLANG="${CLANG:-$(find_llvm_tool clang || echo clang)}"
+LLVM_NM="${LLVM_NM:-$(find_llvm_tool llvm-nm || command -v nm || echo llvm-nm)}"
+LLVM_AR="${LLVM_AR:-$(find_llvm_tool llvm-ar || command -v ar || echo llvm-ar)}"
+LLVM_OPT="${LLVM_OPT:-$(find_llvm_tool opt || echo opt)}"
 LIB_NAME="liblean_ledger_bitcoin"
 
 # Stack-usage budget for the 12 KB Nano X main stack: keep every single kernel
@@ -63,10 +86,10 @@ log() {
   printf '[build-freestanding] %s\n' "$*"
 }
 
-[ -x "${LEAN_NATIVE}" ] || die "lean-native driver not found/executable at '${LEAN_NATIVE}' (set LEAN_NATIVE)"
 [ -f "${REPO_ROOT}/${LLB_KERNEL}" ] || die "kernel module '${REPO_ROOT}/${LLB_KERNEL}' not found (set LLB_KERNEL)"
-command -v "${CLANG}" >/dev/null 2>&1 || die "clang not found at '${CLANG}' (set CLANG)"
-command -v "${LLVM_NM}" >/dev/null 2>&1 || die "nm not found at '${LLVM_NM}' (set LLVM_NM)"
+command -v "${CLANG}" >/dev/null 2>&1 || [ -x "${CLANG}" ] || die "clang not found at '${CLANG}' (set CLANG)"
+command -v "${LLVM_NM}" >/dev/null 2>&1 || [ -x "${LLVM_NM}" ] || die "nm not found at '${LLVM_NM}' (set LLVM_NM)"
+command -v "${LLVM_AR}" >/dev/null 2>&1 || [ -x "${LLVM_AR}" ] || die "ar not found at '${LLVM_AR}' (set LLVM_AR)"
 
 # target-tag|out-dir
 TARGETS=(
@@ -85,19 +108,19 @@ emit_target() {
   local archive="${out_dir}/${LIB_NAME}.a"
 
   log "emitting ${tag} -> ${out_dir}"
+  [ -x "${LEAN_NATIVE}" ] || die "lean-native not executable at '${LEAN_NATIVE}' (C fallback removed)"
   (cd "${REPO_ROOT}" && "${LEAN_NATIVE}" emit-freestanding-c-lib \
     --input "${LLB_KERNEL}" \
     --target "${tag}" \
     --clang-bin "${CLANG}" \
     -o "${archive}" \
-    --json)
+    --json) || die "[${tag}] lean-native emit-freestanding-c-lib failed"
 }
 
 emit_bolos_lto_bundle() {
   local lto_dir="${REPO_ROOT}/ffi/bolos/build/lto"
-  local opt_bin
-  opt_bin="$(command -v opt || echo "${HUB}/dev-tools-rootfs/usr/lib/llvm-21/bin/opt")"
-  [ -x "${opt_bin}" ] || die "LLVM opt binary not found at '${opt_bin}'"
+  local opt_bin="${LLVM_OPT}"
+  command -v "${opt_bin}" >/dev/null 2>&1 || [ -x "${opt_bin}" ] || die "LLVM opt binary not found at '${opt_bin}'"
 
   mkdir -p "${lto_dir}"
   cp "${REPO_ROOT}/ffi/bolos/build/thumbv8m.main/${LIB_NAME}.h" "${lto_dir}/${LIB_NAME}_ilp32.h"
@@ -126,6 +149,8 @@ INLINE_SCALARS = {
     "llb_bip32_is_hardened",
     "llb_bip32_unharden",
     "llb_valid_amount",
+    "llb_checked_add_sats_ok",
+    "llb_checked_add_sats_val",
     "llb_sighash_type_valid",
     "llb_taproot_sighash_valid",
     "llb_bech32_final_constant",
@@ -133,24 +158,28 @@ INLINE_SCALARS = {
     "llb_witness_opcode_to_version",
     "llb_wallet_name_char_ok",
     "llb_merkle_advance_state",
+    "llb_miniscript_older_ok",
+    "llb_miniscript_after_ok",
+    "llb_miniscript_andor_branches_valid",
 }
 
 out = []
 for line in text.splitlines():
     if line.startswith("!llvm.ident") or line.startswith("!0 = !{!\"lean-native"):
         continue
-    m = re.match(r'^define\s+(?:dso_local\s+)?(.*?)\s+@([^\(\s]+)\((.*)$', line)
+    m = re.match(r'^define\s+(?:(?:dso_local|internal|hidden)\s+)*(.*?)\s+@([^\(\s]+)\((.*)$', line)
     if m:
         ret_ty, fn, rest = m.groups()
         if fn.startswith("llb_"):
             extra = " alwaysinline" if (fn in INLINE_SCALARS or tag == "host") else ""
-            opt_attr = "" if tag == "host" else "optsize"
+            opt_attr = "" if tag == "host" else " optsize"
             line = f"define hidden {ret_ty} @{fn}({rest}"
             if line.endswith("{"):
                 line = line[:-1] + f"{opt_attr}{extra} {{"
         else:
             line = f"define internal {ret_ty} @{fn}({rest}"
     elif line.startswith("attributes #"):
+        line = re.sub(r'\s*"(?:target-cpu|target-features|tune-cpu|frame-pointer|stack-protector-buffer-size)"="[^"]*"', '', line)
         line = line.replace(" minsize ", " ")
         if tag == "host":
             line = line.replace(" optsize ", " ")
@@ -164,10 +193,12 @@ PY
       "${opt_bin}" -S -passes='default<Oz>' "${dst_ll}.pre.ll" -o "${dst_ll}"
     fi
     python3 - "${dst_ll}" "${tag}" <<'PY2'
-import sys
+import re, sys
 p, tag = sys.argv[1], sys.argv[2]
 s = open(p).read()
 def clean_attr(l: str) -> str:
+    if l.startswith("attributes #"):
+        l = re.sub(r'\s*"(?:target-cpu|target-features|tune-cpu|frame-pointer|stack-protector-buffer-size)"="[^"]*"', '', l)
     l = l.replace(" minsize ", " ")
     if tag == "host":
         l = l.replace(" optsize ", " ")
@@ -213,12 +244,17 @@ verify_target() {
   fi
   local forbidden
   forbidden="$(printf '%s\n' "${nm_out}" \
-    | grep -E 'malloc|free|lean_alloc_|lean_inc|lean_dec|lean_mark_mt|lean_native_ensure_exclusive|lean_native_box_u64' \
+    | grep -E 'malloc|free|memcpy|memmove|memset|memcmp|__aeabi_|__udiv|__umod|lean_alloc_|lean_inc|lean_dec|lean_mark_mt|lean_native_ensure_exclusive|lean_native_box_u64' \
     || true)"
   if [ -n "${forbidden}" ]; then
-    die "[${tag}] archive references forbidden heap/runtime symbols: ${forbidden}"
+    die "[${tag}] archive references forbidden heap/runtime/libgcc symbols: ${forbidden}"
   fi
-  log "[${tag}] symbols ok: undefined=0, malloc/lean_alloc_*=0"
+  local sym_count
+  sym_count="$(printf '%s\n' "${nm_out}" | awk '$2 == "T" && $3 ~ /^llb_/ { print $3 }' | sort -u | wc -l | tr -d ' ')"
+  if [ "${sym_count}" -lt 45 ]; then
+    die "[${tag}] archive exports ${sym_count} llb_* symbols (expected >= 45)"
+  fi
+  log "[${tag}] symbols ok: exported=${sym_count}, undefined=0, forbidden=0"
 
   # 3) Stack-usage budget: every kernel function frame < LLB_STACK_BUDGET bytes.
   local worst frame fn
