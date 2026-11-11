@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 
 namespace Proofs.Basic
@@ -8,12 +8,12 @@ namespace Proofs.Basic
 
 Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`, `0 omega`) proofs connecting
 the fixed-width executable primitives in `BitcoinLedger.Basic` to the normative specifications in
-`Spec.Basic`:
-1. Checked `UInt64` satoshi arithmetic equivalence (`checkedAddSats? = Spec.addAmounts?`,
-   `checkedSubSats? = Spec.subAmounts?`, `checkedSumSats? = Spec.sumAmounts?`) and concrete
+`InternalSpec.Basic`:
+1. Checked `UInt64` satoshi arithmetic equivalence (`checkedAddSats? = InternalSpec.addAmounts?`,
+   `checkedSubSats? = InternalSpec.subAmounts?`, `checkedSumSats? = InternalSpec.sumAmounts?`) and concrete
    `2^64 - 1 + 1` / `MAX_MONEY + 1` overflow rejection theorems.
 2. Constructive byte-slice equality (`eqBytes`) and fixed-width validators (`isBytes4..65`).
-3. Fixed-width shift/OR LE & BE integer codec equivalence with `Spec.encodeU*` / `Spec.decodeU*?`
+3. Fixed-width shift/OR LE & BE integer codec equivalence with `InternalSpec.encodeU*` / `InternalSpec.decodeU*?`
    plus bijective encode/decode roundtrips.
 4. Canonical CompactSize / VarInt (`encodeVarInt`, `decodeVarIntCanonical?`, `varIntByteLen`,
    `decodeVarIntCanonicalPrefix?`) exact equivalence with `Spec`, bijective roundtrip, and
@@ -43,17 +43,17 @@ local instance (priority := high) : LawfulBEq UInt64 where
 
 /-! ## Section 1: Satoshi Arithmetic Refinement (`checkedAddSats?`, `checkedSubSats?`, `checkedSumSats?`) -/
 
-theorem sats_per_btc_eq : BitcoinLedger.Basic.SATS_PER_BTC = Spec.SATS_PER_BTC := rfl
+theorem sats_per_btc_eq : BitcoinLedger.Basic.SATS_PER_BTC = InternalSpec.SATS_PER_BTC := rfl
 
-theorem max_money_eq : BitcoinLedger.Basic.MAX_MONEY = Spec.MAX_MONEY := rfl
+theorem max_money_eq : BitcoinLedger.Basic.MAX_MONEY = InternalSpec.MAX_MONEY := rfl
 
 theorem isValidAmount_iff (a : UInt64) :
-    BitcoinLedger.Basic.isValidAmount a = true ↔ Spec.ValidAmount a := by
-  unfold BitcoinLedger.Basic.isValidAmount Spec.ValidAmount
+    BitcoinLedger.Basic.isValidAmount a = true ↔ InternalSpec.ValidAmount a := by
+  unfold BitcoinLedger.Basic.isValidAmount InternalSpec.ValidAmount
   rw [decide_eq_true_eq, max_money_eq, UInt64.le_iff_toNat_le]
 
 private theorem max_money_lt_two_pow_64 :
-    Spec.MAX_MONEY.toNat < 2 ^ 64 := Spec.MAX_MONEY.toNat_lt
+    InternalSpec.MAX_MONEY.toNat < 2 ^ 64 := InternalSpec.MAX_MONEY.toNat_lt
 
 private theorem u64_add_eq_ofNat (a b : UInt64) :
     a + b = UInt64.ofNat (a.toNat + b.toNat) := by
@@ -67,63 +67,63 @@ private theorem u64_sub_eq_ofNat_of_le {a b : UInt64} (hba : b ≤ a) :
     Nat.lt_of_le_of_lt (Nat.sub_le _ _) a.toNat_lt
   rw [UInt64.toNat_sub_of_le a b hba, UInt64.toNat_ofNat', Nat.mod_eq_of_lt hsub_lt]
 
-/-- Exact equivalence between fixed-width `checkedAddSats?` (`b ≤ MAX_MONEY - a`) and `Spec.addAmounts?`. -/
+/-- Exact equivalence between fixed-width `checkedAddSats?` (`b ≤ MAX_MONEY - a`) and `InternalSpec.addAmounts?`. -/
 theorem checkedAddSats?_eq (a b : UInt64) :
-    BitcoinLedger.Basic.checkedAddSats? a b = Spec.addAmounts? a b := by
-  unfold BitcoinLedger.Basic.checkedAddSats? Spec.addAmounts?
+    BitcoinLedger.Basic.checkedAddSats? a b = InternalSpec.addAmounts? a b := by
+  unfold BitcoinLedger.Basic.checkedAddSats? InternalSpec.addAmounts?
   rw [max_money_eq]
-  cases ha : decide (a ≤ Spec.MAX_MONEY)
-  · have hna : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat) := by
+  cases ha : decide (a ≤ InternalSpec.MAX_MONEY)
+  · have hna : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat) := by
       intro hle
       exact of_decide_eq_false ha (UInt64.le_iff_toNat_le.mpr hle)
     simp only [Bool.false_and, Bool.false_eq_true, ↓reduceIte]
-    have hnot : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                   a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat) := fun h => hna h.1
+    have hnot : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                   a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat) := fun h => hna h.1
     simp only [hnot, ↓reduceIte]
-  · have haLe : a ≤ Spec.MAX_MONEY := of_decide_eq_true ha
-    have haNat : a.toNat ≤ Spec.MAX_MONEY.toNat := UInt64.le_iff_toNat_le.mp haLe
-    have hSubNat : (Spec.MAX_MONEY - a).toNat = Spec.MAX_MONEY.toNat - a.toNat :=
-      UInt64.toNat_sub_of_le Spec.MAX_MONEY a haLe
-    cases hb : decide (b ≤ Spec.MAX_MONEY - a)
-    · have hnb : ¬ (b.toNat ≤ Spec.MAX_MONEY.toNat - a.toNat) := by
+  · have haLe : a ≤ InternalSpec.MAX_MONEY := of_decide_eq_true ha
+    have haNat : a.toNat ≤ InternalSpec.MAX_MONEY.toNat := UInt64.le_iff_toNat_le.mp haLe
+    have hSubNat : (InternalSpec.MAX_MONEY - a).toNat = InternalSpec.MAX_MONEY.toNat - a.toNat :=
+      UInt64.toNat_sub_of_le InternalSpec.MAX_MONEY a haLe
+    cases hb : decide (b ≤ InternalSpec.MAX_MONEY - a)
+    · have hnb : ¬ (b.toNat ≤ InternalSpec.MAX_MONEY.toNat - a.toNat) := by
         intro hle
         apply of_decide_eq_false hb
         rw [UInt64.le_iff_toNat_le, hSubNat]
         exact hle
       simp only [Bool.true_and, Bool.false_eq_true, ↓reduceIte]
-      have hnot : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                     a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat) := by
+      have hnot : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                     a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat) := by
         intro ⟨_, _, hab⟩
         exact hnb (Nat.le_sub_of_add_le' hab)
       simp only [hnot, ↓reduceIte]
-    · have hbLe : b ≤ Spec.MAX_MONEY - a := of_decide_eq_true hb
-      have hbSub : b.toNat ≤ Spec.MAX_MONEY.toNat - a.toNat := by
+    · have hbLe : b ≤ InternalSpec.MAX_MONEY - a := of_decide_eq_true hb
+      have hbSub : b.toNat ≤ InternalSpec.MAX_MONEY.toNat - a.toNat := by
         rw [← hSubNat]
         exact UInt64.le_iff_toNat_le.mp hbLe
-      have hab : a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat := by
+      have hab : a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat := by
         rw [Nat.add_comm]
         exact Nat.add_le_of_le_sub haNat hbSub
-      have hbMax : b.toNat ≤ Spec.MAX_MONEY.toNat :=
+      have hbMax : b.toNat ≤ InternalSpec.MAX_MONEY.toNat :=
         Nat.le_trans (Nat.le_add_left b.toNat a.toNat) hab
       simp only [Bool.true_and, haNat, hbMax, hab, and_self, ↓reduceIte, u64_add_eq_ofNat a b]
 
-/-- Exact equivalence between fixed-width `checkedSubSats?` and `Spec.subAmounts?`. -/
+/-- Exact equivalence between fixed-width `checkedSubSats?` and `InternalSpec.subAmounts?`. -/
 theorem checkedSubSats?_eq (total part : UInt64) :
-    BitcoinLedger.Basic.checkedSubSats? total part = Spec.subAmounts? total part := by
-  unfold BitcoinLedger.Basic.checkedSubSats? Spec.subAmounts?
+    BitcoinLedger.Basic.checkedSubSats? total part = InternalSpec.subAmounts? total part := by
+  unfold BitcoinLedger.Basic.checkedSubSats? InternalSpec.subAmounts?
   rw [max_money_eq]
-  cases ht : decide (total ≤ Spec.MAX_MONEY)
-  · have hnt : ¬ (total.toNat ≤ Spec.MAX_MONEY.toNat) :=
+  cases ht : decide (total ≤ InternalSpec.MAX_MONEY)
+  · have hnt : ¬ (total.toNat ≤ InternalSpec.MAX_MONEY.toNat) :=
       fun hle => of_decide_eq_false ht (UInt64.le_iff_toNat_le.mpr hle)
-    have hnot : ¬ (total.toNat ≤ Spec.MAX_MONEY.toNat ∧ part.toNat ≤ total.toNat) :=
+    have hnot : ¬ (total.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ part.toNat ≤ total.toNat) :=
       fun h => hnt h.1
     simp only [Bool.false_and, Bool.false_eq_true, hnot, ↓reduceIte]
-  · have htNat : total.toNat ≤ Spec.MAX_MONEY.toNat :=
+  · have htNat : total.toNat ≤ InternalSpec.MAX_MONEY.toNat :=
       UInt64.le_iff_toNat_le.mp (of_decide_eq_true ht)
     cases hp : decide (part ≤ total)
     · have hnp : ¬ (part.toNat ≤ total.toNat) :=
         fun hle => of_decide_eq_false hp (UInt64.le_iff_toNat_le.mpr hle)
-      have hnot : ¬ (total.toNat ≤ Spec.MAX_MONEY.toNat ∧ part.toNat ≤ total.toNat) :=
+      have hnot : ¬ (total.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ part.toNat ≤ total.toNat) :=
         fun h => hnp h.2
       simp only [Bool.true_and, Bool.false_eq_true, hnot, ↓reduceIte]
     · have hpLe : part ≤ total := of_decide_eq_true hp
@@ -131,18 +131,18 @@ theorem checkedSubSats?_eq (total part : UInt64) :
       simp only [Bool.true_and, htNat, hpNat, and_self, ↓reduceIte, u64_sub_eq_ofNat_of_le hpLe]
 
 private theorem addAmounts?_comm (a b : UInt64) :
-    Spec.addAmounts? a b = Spec.addAmounts? b a := by
-  unfold Spec.addAmounts?
-  by_cases h1 : a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat
+    InternalSpec.addAmounts? a b = InternalSpec.addAmounts? b a := by
+  unfold InternalSpec.addAmounts?
+  by_cases h1 : a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat
   · rcases h1 with ⟨ha, hb, hab⟩
-    have hba : b.toNat + a.toNat ≤ Spec.MAX_MONEY.toNat := by
+    have hba : b.toNat + a.toNat ≤ InternalSpec.MAX_MONEY.toNat := by
       rw [Nat.add_comm]
       exact hab
     simp only [ha, hb, hab, hba, and_self, ↓reduceIte]
     rw [Nat.add_comm]
-  · have h2 : ¬ (b.toNat ≤ Spec.MAX_MONEY.toNat ∧ a.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                 b.toNat + a.toNat ≤ Spec.MAX_MONEY.toNat) := by
+  · have h2 : ¬ (b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                 b.toNat + a.toNat ≤ InternalSpec.MAX_MONEY.toNat) := by
       intro ⟨hb, ha, hba⟩
       apply h1
       refine ⟨ha, hb, ?_⟩
@@ -150,120 +150,120 @@ private theorem addAmounts?_comm (a b : UInt64) :
       exact hba
     simp only [h1, h2, ↓reduceIte]
 
-private theorem addAmounts?_zero_left (a : UInt64) (ha : a.toNat ≤ Spec.MAX_MONEY.toNat) :
-    Spec.addAmounts? 0 a = some a := by
-  unfold Spec.addAmounts?
+private theorem addAmounts?_zero_left (a : UInt64) (ha : a.toNat ≤ InternalSpec.MAX_MONEY.toNat) :
+    InternalSpec.addAmounts? 0 a = some a := by
+  unfold InternalSpec.addAmounts?
   have h0 : (0 : UInt64).toNat = 0 := rfl
-  have h0Le : 0 ≤ Spec.MAX_MONEY.toNat := Nat.zero_le _
+  have h0Le : 0 ≤ InternalSpec.MAX_MONEY.toNat := Nat.zero_le _
   simp only [h0, Nat.zero_add, h0Le, ha, and_self, ↓reduceIte]
   apply congrArg some
   apply UInt64.toNat_inj.mp
   rw [UInt64.toNat_ofNat', Nat.mod_eq_of_lt a.toNat_lt]
 
 private theorem addAmounts?_assoc (a b c : UInt64)
-    (ha : a.toNat ≤ Spec.MAX_MONEY.toNat) :
-    (match Spec.addAmounts? a b with
+    (ha : a.toNat ≤ InternalSpec.MAX_MONEY.toNat) :
+    (match InternalSpec.addAmounts? a b with
      | none => none
-     | some ab => Spec.addAmounts? ab c) =
-    (match Spec.addAmounts? b c with
+     | some ab => InternalSpec.addAmounts? ab c) =
+    (match InternalSpec.addAmounts? b c with
      | none => none
-     | some bc => Spec.addAmounts? a bc) := by
-  by_cases hb : b.toNat ≤ Spec.MAX_MONEY.toNat
-  · by_cases hc : c.toNat ≤ Spec.MAX_MONEY.toNat
-    · by_cases habc : a.toNat + b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat
-      · have hab : a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat :=
+     | some bc => InternalSpec.addAmounts? a bc) := by
+  by_cases hb : b.toNat ≤ InternalSpec.MAX_MONEY.toNat
+  · by_cases hc : c.toNat ≤ InternalSpec.MAX_MONEY.toNat
+    · by_cases habc : a.toNat + b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat
+      · have hab : a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat :=
           Nat.le_trans (Nat.le_add_right _ _) habc
-        have hbc : b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat := by
+        have hbc : b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat := by
           have : b.toNat + c.toNat ≤ a.toNat + (b.toNat + c.toNat) := Nat.le_add_left _ _
           rw [← Nat.add_assoc] at this
           exact Nat.le_trans this habc
-        have habEq : Spec.addAmounts? a b = some (UInt64.ofNat (a.toNat + b.toNat)) := by
-          unfold Spec.addAmounts?
+        have habEq : InternalSpec.addAmounts? a b = some (UInt64.ofNat (a.toNat + b.toNat)) := by
+          unfold InternalSpec.addAmounts?
           simp only [ha, hb, hab, and_self, ↓reduceIte]
-        have hbcEq : Spec.addAmounts? b c = some (UInt64.ofNat (b.toNat + c.toNat)) := by
-          unfold Spec.addAmounts?
+        have hbcEq : InternalSpec.addAmounts? b c = some (UInt64.ofNat (b.toNat + c.toNat)) := by
+          unfold InternalSpec.addAmounts?
           simp only [hb, hc, hbc, and_self, ↓reduceIte]
         have habNat : (UInt64.ofNat (a.toNat + b.toNat)).toNat = a.toNat + b.toNat := by
           rw [UInt64.toNat_ofNat', Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt hab max_money_lt_two_pow_64)]
         have hbcNat : (UInt64.ofNat (b.toNat + c.toNat)).toNat = b.toNat + c.toNat := by
           rw [UInt64.toNat_ofNat', Nat.mod_eq_of_lt (Nat.lt_of_le_of_lt hbc max_money_lt_two_pow_64)]
         rw [habEq, hbcEq]
-        simp only [Spec.addAmounts?, habNat, hbcNat, hab, hc, ha, hbc, habc,
+        simp only [InternalSpec.addAmounts?, habNat, hbcNat, hab, hc, ha, hbc, habc,
           ← Nat.add_assoc, and_self, ↓reduceIte]
-      · cases hL : Spec.addAmounts? a b with
+      · cases hL : InternalSpec.addAmounts? a b with
         | none =>
-            cases hR : Spec.addAmounts? b c with
+            cases hR : InternalSpec.addAmounts? b c with
             | none => rfl
             | some bc =>
-                have hbcNat : bc.toNat = b.toNat + c.toNat := (Spec.addAmounts?_toNat hR).1
-                simp only [Spec.addAmounts?, hbcNat]
-                have hnot : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                               a.toNat + (b.toNat + c.toNat) ≤ Spec.MAX_MONEY.toNat) := by
+                have hbcNat : bc.toNat = b.toNat + c.toNat := (InternalSpec.addAmounts?_toNat hR).1
+                simp only [InternalSpec.addAmounts?, hbcNat]
+                have hnot : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                               a.toNat + (b.toNat + c.toNat) ≤ InternalSpec.MAX_MONEY.toNat) := by
                   intro ⟨_, _, hsum⟩
                   rw [← Nat.add_assoc] at hsum
                   exact habc hsum
                 simp only [hnot, ↓reduceIte]
         | some ab =>
-            have habNat : ab.toNat = a.toNat + b.toNat := (Spec.addAmounts?_toNat hL).1
-            have hL2 : Spec.addAmounts? ab c = none := by
-              unfold Spec.addAmounts?
+            have habNat : ab.toNat = a.toNat + b.toNat := (InternalSpec.addAmounts?_toNat hL).1
+            have hL2 : InternalSpec.addAmounts? ab c = none := by
+              unfold InternalSpec.addAmounts?
               rw [habNat]
-              have hnot : ¬ (a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat ∧ c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                             a.toNat + b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat) :=
+              have hnot : ¬ (a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                             a.toNat + b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat) :=
                 fun ⟨_, _, hsum⟩ => habc hsum
               simp only [hnot, ↓reduceIte]
             simp only [hL2]
-            cases hR : Spec.addAmounts? b c with
+            cases hR : InternalSpec.addAmounts? b c with
             | none => rfl
             | some bc =>
-                have hbcNat : bc.toNat = b.toNat + c.toNat := (Spec.addAmounts?_toNat hR).1
-                simp only [Spec.addAmounts?, hbcNat]
-                have hnot : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                               a.toNat + (b.toNat + c.toNat) ≤ Spec.MAX_MONEY.toNat) := by
+                have hbcNat : bc.toNat = b.toNat + c.toNat := (InternalSpec.addAmounts?_toNat hR).1
+                simp only [InternalSpec.addAmounts?, hbcNat]
+                have hnot : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                               a.toNat + (b.toNat + c.toNat) ≤ InternalSpec.MAX_MONEY.toNat) := by
                   intro ⟨_, _, hsum⟩
                   rw [← Nat.add_assoc] at hsum
                   exact habc hsum
                 simp only [hnot, ↓reduceIte]
-    · have hbcNone : Spec.addAmounts? b c = none := by
-        unfold Spec.addAmounts?
-        have hnot : ¬ (b.toNat ≤ Spec.MAX_MONEY.toNat ∧ c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                       b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat) := fun h => hc h.2.1
+    · have hbcNone : InternalSpec.addAmounts? b c = none := by
+        unfold InternalSpec.addAmounts?
+        have hnot : ¬ (b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                       b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat) := fun h => hc h.2.1
         simp only [hnot, ↓reduceIte]
       rw [hbcNone]
-      cases Spec.addAmounts? a b with
+      cases InternalSpec.addAmounts? a b with
       | none => rfl
       | some ab =>
-          simp only [Spec.addAmounts?]
-          have hnot : ¬ (ab.toNat ≤ Spec.MAX_MONEY.toNat ∧ c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                         ab.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat) := fun h => hc h.2.1
+          simp only [InternalSpec.addAmounts?]
+          have hnot : ¬ (ab.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                         ab.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat) := fun h => hc h.2.1
           simp only [hnot, ↓reduceIte]
-  · have habNone : Spec.addAmounts? a b = none := by
-      unfold Spec.addAmounts?
-      have hnot : ¬ (a.toNat ≤ Spec.MAX_MONEY.toNat ∧ b.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                     a.toNat + b.toNat ≤ Spec.MAX_MONEY.toNat) := fun h => hb h.2.1
+  · have habNone : InternalSpec.addAmounts? a b = none := by
+      unfold InternalSpec.addAmounts?
+      have hnot : ¬ (a.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                     a.toNat + b.toNat ≤ InternalSpec.MAX_MONEY.toNat) := fun h => hb h.2.1
       simp only [hnot, ↓reduceIte]
-    have hbcNone : Spec.addAmounts? b c = none := by
-      unfold Spec.addAmounts?
-      have hnot : ¬ (b.toNat ≤ Spec.MAX_MONEY.toNat ∧ c.toNat ≤ Spec.MAX_MONEY.toNat ∧
-                     b.toNat + c.toNat ≤ Spec.MAX_MONEY.toNat) := fun h => hb h.1
+    have hbcNone : InternalSpec.addAmounts? b c = none := by
+      unfold InternalSpec.addAmounts?
+      have hnot : ¬ (b.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧ c.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
+                     b.toNat + c.toNat ≤ InternalSpec.MAX_MONEY.toNat) := fun h => hb h.1
       simp only [hnot, ↓reduceIte]
     rw [habNone, hbcNone]
 
 private theorem checkedSumSatsLoop_eq_spec :
     ∀ (xs : List UInt64) (acc : UInt64),
-      acc.toNat ≤ Spec.MAX_MONEY.toNat →
+      acc.toNat ≤ InternalSpec.MAX_MONEY.toNat →
       BitcoinLedger.Basic.checkedSumSatsLoop acc xs =
-        match Spec.sumAmounts? xs with
+        match InternalSpec.sumAmounts? xs with
         | none => none
-        | some rest => Spec.addAmounts? acc rest
+        | some rest => InternalSpec.addAmounts? acc rest
   | [], acc, hacc => by
-      simp only [BitcoinLedger.Basic.checkedSumSatsLoop, Spec.sumAmounts?]
+      simp only [BitcoinLedger.Basic.checkedSumSatsLoop, InternalSpec.sumAmounts?]
       rw [addAmounts?_comm, addAmounts?_zero_left acc hacc]
   | x :: xs, acc, hacc => by
-      simp only [BitcoinLedger.Basic.checkedSumSatsLoop, checkedAddSats?_eq, Spec.sumAmounts?]
-      cases hax : Spec.addAmounts? acc x with
+      simp only [BitcoinLedger.Basic.checkedSumSatsLoop, checkedAddSats?_eq, InternalSpec.sumAmounts?]
+      cases hax : InternalSpec.addAmounts? acc x with
       | none =>
-          cases hrest : Spec.sumAmounts? xs with
+          cases hrest : InternalSpec.sumAmounts? xs with
           | none => rfl
           | some rest =>
               simp only
@@ -271,29 +271,29 @@ private theorem checkedSumSatsLoop_eq_spec :
               rw [hax] at hAssocInst
               exact hAssocInst
       | some acc' =>
-          have hacc' : acc'.toNat ≤ Spec.MAX_MONEY.toNat := (Spec.addAmounts?_toNat hax).2
+          have hacc' : acc'.toNat ≤ InternalSpec.MAX_MONEY.toNat := (InternalSpec.addAmounts?_toNat hax).2
           simp only [checkedSumSatsLoop_eq_spec xs acc' hacc']
-          cases hrest : Spec.sumAmounts? xs with
+          cases hrest : InternalSpec.sumAmounts? xs with
           | none => rfl
           | some rest =>
               have hAssocInst := addAmounts?_assoc acc x rest hacc
               rw [hax] at hAssocInst
               exact hAssocInst
 
-/-- Exact refinement theorem: tail-recursive `UInt64` `checkedSumSats?` equals `Spec.sumAmounts?`. -/
+/-- Exact refinement theorem: tail-recursive `UInt64` `checkedSumSats?` equals `InternalSpec.sumAmounts?`. -/
 theorem checkedSumSats?_eq (xs : List UInt64) :
-    BitcoinLedger.Basic.checkedSumSats? xs = Spec.sumAmounts? xs := by
+    BitcoinLedger.Basic.checkedSumSats? xs = InternalSpec.sumAmounts? xs := by
   unfold BitcoinLedger.Basic.checkedSumSats?
-  have h0 : (0 : UInt64).toNat ≤ Spec.MAX_MONEY.toNat := Nat.zero_le _
+  have h0 : (0 : UInt64).toNat ≤ InternalSpec.MAX_MONEY.toNat := Nat.zero_le _
   rw [checkedSumSatsLoop_eq_spec xs 0 h0]
-  cases h : Spec.sumAmounts? xs with
+  cases h : InternalSpec.sumAmounts? xs with
   | none => rfl
   | some total =>
-      have htLe : total.toNat ≤ Spec.MAX_MONEY.toNat := (Spec.sumAmounts?_sound h).2.1
+      have htLe : total.toNat ≤ InternalSpec.MAX_MONEY.toNat := (InternalSpec.sumAmounts?_sound h).2.1
       exact addAmounts?_zero_left total htLe
 
 theorem checkedSumSatsArray?_eq (xs : Array UInt64) :
-    BitcoinLedger.Basic.checkedSumSatsArray? xs = Spec.sumAmounts? xs.toList :=
+    BitcoinLedger.Basic.checkedSumSatsArray? xs = InternalSpec.sumAmounts? xs.toList :=
   checkedSumSats?_eq xs.toList
 
 /-- Concrete witness: `checkedSumSats?` rejects `UInt64` wraparound `[2^64 - 1, 1]` and `[MAX_MONEY, 1]`,
@@ -335,26 +335,26 @@ theorem eqBytes_refl (a : ByteArray) : BitcoinLedger.Basic.eqBytes a a = true :=
   (eqBytes_iff a a).mpr rfl
 
 theorem isBytesN_iff (n : Nat) (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytesN n bs = true ↔ Spec.BytesN n bs := by
-  simp only [BitcoinLedger.Basic.isBytesN, Spec.BytesN, decide_eq_true_eq]
+    BitcoinLedger.Basic.isBytesN n bs = true ↔ InternalSpec.BytesN n bs := by
+  simp only [BitcoinLedger.Basic.isBytesN, InternalSpec.BytesN, decide_eq_true_eq]
 
 theorem isBytes4_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes4 bs = true ↔ Spec.Bytes4 bs := isBytesN_iff 4 bs
+    BitcoinLedger.Basic.isBytes4 bs = true ↔ InternalSpec.Bytes4 bs := isBytesN_iff 4 bs
 
 theorem isBytes20_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes20 bs = true ↔ Spec.Bytes20 bs := isBytesN_iff 20 bs
+    BitcoinLedger.Basic.isBytes20 bs = true ↔ InternalSpec.Bytes20 bs := isBytesN_iff 20 bs
 
 theorem isBytes32_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes32 bs = true ↔ Spec.Bytes32 bs := isBytesN_iff 32 bs
+    BitcoinLedger.Basic.isBytes32 bs = true ↔ InternalSpec.Bytes32 bs := isBytesN_iff 32 bs
 
 theorem isBytes33_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes33 bs = true ↔ Spec.Bytes33 bs := isBytesN_iff 33 bs
+    BitcoinLedger.Basic.isBytes33 bs = true ↔ InternalSpec.Bytes33 bs := isBytesN_iff 33 bs
 
 theorem isBytes64_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes64 bs = true ↔ Spec.Bytes64 bs := isBytesN_iff 64 bs
+    BitcoinLedger.Basic.isBytes64 bs = true ↔ InternalSpec.Bytes64 bs := isBytesN_iff 64 bs
 
 theorem isBytes65_iff (bs : ByteArray) :
-    BitcoinLedger.Basic.isBytes65 bs = true ↔ Spec.Bytes65 bs := isBytesN_iff 65 bs
+    BitcoinLedger.Basic.isBytes65 bs = true ↔ InternalSpec.Bytes65 bs := isBytesN_iff 65 bs
 
 /-! ## Section 3: Little-Endian & Big-Endian Fixed-Width Integer Codec Refinement -/
 
@@ -434,21 +434,21 @@ private theorem u8_shiftLeft_u64_toNat (b : UInt8) (k : UInt64)
   exact Nat.mod_eq_of_lt hb
 
 theorem encodeU16LE_eq (v : UInt16) :
-    BitcoinLedger.Basic.encodeU16LE v = Spec.encodeU16LEBytes v := by
-  unfold BitcoinLedger.Basic.encodeU16LE Spec.encodeU16LEBytes
+    BitcoinLedger.Basic.encodeU16LE v = InternalSpec.encodeU16LEBytes v := by
+  unfold BitcoinLedger.Basic.encodeU16LE InternalSpec.encodeU16LEBytes
   have e0 : v.toUInt8 = UInt8.ofNat (v.toNat % 256) := nat_toUInt8_eq_ofNat_mod v.toNat
   have e1 : (v >>> 8).toUInt8 = UInt8.ofNat ((v.toNat / 256) % 256) :=
     u16_shift_byte v 8 (by decide)
   rw [e0, e1]
 
 theorem encodeU16LE_satisfies (v : UInt16) :
-    Spec.encodeU16LE v (BitcoinLedger.Basic.encodeU16LE v) := by
+    InternalSpec.encodeU16LE v (BitcoinLedger.Basic.encodeU16LE v) := by
   rw [encodeU16LE_eq]
-  exact Spec.encodeU16LEBytes_satisfies v
+  exact InternalSpec.encodeU16LEBytes_satisfies v
 
 theorem decodeU16LE?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeU16LE? bs = Spec.decodeU16LE? bs := by
-  unfold BitcoinLedger.Basic.decodeU16LE? Spec.decodeU16LE?
+    BitcoinLedger.Basic.decodeU16LE? bs = InternalSpec.decodeU16LE? bs := by
+  unfold BitcoinLedger.Basic.decodeU16LE? InternalSpec.decodeU16LE?
   cases bs.data.toList with
   | nil => rfl
   | cons b0 r0 =>
@@ -474,11 +474,11 @@ theorem decodeU16LE?_eq (bs : ByteArray) :
 theorem decodeU16LE?_roundtrip (v : UInt16) :
     BitcoinLedger.Basic.decodeU16LE? (BitcoinLedger.Basic.encodeU16LE v) = some v := by
   rw [decodeU16LE?_eq, encodeU16LE_eq]
-  exact Spec.decodeU16LE?_roundtrip v
+  exact InternalSpec.decodeU16LE?_roundtrip v
 
 theorem encodeU32LE_eq (v : UInt32) :
-    BitcoinLedger.Basic.encodeU32LE v = Spec.encodeU32LEBytes v := by
-  unfold BitcoinLedger.Basic.encodeU32LE Spec.encodeU32LEBytes
+    BitcoinLedger.Basic.encodeU32LE v = InternalSpec.encodeU32LEBytes v := by
+  unfold BitcoinLedger.Basic.encodeU32LE InternalSpec.encodeU32LEBytes
   have e0 : v.toUInt8 = UInt8.ofNat (v.toNat % 256) := nat_toUInt8_eq_ofNat_mod v.toNat
   have e1 : (v >>> 8).toUInt8 = UInt8.ofNat ((v.toNat / 256) % 256) :=
     u32_shift_byte v 8 (by decide)
@@ -489,9 +489,9 @@ theorem encodeU32LE_eq (v : UInt32) :
   rw [e0, e1, e2, e3]
 
 theorem encodeU32LE_satisfies (v : UInt32) :
-    Spec.encodeU32LE v (BitcoinLedger.Basic.encodeU32LE v) := by
+    InternalSpec.encodeU32LE v (BitcoinLedger.Basic.encodeU32LE v) := by
   rw [encodeU32LE_eq]
-  exact Spec.encodeU32LEBytes_satisfies v
+  exact InternalSpec.encodeU32LEBytes_satisfies v
 
 private theorem u32_pack_le_toNat (b0 b1 b2 b3 : UInt8) :
     (b0.toUInt32 ||| (b1.toUInt32 <<< 8) ||| (b2.toUInt32 <<< 16) ||| (b3.toUInt32 <<< 24)).toNat =
@@ -513,8 +513,8 @@ private theorem u32_pack_le_toNat (b0 b1 b2 b3 : UInt8) :
   exact nat_or_shiftLeft_eq_add lt24
 
 theorem decodeU32LE?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeU32LE? bs = Spec.decodeU32LE? bs := by
-  unfold BitcoinLedger.Basic.decodeU32LE? Spec.decodeU32LE?
+    BitcoinLedger.Basic.decodeU32LE? bs = InternalSpec.decodeU32LE? bs := by
+  unfold BitcoinLedger.Basic.decodeU32LE? InternalSpec.decodeU32LE?
   match bs.data.toList with
   | [b0, b1, b2, b3] =>
       apply congrArg some
@@ -529,11 +529,11 @@ theorem decodeU32LE?_eq (bs : ByteArray) :
 theorem decodeU32LE?_roundtrip (v : UInt32) :
     BitcoinLedger.Basic.decodeU32LE? (BitcoinLedger.Basic.encodeU32LE v) = some v := by
   rw [decodeU32LE?_eq, encodeU32LE_eq]
-  exact Spec.decodeU32LE?_roundtrip v
+  exact InternalSpec.decodeU32LE?_roundtrip v
 
 theorem encodeU32BE_eq (v : UInt32) :
-    BitcoinLedger.Basic.encodeU32BE v = Spec.encodeU32BEBytes v := by
-  unfold BitcoinLedger.Basic.encodeU32BE Spec.encodeU32BEBytes
+    BitcoinLedger.Basic.encodeU32BE v = InternalSpec.encodeU32BEBytes v := by
+  unfold BitcoinLedger.Basic.encodeU32BE InternalSpec.encodeU32BEBytes
   have e3 : (v >>> 24).toUInt8 = UInt8.ofNat ((v.toNat / 16777216) % 256) :=
     u32_shift_byte v 24 (by decide)
   have e2 : (v >>> 16).toUInt8 = UInt8.ofNat ((v.toNat / 65536) % 256) :=
@@ -544,9 +544,9 @@ theorem encodeU32BE_eq (v : UInt32) :
   rw [e3, e2, e1, e0]
 
 theorem encodeU32BE_satisfies (v : UInt32) :
-    Spec.encodeU32BE v (BitcoinLedger.Basic.encodeU32BE v) := by
+    InternalSpec.encodeU32BE v (BitcoinLedger.Basic.encodeU32BE v) := by
   rw [encodeU32BE_eq]
-  exact Spec.encodeU32BEBytes_satisfies v
+  exact InternalSpec.encodeU32BEBytes_satisfies v
 
 private theorem nat_or4_reverse (x0 x1 x2 x3 : Nat) :
     x0 ||| x1 ||| x2 ||| x3 = x3 ||| x2 ||| x1 ||| x0 := by
@@ -556,8 +556,8 @@ private theorem nat_or4_reverse (x0 x1 x2 x3 : Nat) :
   cases x0.testBit i <;> cases x1.testBit i <;> cases x2.testBit i <;> cases x3.testBit i <;> rfl
 
 theorem decodeU32BE?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeU32BE? bs = Spec.decodeU32BE? bs := by
-  unfold BitcoinLedger.Basic.decodeU32BE? Spec.decodeU32BE?
+    BitcoinLedger.Basic.decodeU32BE? bs = InternalSpec.decodeU32BE? bs := by
+  unfold BitcoinLedger.Basic.decodeU32BE? InternalSpec.decodeU32BE?
   match bs.data.toList with
   | [b0, b1, b2, b3] =>
       apply congrArg some
@@ -586,11 +586,11 @@ theorem decodeU32BE?_eq (bs : ByteArray) :
 theorem decodeU32BE?_roundtrip (v : UInt32) :
     BitcoinLedger.Basic.decodeU32BE? (BitcoinLedger.Basic.encodeU32BE v) = some v := by
   rw [decodeU32BE?_eq, encodeU32BE_eq]
-  exact Spec.decodeU32BE?_roundtrip v
+  exact InternalSpec.decodeU32BE?_roundtrip v
 
 theorem encodeU64LE_eq (v : UInt64) :
-    BitcoinLedger.Basic.encodeU64LE v = Spec.encodeU64LEBytes v := by
-  unfold BitcoinLedger.Basic.encodeU64LE Spec.encodeU64LEBytes
+    BitcoinLedger.Basic.encodeU64LE v = InternalSpec.encodeU64LEBytes v := by
+  unfold BitcoinLedger.Basic.encodeU64LE InternalSpec.encodeU64LEBytes
   have e0 : v.toUInt8 = UInt8.ofNat (v.toNat % 256) := nat_toUInt8_eq_ofNat_mod v.toNat
   have e1 := u64_shift_byte v 8 (by decide)
   have e2 := u64_shift_byte v 16 (by decide)
@@ -603,9 +603,9 @@ theorem encodeU64LE_eq (v : UInt64) :
   rfl
 
 theorem encodeU64LE_satisfies (v : UInt64) :
-    Spec.encodeU64LE v (BitcoinLedger.Basic.encodeU64LE v) := by
+    InternalSpec.encodeU64LE v (BitcoinLedger.Basic.encodeU64LE v) := by
   rw [encodeU64LE_eq]
-  exact Spec.encodeU64LEBytes_satisfies v
+  exact InternalSpec.encodeU64LEBytes_satisfies v
 
 private theorem u64_pack_le_toNat (b0 b1 b2 b3 b4 b5 b6 b7 : UInt8) :
     (b0.toUInt64 |||
@@ -665,8 +665,8 @@ private theorem u64_pack_le_toNat (b0 b1 b2 b3 b4 b5 b6 b7 : UInt8) :
   exact nat_or_shiftLeft_eq_add lt56
 
 theorem decodeU64LE?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeU64LE? bs = Spec.decodeU64LE? bs := by
-  unfold BitcoinLedger.Basic.decodeU64LE? Spec.decodeU64LE?
+    BitcoinLedger.Basic.decodeU64LE? bs = InternalSpec.decodeU64LE? bs := by
+  unfold BitcoinLedger.Basic.decodeU64LE? InternalSpec.decodeU64LE?
   match bs.data.toList with
   | [b0, b1, b2, b3, b4, b5, b6, b7] =>
       apply congrArg some
@@ -686,13 +686,13 @@ theorem decodeU64LE?_eq (bs : ByteArray) :
 theorem decodeU64LE?_roundtrip (v : UInt64) :
     BitcoinLedger.Basic.decodeU64LE? (BitcoinLedger.Basic.encodeU64LE v) = some v := by
   rw [decodeU64LE?_eq, encodeU64LE_eq]
-  exact Spec.decodeU64LE?_roundtrip v
+  exact InternalSpec.decodeU64LE?_roundtrip v
 
 /-! ## Section 4: Canonical CompactSize / VarInt Refinement, Roundtrip & Non-Canonical Rejection -/
 
 theorem encodeVarInt_eq (n : UInt64) :
-    BitcoinLedger.Basic.encodeVarInt n = Spec.encodeVarIntCanonical n := by
-  unfold BitcoinLedger.Basic.encodeVarInt Spec.encodeVarIntCanonical
+    BitcoinLedger.Basic.encodeVarInt n = InternalSpec.encodeVarIntCanonical n := by
+  unfold BitcoinLedger.Basic.encodeVarInt InternalSpec.encodeVarIntCanonical
   have e0 : n.toUInt8 = UInt8.ofNat (n.toNat % 256) := nat_toUInt8_eq_ofNat_mod n.toNat
   have e1 := u64_shift_byte n 8 (by decide)
   have e2 := u64_shift_byte n 16 (by decide)
@@ -736,9 +736,9 @@ theorem varIntByteLen_eq_size (n : UInt64) :
     cases decide (n ≤ 0xFFFFFFFF) <;> rfl
 
 theorem encodeVarInt_isCanonical (n : UInt64) :
-    Spec.isCanonicalVarInt n (BitcoinLedger.Basic.encodeVarInt n) := by
+    InternalSpec.isCanonicalVarInt n (BitcoinLedger.Basic.encodeVarInt n) := by
   rw [encodeVarInt_eq]
-  exact Spec.encodeVarIntCanonical_isCanonical n
+  exact InternalSpec.encodeVarIntCanonical_isCanonical n
 
 private theorem u16_in_u64_toNat (b0 b1 : UInt8) :
     (b0.toUInt64 ||| (b1.toUInt64 <<< 8)).toNat = b0.toNat + 256 * b1.toNat := by
@@ -766,8 +766,8 @@ private theorem u32_in_u64_toNat (b0 b1 b2 b3 : UInt8) :
   exact nat_or_shiftLeft_eq_add lt24
 
 theorem decodeVarIntCanonical?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeVarIntCanonical? bs = Spec.decodeVarIntCanonical? bs := by
-  unfold BitcoinLedger.Basic.decodeVarIntCanonical? Spec.decodeVarIntCanonical?
+    BitcoinLedger.Basic.decodeVarIntCanonical? bs = InternalSpec.decodeVarIntCanonical? bs := by
+  unfold BitcoinLedger.Basic.decodeVarIntCanonical? InternalSpec.decodeVarIntCanonical?
   match bs.data.toList with
   | [] => rfl
   | [b0] =>
@@ -875,8 +875,8 @@ theorem decodeVarIntCanonical?_eq (bs : ByteArray) :
   | _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ :: _ => rfl
 
 theorem decodeVarIntCanonicalPrefix?_eq (bs : ByteArray) :
-    BitcoinLedger.Basic.decodeVarIntCanonicalPrefix? bs = Spec.decodeVarIntCanonicalPrefix? bs := by
-  unfold BitcoinLedger.Basic.decodeVarIntCanonicalPrefix? Spec.decodeVarIntCanonicalPrefix?
+    BitcoinLedger.Basic.decodeVarIntCanonicalPrefix? bs = InternalSpec.decodeVarIntCanonicalPrefix? bs := by
+  unfold BitcoinLedger.Basic.decodeVarIntCanonicalPrefix? InternalSpec.decodeVarIntCanonicalPrefix?
   cases bs.data.toList with
   | nil => rfl
   | cons tag _ =>
@@ -918,16 +918,16 @@ theorem decodeVarIntCanonicalPrefix?_eq (bs : ByteArray) :
 theorem decodeVarIntCanonical?_encodeVarInt (n : UInt64) :
     BitcoinLedger.Basic.decodeVarIntCanonical? (BitcoinLedger.Basic.encodeVarInt n) = some n := by
   rw [decodeVarIntCanonical?_eq, encodeVarInt_eq]
-  exact Spec.decodeVarIntCanonical_roundtrip n
+  exact InternalSpec.decodeVarIntCanonical_roundtrip n
 
 theorem encodeVarInt_decodeVarIntCanonical? {bs : ByteArray} {n : UInt64}
     (h : BitcoinLedger.Basic.decodeVarIntCanonical? bs = some n) :
     BitcoinLedger.Basic.encodeVarInt n = bs := by
   rw [decodeVarIntCanonical?_eq] at h
   rw [encodeVarInt_eq]
-  have h1 := Spec.encodeVarIntCanonical_isCanonical n
-  have h2 := Spec.isCanonicalVarInt_of_decodeVarIntCanonical h
-  exact Spec.isCanonicalVarInt_unique_bytes h1 h2
+  have h1 := InternalSpec.encodeVarIntCanonical_isCanonical n
+  have h2 := InternalSpec.isCanonicalVarInt_of_decodeVarIntCanonical h
+  exact InternalSpec.isCanonicalVarInt_unique_bytes h1 h2
 
 /-- Non-canonical CompactSize encodings are rejected across all three multi-byte tags (`0xFD`, `0xFE`, `0xFF`). -/
 theorem decodeVarIntCanonical?_rejects_noncanonical :
@@ -941,29 +941,29 @@ theorem decodeVarIntCanonical?_rejects_noncanonical :
   refine ⟨?_, ?_, by decide, by decide, by decide⟩
   · intro b0 b1 hlt
     rw [decodeVarIntCanonical?_eq]
-    exact Spec.decodeVarIntCanonical_rejects_nonminimal_u16 b0 b1 hlt
+    exact InternalSpec.decodeVarIntCanonical_rejects_nonminimal_u16 b0 b1 hlt
   · intro b0 b1 b2 b3 hlt
     rw [decodeVarIntCanonical?_eq]
-    exact Spec.decodeVarIntCanonical_rejects_nonminimal_u32 b0 b1 b2 b3 hlt
+    exact InternalSpec.decodeVarIntCanonical_rejects_nonminimal_u32 b0 b1 b2 b3 hlt
 
 /-! ## Section 5: Network Parameters & Error Mapping Refinement, Roundtrip & Injectivity -/
 
-theorem networkParams_eq (net : Spec.Network) :
+theorem networkParams_eq (net : InternalSpec.Network) :
     BitcoinLedger.Basic.networkParams net = net.params := by
   cases net <;> rfl
 
-theorem bolosStatusWordToU16_eq (sw : Spec.BolosStatusWord) :
+theorem bolosStatusWordToU16_eq (sw : InternalSpec.BolosStatusWord) :
     BitcoinLedger.Basic.bolosStatusWordToU16 sw = sw.toUInt16 := by
   cases sw <;> rfl
 
 theorem bolosStatusWordFromU16?_eq (w : UInt16) :
-    BitcoinLedger.Basic.bolosStatusWordFromU16? w = Spec.BolosStatusWord.fromUInt16? w := rfl
+    BitcoinLedger.Basic.bolosStatusWordFromU16? w = InternalSpec.BolosStatusWord.fromUInt16? w := rfl
 
-theorem bolosStatusWord_roundtrip (sw : Spec.BolosStatusWord) :
+theorem bolosStatusWord_roundtrip (sw : InternalSpec.BolosStatusWord) :
     BitcoinLedger.Basic.bolosStatusWordFromU16? (BitcoinLedger.Basic.bolosStatusWordToU16 sw) = some sw := by
   cases sw <;> rfl
 
-theorem bolosStatusWordToU16_injective {s1 s2 : Spec.BolosStatusWord}
+theorem bolosStatusWordToU16_injective {s1 s2 : InternalSpec.BolosStatusWord}
     (h : BitcoinLedger.Basic.bolosStatusWordToU16 s1 = BitcoinLedger.Basic.bolosStatusWordToU16 s2) :
     s1 = s2 := by
   have r1 := bolosStatusWord_roundtrip s1
@@ -972,15 +972,15 @@ theorem bolosStatusWordToU16_injective {s1 s2 : Spec.BolosStatusWord}
   rw [r1] at r2
   exact Option.some.inj r2
 
-theorem appErrorToCborU8_toNat_eq (e : Spec.AppError) :
+theorem appErrorToCborU8_toNat_eq (e : InternalSpec.AppError) :
     (BitcoinLedger.Basic.appErrorToCborU8 e).toNat = e.toCborCode := by
   cases e <;> rfl
 
-theorem appError_cbor_roundtrip (e : Spec.AppError) :
+theorem appError_cbor_roundtrip (e : InternalSpec.AppError) :
     BitcoinLedger.Basic.appErrorFromCborU8? (BitcoinLedger.Basic.appErrorToCborU8 e) = some e := by
   cases e <;> rfl
 
-theorem appErrorToCborU8_injective {e1 e2 : Spec.AppError}
+theorem appErrorToCborU8_injective {e1 e2 : InternalSpec.AppError}
     (h : BitcoinLedger.Basic.appErrorToCborU8 e1 = BitcoinLedger.Basic.appErrorToCborU8 e2) :
     e1 = e2 := by
   have r1 := appError_cbor_roundtrip e1
@@ -989,30 +989,30 @@ theorem appErrorToCborU8_injective {e1 e2 : Spec.AppError}
   rw [r1] at r2
   exact Option.some.inj r2
 
-theorem specErrorToBolosSw_eq (err : Spec.SpecError) :
+theorem specErrorToBolosSw_eq (err : InternalSpec.SpecError) :
     BitcoinLedger.Basic.specErrorToBolosSw err = err.toBolosStatusWord := by
   cases err <;> rfl
 
-theorem specErrorToBolosU16_eq (err : Spec.SpecError) :
+theorem specErrorToBolosU16_eq (err : InternalSpec.SpecError) :
     BitcoinLedger.Basic.specErrorToBolosU16 err = err.toBolosCode := by
   cases err <;> rfl
 
-theorem specErrorToVanadiumError_eq (err : Spec.SpecError) :
+theorem specErrorToVanadiumError_eq (err : InternalSpec.SpecError) :
     BitcoinLedger.Basic.specErrorToVanadiumError err = err.toVanadiumError := by
   cases err <;> rfl
 
-theorem specErrorToBolosU16_never_ok_or_interrupted (err : Spec.SpecError) :
+theorem specErrorToBolosU16_never_ok_or_interrupted (err : InternalSpec.SpecError) :
     BitcoinLedger.Basic.specErrorToBolosU16 err ≠ 0x9000 ∧
     BitcoinLedger.Basic.specErrorToBolosU16 err ≠ 0xE000 := by
   rw [specErrorToBolosU16_eq]
-  exact Spec.SpecError.toBolosCode_ne_ok_and_interrupted err
+  exact InternalSpec.SpecError.toBolosCode_ne_ok_and_interrupted err
 
-theorem specErrorTag_roundtrip (err : Spec.SpecError) :
+theorem specErrorTag_roundtrip (err : InternalSpec.SpecError) :
     BitcoinLedger.Basic.specErrorFromTag? (BitcoinLedger.Basic.specErrorToTag err) = some err ∧
     (BitcoinLedger.Basic.specErrorToTag err).toNat ≤ 18 := by
   cases err <;> decide
 
-theorem specErrorToTag_injective {e1 e2 : Spec.SpecError}
+theorem specErrorToTag_injective {e1 e2 : InternalSpec.SpecError}
     (h : BitcoinLedger.Basic.specErrorToTag e1 = BitcoinLedger.Basic.specErrorToTag e2) :
     e1 = e2 := by
   have r1 := (specErrorTag_roundtrip e1).1

@@ -1,10 +1,10 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Musig2
 
 /-!
 # `Proofs.Musig2` — Refinement & Security Proofs for `BitcoinLedger.Musig2`
 
-Connects every executable operation in `BitcoinLedger.Musig2` to `Spec.Musig2`:
+Connects every executable operation in `BitcoinLedger.Musig2` to `InternalSpec.Musig2`:
 1. Exact refinement of BIP-327 `keySort`, `secondUniqueKey`, `keyAgg`, `applyTweak`, `applyTweaks`,
    BIP-328 synthetic xpub chaincode (`868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965`),
    and per-input `(placeholderIdx, inputIdx)` derivation (`deriveMusigPerInputInfo`).
@@ -20,19 +20,19 @@ All theorems satisfy `0 sorryAx`, `0 native_decide`, and `0 Classical.choice`.
 
 namespace Proofs.Musig2
 
-open Spec.Musig2
+open InternalSpec.Musig2
 
 /-! ## 1. Primitive & Constant Refinement Lemmas -/
 
 theorem secp256k1Order_eq :
-    BitcoinLedger.Musig2.secp256k1Order = Spec.Musig2.secp256k1Order := rfl
+    BitcoinLedger.Musig2.secp256k1Order = InternalSpec.Musig2.secp256k1Order := rfl
 
 theorem bip328Chaincode_eq :
-    BitcoinLedger.Musig2.bip328Chaincode = Spec.Musig2.bip328Chaincode := by
+    BitcoinLedger.Musig2.bip328Chaincode = InternalSpec.Musig2.bip328Chaincode := by
   decide
 
 theorem byteListEq_eq :
-    BitcoinLedger.Musig2.byteListEq = Spec.Musig2.byteListEq := by
+    BitcoinLedger.Musig2.byteListEq = InternalSpec.Musig2.byteListEq := by
   funext xs ys
   induction xs generalizing ys with
   | nil => cases ys <;> rfl
@@ -40,19 +40,19 @@ theorem byteListEq_eq :
     cases ys with
     | nil => rfl
     | cons b bs =>
-      simp only [BitcoinLedger.Musig2.byteListEq, Spec.Musig2.byteListEq, ih]
+      simp only [BitcoinLedger.Musig2.byteListEq, InternalSpec.Musig2.byteListEq, ih]
 
 theorem listAll_eq {α : Type} (p : α → Bool) :
-    ∀ xs, BitcoinLedger.Musig2.listAll p xs = Spec.Musig2.listAll p xs
+    ∀ xs, BitcoinLedger.Musig2.listAll p xs = InternalSpec.Musig2.listAll p xs
   | [] => rfl
   | x :: xs => by
-    simp only [BitcoinLedger.Musig2.listAll, Spec.Musig2.listAll, listAll_eq p xs]
+    simp only [BitcoinLedger.Musig2.listAll, InternalSpec.Musig2.listAll, listAll_eq p xs]
 
 theorem listMem_eq {α : Type} [DecidableEq α] (x : α) :
-    ∀ xs, BitcoinLedger.Musig2.listMem x xs = Spec.Musig2.listMem x xs
+    ∀ xs, BitcoinLedger.Musig2.listMem x xs = InternalSpec.Musig2.listMem x xs
   | [] => rfl
   | y :: ys => by
-    simp only [BitcoinLedger.Musig2.listMem, Spec.Musig2.listMem, listMem_eq x ys]
+    simp only [BitcoinLedger.Musig2.listMem, InternalSpec.Musig2.listMem, listMem_eq x ys]
 
 theorem isAllZeros_eq {n : Nat} (b : SizedBytes n) :
     BitcoinLedger.Musig2.isAllZeros b = b.isAllZeros := by
@@ -61,15 +61,15 @@ theorem isAllZeros_eq {n : Nat} (b : SizedBytes n) :
 
 theorem sessionIdPrefixEq_eq (idMatchBytes : Nat) (a b : PsbtSessionId) :
     BitcoinLedger.Musig2.sessionIdPrefixEq idMatchBytes a b =
-      Spec.Musig2.sessionIdPrefixEq idMatchBytes a b := by
-  unfold BitcoinLedger.Musig2.sessionIdPrefixEq Spec.Musig2.sessionIdPrefixEq
+      InternalSpec.Musig2.sessionIdPrefixEq idMatchBytes a b := by
+  unfold BitcoinLedger.Musig2.sessionIdPrefixEq InternalSpec.Musig2.sessionIdPrefixEq
   rw [byteListEq_eq]
 
 theorem appendBytes_eq (a b : ByteArray) :
-    BitcoinLedger.Musig2.appendBytes a b = Spec.Musig2.appendBytes a b := rfl
+    BitcoinLedger.Musig2.appendBytes a b = InternalSpec.Musig2.appendBytes a b := rfl
 
 theorem concatBytes_eq (xs : List ByteArray) :
-    BitcoinLedger.Musig2.concatBytes xs = Spec.Musig2.concatBytes xs := rfl
+    BitcoinLedger.Musig2.concatBytes xs = InternalSpec.Musig2.concatBytes xs := rfl
 
 theorem appendSized_eq {m n : Nat} (a : SizedBytes m) (b : SizedBytes n) :
     BitcoinLedger.Musig2.appendSized a b = SizedBytes.append a b := rfl
@@ -87,45 +87,45 @@ theorem xOnlyOfCompressed_eq (pk : CompressedPubKey) :
     BitcoinLedger.Musig2.xOnlyOfCompressed pk = pk.xOnly := rfl
 
 theorem encodeU32BE_eq (v : UInt32) :
-    BitcoinLedger.Musig2.encodeU32BE v = Spec.Musig2.encodeU32BE v := rfl
+    BitcoinLedger.Musig2.encodeU32BE v = InternalSpec.Musig2.encodeU32BE v := rfl
 
 theorem natToBytesBEAux_eq (k v : Nat) (acc : List UInt8) :
-    BitcoinLedger.Musig2.natToBytesBEAux k v acc = Spec.Musig2.natToBytesBEAux k v acc := by
+    BitcoinLedger.Musig2.natToBytesBEAux k v acc = InternalSpec.Musig2.natToBytesBEAux k v acc := by
   induction k generalizing v acc with
   | zero => rfl
   | succ k ih =>
-    simp only [BitcoinLedger.Musig2.natToBytesBEAux, Spec.Musig2.natToBytesBEAux, ih]
+    simp only [BitcoinLedger.Musig2.natToBytesBEAux, InternalSpec.Musig2.natToBytesBEAux, ih]
 
 theorem sizedBytes_eq_of_bytes {n : Nat} {a b : SizedBytes n} (h : a.bytes = b.bytes) :
     a = b := by
   cases a; cases b; simp at h; subst h; rfl
 
 theorem scalarToBytes32_eq (v : Nat) :
-    BitcoinLedger.Musig2.scalarToBytes32 v = Spec.Musig2.scalarToBytes32 v := by
+    BitcoinLedger.Musig2.scalarToBytes32 v = InternalSpec.Musig2.scalarToBytes32 v := by
   apply sizedBytes_eq_of_bytes
-  unfold BitcoinLedger.Musig2.scalarToBytes32 Spec.Musig2.scalarToBytes32
+  unfold BitcoinLedger.Musig2.scalarToBytes32 InternalSpec.Musig2.scalarToBytes32
   dsimp only
   rw [natToBytesBEAux_eq]
 
 theorem bytes32ToNat_eq (b : Bytes32) :
-    BitcoinLedger.Musig2.bytes32ToNat b = Spec.Musig2.bytes32ToNat b := rfl
+    BitcoinLedger.Musig2.bytes32ToNat b = InternalSpec.Musig2.bytes32ToNat b := rfl
 
 theorem parseScalarStrict_eq (b : Bytes32) :
-    BitcoinLedger.Musig2.parseScalarStrict b = Spec.Musig2.parseScalarStrict b := by
-  unfold BitcoinLedger.Musig2.parseScalarStrict Spec.Musig2.parseScalarStrict
+    BitcoinLedger.Musig2.parseScalarStrict b = InternalSpec.Musig2.parseScalarStrict b := by
+  unfold BitcoinLedger.Musig2.parseScalarStrict InternalSpec.Musig2.parseScalarStrict
   rw [bytes32ToNat_eq, secp256k1Order_eq]
-  by_cases h : Spec.Musig2.bytes32ToNat b < Spec.Musig2.secp256k1Order <;> simp [h]
+  by_cases h : InternalSpec.Musig2.bytes32ToNat b < InternalSpec.Musig2.secp256k1Order <;> simp [h]
 
 theorem parseNonZeroScalar_eq (b : Bytes32) :
-    BitcoinLedger.Musig2.parseNonZeroScalar b = Spec.Musig2.parseNonZeroScalar b := rfl
+    BitcoinLedger.Musig2.parseNonZeroScalar b = InternalSpec.Musig2.parseNonZeroScalar b := rfl
 
 theorem parseScalarModN_eq (b : Bytes32) :
-    BitcoinLedger.Musig2.parseScalarModN b = Spec.Musig2.parseScalarModN b := rfl
+    BitcoinLedger.Musig2.parseScalarModN b = InternalSpec.Musig2.parseScalarModN b := rfl
 
 /-! ## 2. `keySort`, `secondUniqueKey`, `keyAgg` & Tweaking Refinement -/
 
 theorem listLexLe_eq :
-    BitcoinLedger.Musig2.listLexLe = Spec.Musig2.listLexLe := by
+    BitcoinLedger.Musig2.listLexLe = InternalSpec.Musig2.listLexLe := by
   funext xs ys
   induction xs generalizing ys with
   | nil => rfl
@@ -133,26 +133,26 @@ theorem listLexLe_eq :
     cases ys with
     | nil => rfl
     | cons b bs =>
-      simp only [BitcoinLedger.Musig2.listLexLe, Spec.Musig2.listLexLe, ih]
+      simp only [BitcoinLedger.Musig2.listLexLe, InternalSpec.Musig2.listLexLe, ih]
 
 theorem pubKeyLe_eq (a b : CompressedPubKey) :
-    BitcoinLedger.Musig2.pubKeyLe a b = Spec.Musig2.pubKeyLe a b := by
-  unfold BitcoinLedger.Musig2.pubKeyLe Spec.Musig2.pubKeyLe
+    BitcoinLedger.Musig2.pubKeyLe a b = InternalSpec.Musig2.pubKeyLe a b := by
+  unfold BitcoinLedger.Musig2.pubKeyLe InternalSpec.Musig2.pubKeyLe
   rw [listLexLe_eq]
 
 theorem insertPubKey_eq (x : CompressedPubKey) (xs : List CompressedPubKey) :
-    BitcoinLedger.Musig2.insertPubKey x xs = Spec.Musig2.insertPubKey x xs := by
+    BitcoinLedger.Musig2.insertPubKey x xs = InternalSpec.Musig2.insertPubKey x xs := by
   induction xs with
   | nil => rfl
   | cons y ys ih =>
-    simp only [BitcoinLedger.Musig2.insertPubKey, Spec.Musig2.insertPubKey, pubKeyLe_eq, ih]
+    simp only [BitcoinLedger.Musig2.insertPubKey, InternalSpec.Musig2.insertPubKey, pubKeyLe_eq, ih]
 
 theorem keySort_refines_spec (pks : List CompressedPubKey) :
-    BitcoinLedger.Musig2.keySort pks = Spec.Musig2.keySort pks := by
+    BitcoinLedger.Musig2.keySort pks = InternalSpec.Musig2.keySort pks := by
   induction pks with
   | nil => rfl
   | cons x xs ih =>
-    simp only [BitcoinLedger.Musig2.keySort, Spec.Musig2.keySort, ih, insertPubKey_eq]
+    simp only [BitcoinLedger.Musig2.keySort, InternalSpec.Musig2.keySort, ih, insertPubKey_eq]
 
 theorem findSecondUnique_eq_find (first : CompressedPubKey) :
     ∀ rest : List CompressedPubKey,
@@ -170,30 +170,30 @@ theorem findSecondUnique_eq_find (first : CompressedPubKey) :
     cases decide (pk ≠ first) <;> simp [findSecondUnique_eq_find first rest]
 
 theorem secondUniqueKey_refines_spec (pks : List CompressedPubKey) :
-    BitcoinLedger.Musig2.secondUniqueKey pks = Spec.Musig2.secondUniqueKey pks := by
+    BitcoinLedger.Musig2.secondUniqueKey pks = InternalSpec.Musig2.secondUniqueKey pks := by
   cases pks with
   | nil => rfl
   | cons first rest =>
-    unfold BitcoinLedger.Musig2.secondUniqueKey Spec.Musig2.secondUniqueKey
+    unfold BitcoinLedger.Musig2.secondUniqueKey InternalSpec.Musig2.secondUniqueKey
     exact findSecondUnique_eq_find first rest
 
 theorem cpoint_eq {Affine : Type} (c : MusigCrypto Affine) (pk : CompressedPubKey) :
-    BitcoinLedger.Musig2.cpoint c pk = Spec.Musig2.cpoint c pk := rfl
+    BitcoinLedger.Musig2.cpoint c pk = InternalSpec.Musig2.cpoint c pk := rfl
 
 theorem cpointExt_eq {Affine : Type} (c : MusigCrypto Affine) (pk : CompressedPubKey) :
-    BitcoinLedger.Musig2.cpointExt c pk = Spec.Musig2.cpointExt c pk := by
-  unfold BitcoinLedger.Musig2.cpointExt Spec.Musig2.cpointExt
+    BitcoinLedger.Musig2.cpointExt c pk = InternalSpec.Musig2.cpointExt c pk := by
+  unfold BitcoinLedger.Musig2.cpointExt InternalSpec.Musig2.cpointExt
   rw [isAllZeros_eq]
   rfl
 
 theorem hashKeys_eq {Affine : Type} (c : MusigCrypto Affine) (pks : List CompressedPubKey) :
-    BitcoinLedger.Musig2.hashKeys c pks = Spec.Musig2.hashKeys c pks := rfl
+    BitcoinLedger.Musig2.hashKeys c pks = InternalSpec.Musig2.hashKeys c pks := rfl
 
 theorem keyAggCoeffInternal_eq {Affine : Type} (c : MusigCrypto Affine)
     (pubkeys : List CompressedPubKey) (pk : CompressedPubKey) (pk2 : Option CompressedPubKey) :
     BitcoinLedger.Musig2.keyAggCoeffInternal c pubkeys pk pk2 =
-      Spec.Musig2.keyAggCoeffInternal c pubkeys pk pk2 := by
-  unfold BitcoinLedger.Musig2.keyAggCoeffInternal Spec.Musig2.keyAggCoeffInternal
+      InternalSpec.Musig2.keyAggCoeffInternal c pubkeys pk pk2 := by
+  unfold BitcoinLedger.Musig2.keyAggCoeffInternal InternalSpec.Musig2.keyAggCoeffInternal
   have hBeq : (pk2 == some pk) = decide (pk2 = some pk) := by
     cases pk2 with
     | none => rfl
@@ -208,8 +208,8 @@ theorem keyAggCoeffInternal_eq {Affine : Type} (c : MusigCrypto Affine)
 theorem keyAggCoeff_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (pubkeys : List CompressedPubKey) (pk : CompressedPubKey) :
     BitcoinLedger.Musig2.keyAggCoeff c pubkeys pk =
-      Spec.Musig2.keyAggCoeff c pubkeys pk := by
-  unfold BitcoinLedger.Musig2.keyAggCoeff Spec.Musig2.keyAggCoeff
+      InternalSpec.Musig2.keyAggCoeff c pubkeys pk := by
+  unfold BitcoinLedger.Musig2.keyAggCoeff InternalSpec.Musig2.keyAggCoeff
   rw [secondUniqueKey_refines_spec, keyAggCoeffInternal_eq]
 
 theorem keyAggCoeff_second_unique_optimization {Affine : Type}
@@ -218,18 +218,18 @@ theorem keyAggCoeff_second_unique_optimization {Affine : Type}
     BitcoinLedger.Musig2.keyAggCoeff c pubkeys pk2 = 1 := by
   rw [keyAggCoeff_refines_spec]
   rw [secondUniqueKey_refines_spec] at h
-  exact Spec.Musig2.keyAggCoeff_second_unique_is_one c pubkeys pk2 h
+  exact InternalSpec.Musig2.keyAggCoeff_second_unique_is_one c pubkeys pk2 h
 
 theorem keyAggLoop_eq {Affine : Type} (c : MusigCrypto Affine)
     (allPks : List CompressedPubKey) (pk2 : Option CompressedPubKey) :
     ∀ (rem : List CompressedPubKey) (acc : CurvePoint Affine),
       BitcoinLedger.Musig2.keyAggLoop c allPks pk2 rem acc =
-        Spec.Musig2.keyAggLoop c allPks pk2 rem acc
+        InternalSpec.Musig2.keyAggLoop c allPks pk2 rem acc
   | [], _ => rfl
   | pk :: rest, acc => by
-    unfold BitcoinLedger.Musig2.keyAggLoop Spec.Musig2.keyAggLoop
+    unfold BitcoinLedger.Musig2.keyAggLoop InternalSpec.Musig2.keyAggLoop
     rw [cpoint_eq]
-    cases Spec.Musig2.cpoint c pk with
+    cases InternalSpec.Musig2.cpoint c pk with
     | error e => rfl
     | ok p =>
       dsimp only [Bind.bind, Except.bind]
@@ -238,39 +238,39 @@ theorem keyAggLoop_eq {Affine : Type} (c : MusigCrypto Affine)
 
 theorem keyAgg_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (pubkeys : List CompressedPubKey) :
-    BitcoinLedger.Musig2.keyAgg c pubkeys = Spec.Musig2.keyAgg c pubkeys := by
-  unfold BitcoinLedger.Musig2.keyAgg Spec.Musig2.keyAgg
+    BitcoinLedger.Musig2.keyAgg c pubkeys = InternalSpec.Musig2.keyAgg c pubkeys := by
+  unfold BitcoinLedger.Musig2.keyAgg InternalSpec.Musig2.keyAgg
   cases pubkeys.isEmpty with
   | true => rfl
   | false =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
     rw [secondUniqueKey_refines_spec, keyAggLoop_eq]
-    cases Spec.Musig2.keyAggLoop c pubkeys (Spec.Musig2.secondUniqueKey pubkeys) pubkeys .infinity with
+    cases InternalSpec.Musig2.keyAggLoop c pubkeys (InternalSpec.Musig2.secondUniqueKey pubkeys) pubkeys .infinity with
     | error e => rfl
     | ok qPt =>
       cases qPt <;> rfl
 
 theorem applyTweak_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (ctx : KeyAggContext Affine) (tweak : MusigTweak) :
-    BitcoinLedger.Musig2.applyTweak c ctx tweak = Spec.Musig2.applyTweak c ctx tweak := by
-  unfold BitcoinLedger.Musig2.applyTweak Spec.Musig2.applyTweak
+    BitcoinLedger.Musig2.applyTweak c ctx tweak = InternalSpec.Musig2.applyTweak c ctx tweak := by
+  unfold BitcoinLedger.Musig2.applyTweak InternalSpec.Musig2.applyTweak
   rw [parseScalarStrict_eq, secp256k1Order_eq]
-  cases Spec.Musig2.parseScalarStrict tweak.scalar with
+  cases InternalSpec.Musig2.parseScalarStrict tweak.scalar with
   | none => rfl
   | some t =>
     dsimp only [Bind.bind, Except.bind]
     cases c.pointAdd
-      (c.pointMul (if tweak.isXOnly && !c.hasEvenY ctx.q then Spec.Musig2.secp256k1Order - 1 else 1) (.affine ctx.q))
+      (c.pointMul (if tweak.isXOnly && !c.hasEvenY ctx.q then InternalSpec.Musig2.secp256k1Order - 1 else 1) (.affine ctx.q))
       (c.pointMul t (.affine c.generator)) <;> rfl
 
 theorem applyTweaks_refines_spec {Affine : Type} (c : MusigCrypto Affine) :
     ∀ (ctx : KeyAggContext Affine) (tweaks : List MusigTweak),
-      BitcoinLedger.Musig2.applyTweaks c ctx tweaks = Spec.Musig2.applyTweaks c ctx tweaks
+      BitcoinLedger.Musig2.applyTweaks c ctx tweaks = InternalSpec.Musig2.applyTweaks c ctx tweaks
   | _, [] => rfl
   | ctx, tw :: rest => by
-    unfold BitcoinLedger.Musig2.applyTweaks Spec.Musig2.applyTweaks
+    unfold BitcoinLedger.Musig2.applyTweaks InternalSpec.Musig2.applyTweaks
     rw [applyTweak_refines_spec]
-    cases Spec.Musig2.applyTweak c ctx tw with
+    cases InternalSpec.Musig2.applyTweak c ctx tw with
     | error e => rfl
     | ok ctx' => exact applyTweaks_refines_spec c ctx' rest
 
@@ -281,29 +281,29 @@ theorem deriveMusigPerInputInfo_refines_spec {Affine : Type} (c : MusigCrypto Af
     (addressIndex : UInt32)
     (spend : MusigSpendPath) :
     BitcoinLedger.Musig2.deriveMusigPerInputInfo c participantPubkeys numFirst numSecond isChange addressIndex spend =
-      Spec.Musig2.deriveMusigPerInputInfo c participantPubkeys numFirst numSecond isChange addressIndex spend := by
-  unfold BitcoinLedger.Musig2.deriveMusigPerInputInfo Spec.Musig2.deriveMusigPerInputInfo
+      InternalSpec.Musig2.deriveMusigPerInputInfo c participantPubkeys numFirst numSecond isChange addressIndex spend := by
+  unfold BitcoinLedger.Musig2.deriveMusigPerInputInfo InternalSpec.Musig2.deriveMusigPerInputInfo
   cases participantPubkeys.isEmpty with
   | true => rfl
   | false =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
-    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = Spec.Musig2.maxPubkeysPerMusig := rfl
+    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = InternalSpec.Musig2.maxPubkeysPerMusig := rfl
     rw [hMax]
-    by_cases hGt : participantPubkeys.length > Spec.Musig2.maxPubkeysPerMusig
+    by_cases hGt : participantPubkeys.length > InternalSpec.Musig2.maxPubkeysPerMusig
     · simp [hGt]
     · simp only [hGt, decide_false, ↓reduceIte]
-      have hHard : BitcoinLedger.Musig2.bip32HardenedBit = Spec.Musig2.bip32HardenedBit := rfl
+      have hHard : BitcoinLedger.Musig2.bip32HardenedBit = InternalSpec.Musig2.bip32HardenedBit := rfl
       rw [hHard]
-      cases (decide (Spec.Musig2.bip32HardenedBit ≤ if isChange then numSecond else numFirst) ||
-             decide (Spec.Musig2.bip32HardenedBit ≤ addressIndex)) with
+      cases (decide (InternalSpec.Musig2.bip32HardenedBit ≤ if isChange then numSecond else numFirst) ||
+             decide (InternalSpec.Musig2.bip32HardenedBit ≤ addressIndex)) with
       | true => rfl
       | false =>
         rw [keySort_refines_spec, keyAgg_refines_spec, bip328Chaincode_eq]
-        cases Spec.Musig2.keyAgg c (Spec.Musig2.keySort participantPubkeys) with
+        cases InternalSpec.Musig2.keyAgg c (InternalSpec.Musig2.keySort participantPubkeys) with
         | error e => rfl
         | ok baseCtx =>
           dsimp only [Bind.bind, Except.bind]
-          cases c.ckdPubUnhardened (c.compress baseCtx.q) Spec.Musig2.bip328Chaincode
+          cases c.ckdPubUnhardened (c.compress baseCtx.q) InternalSpec.Musig2.bip328Chaincode
               (if isChange then numSecond else numFirst) with
           | none => rfl
           | some res1 =>
@@ -321,7 +321,7 @@ theorem deriveMusigPerInputInfo_refines_spec {Affine : Type} (c : MusigCrypto Af
                 unfold BitcoinLedger.Musig2.computeTapTweakScalar
                 dsimp only
                 rw [cpoint_eq]
-                cases Spec.Musig2.cpoint c child2Pk with
+                cases InternalSpec.Musig2.cpoint c child2Pk with
                 | error e => rfl
                 | ok child2Pt =>
                   dsimp only [Bind.bind, Except.bind]
@@ -333,24 +333,24 @@ theorem deriveMusigPerInputInfo_refines_spec {Affine : Type} (c : MusigCrypto Af
                     have hX : (BitcoinLedger.Musig2.xOnlyOfCompressed child2Pk).bytes = child2Pk.xOnly.bytes := rfl
                     simp only [hX]
                     rw [hTweak]
-                    cases Spec.Musig2.applyTweak c { q := child2Pt, gacc := 1, tacc := 0 }
+                    cases InternalSpec.Musig2.applyTweak c { q := child2Pt, gacc := 1, tacc := 0 }
                       { scalar := c.taggedHash "TapTweak" child2Pk.xOnly.bytes, isXOnly := true } <;> rfl
                   | some h =>
                     have hTweak := applyTweak_refines_spec c
                       { q := child2Pt, gacc := 1, tacc := 0 }
-                      { scalar := c.taggedHash "TapTweak" (Spec.Musig2.appendBytes child2Pk.xOnly.bytes h.bytes), isXOnly := true }
+                      { scalar := c.taggedHash "TapTweak" (InternalSpec.Musig2.appendBytes child2Pk.xOnly.bytes h.bytes), isXOnly := true }
                     have hX : (BitcoinLedger.Musig2.xOnlyOfCompressed child2Pk).bytes = child2Pk.xOnly.bytes := rfl
                     simp only [hX, appendBytes_eq]
                     rw [hTweak]
-                    cases Spec.Musig2.applyTweak c { q := child2Pt, gacc := 1, tacc := 0 }
-                      { scalar := c.taggedHash "TapTweak" (Spec.Musig2.appendBytes child2Pk.xOnly.bytes h.bytes), isXOnly := true } <;> rfl
+                    cases InternalSpec.Musig2.applyTweak c { q := child2Pt, gacc := 1, tacc := 0 }
+                      { scalar := c.taggedHash "TapTweak" (InternalSpec.Musig2.appendBytes child2Pk.xOnly.bytes h.bytes), isXOnly := true } <;> rfl
 
 /-! ## 3. Nonce Generation, Nonce Aggregation, `partialSign` & `partialSigAgg` Refinement -/
 
 theorem nonceHash_eq {Affine : Type} (c : MusigCrypto Affine)
     (rand : ByteArray) (pk : CompressedPubKey) (aggpk : XOnlyPubKey) (idx : UInt8) :
     BitcoinLedger.Musig2.nonceHash c rand pk aggpk idx =
-      Spec.Musig2.nonceHash c rand pk aggpk idx := rfl
+      InternalSpec.Musig2.nonceHash c rand pk aggpk idx := rfl
 
 theorem nat_beq_zero_eq_decide (n : Nat) : (n == 0) = decide (n = 0) := by
   cases n <;> rfl
@@ -358,37 +358,37 @@ theorem nat_beq_zero_eq_decide (n : Nat) : (n == 0) = decide (n = 0) := by
 theorem nonceGen_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (rand : Bytes32) (pk : CompressedPubKey) (aggpk : XOnlyPubKey) :
     BitcoinLedger.Musig2.nonceGen c rand pk aggpk =
-      Spec.Musig2.nonceGen c rand pk aggpk := by
-  unfold BitcoinLedger.Musig2.nonceGen Spec.Musig2.nonceGen
+      InternalSpec.Musig2.nonceGen c rand pk aggpk := by
+  unfold BitcoinLedger.Musig2.nonceGen InternalSpec.Musig2.nonceGen
   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
   rw [nonceHash_eq, nonceHash_eq, parseScalarModN_eq, parseScalarModN_eq]
   rw [nat_beq_zero_eq_decide, nat_beq_zero_eq_decide]
-  cases (decide (Spec.Musig2.parseScalarModN (Spec.Musig2.nonceHash c rand.bytes pk aggpk 0) = 0) ||
-         decide (Spec.Musig2.parseScalarModN (Spec.Musig2.nonceHash c rand.bytes pk aggpk 1) = 0)) with
+  cases (decide (InternalSpec.Musig2.parseScalarModN (InternalSpec.Musig2.nonceHash c rand.bytes pk aggpk 0) = 0) ||
+         decide (InternalSpec.Musig2.parseScalarModN (InternalSpec.Musig2.nonceHash c rand.bytes pk aggpk 1) = 0)) with
   | true => rfl
   | false =>
-    cases c.pointMul (Spec.Musig2.parseScalarModN (Spec.Musig2.nonceHash c rand.bytes pk aggpk 0)) (.affine c.generator) <;>
-      cases c.pointMul (Spec.Musig2.parseScalarModN (Spec.Musig2.nonceHash c rand.bytes pk aggpk 1)) (.affine c.generator) <;> rfl
+    cases c.pointMul (InternalSpec.Musig2.parseScalarModN (InternalSpec.Musig2.nonceHash c rand.bytes pk aggpk 0)) (.affine c.generator) <;>
+      cases c.pointMul (InternalSpec.Musig2.parseScalarModN (InternalSpec.Musig2.nonceHash c rand.bytes pk aggpk 1)) (.affine c.generator) <;> rfl
 
 theorem sumNonceComponent_eq {Affine : Type} (c : MusigCrypto Affine)
     (sel1 sel2 : PubNonce → CompressedPubKey) (hSel : sel1 = sel2) :
     ∀ (idx : Nat) (pns : List PubNonce) (acc : CurvePoint Affine),
       BitcoinLedger.Musig2.sumNonceComponent c sel1 idx pns acc =
-        Spec.Musig2.sumNonceComponent c sel2 idx pns acc
+        InternalSpec.Musig2.sumNonceComponent c sel2 idx pns acc
   | _, [], acc => by
-    unfold BitcoinLedger.Musig2.sumNonceComponent Spec.Musig2.sumNonceComponent
+    unfold BitcoinLedger.Musig2.sumNonceComponent InternalSpec.Musig2.sumNonceComponent
     cases acc <;> rfl
   | idx, pn :: rest, acc => by
     subst hSel
-    unfold BitcoinLedger.Musig2.sumNonceComponent Spec.Musig2.sumNonceComponent
+    unfold BitcoinLedger.Musig2.sumNonceComponent InternalSpec.Musig2.sumNonceComponent
     cases c.decompress (sel1 pn) with
     | none => rfl
     | some rij => exact sumNonceComponent_eq c sel1 sel1 rfl (idx + 1) rest _
 
 theorem nonceAgg_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (pubnonces : List PubNonce) :
-    BitcoinLedger.Musig2.nonceAgg c pubnonces = Spec.Musig2.nonceAgg c pubnonces := by
-  unfold BitcoinLedger.Musig2.nonceAgg Spec.Musig2.nonceAgg
+    BitcoinLedger.Musig2.nonceAgg c pubnonces = InternalSpec.Musig2.nonceAgg c pubnonces := by
+  unfold BitcoinLedger.Musig2.nonceAgg InternalSpec.Musig2.nonceAgg
   cases pubnonces.isEmpty with
   | true => rfl
   | false =>
@@ -396,33 +396,33 @@ theorem nonceAgg_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     have hR1 : BitcoinLedger.Musig2.pubNonceR1 = PubNonce.r1Bytes := rfl
     have hR2 : BitcoinLedger.Musig2.pubNonceR2 = PubNonce.r2Bytes := rfl
     rw [sumNonceComponent_eq c _ _ hR1, sumNonceComponent_eq c _ _ hR2]
-    cases Spec.Musig2.sumNonceComponent c PubNonce.r1Bytes 0 pubnonces .infinity with
+    cases InternalSpec.Musig2.sumNonceComponent c PubNonce.r1Bytes 0 pubnonces .infinity with
     | error e => rfl
     | ok r1 =>
       dsimp only
-      cases Spec.Musig2.sumNonceComponent c PubNonce.r2Bytes 0 pubnonces .infinity <;> rfl
+      cases InternalSpec.Musig2.sumNonceComponent c PubNonce.r2Bytes 0 pubnonces .infinity <;> rfl
 
 theorem getSessionValues_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (ctx : SessionContext) :
-    BitcoinLedger.Musig2.getSessionValues c ctx = Spec.Musig2.getSessionValues c ctx := by
-  unfold BitcoinLedger.Musig2.getSessionValues Spec.Musig2.getSessionValues
+    BitcoinLedger.Musig2.getSessionValues c ctx = InternalSpec.Musig2.getSessionValues c ctx := by
+  unfold BitcoinLedger.Musig2.getSessionValues InternalSpec.Musig2.getSessionValues
   rw [keyAgg_refines_spec]
-  cases Spec.Musig2.keyAgg c ctx.pubkeys with
+  cases InternalSpec.Musig2.keyAgg c ctx.pubkeys with
   | error e => rfl
   | ok baseCtx =>
     dsimp only [Bind.bind, Except.bind]
     rw [applyTweaks_refines_spec]
-    cases Spec.Musig2.applyTweaks c baseCtx ctx.tweaks with
+    cases InternalSpec.Musig2.applyTweaks c baseCtx ctx.tweaks with
     | error e => rfl
     | ok tweakedCtx =>
       dsimp only
       rw [pubNonceR1_eq, pubNonceR2_eq, cpointExt_eq, cpointExt_eq,
           concatBytes_eq, parseScalarModN_eq]
-      cases Spec.Musig2.cpointExt c (PubNonce.r1Bytes ctx.aggnonce) with
+      cases InternalSpec.Musig2.cpointExt c (PubNonce.r1Bytes ctx.aggnonce) with
       | error e => rfl
       | ok r1 =>
         dsimp only
-        cases Spec.Musig2.cpointExt c (PubNonce.r2Bytes ctx.aggnonce) with
+        cases InternalSpec.Musig2.cpointExt c (PubNonce.r2Bytes ctx.aggnonce) with
         | error e => rfl
         | ok r2 =>
           dsimp only
@@ -431,22 +431,22 @@ theorem getSessionValues_refines_spec {Affine : Type} (c : MusigCrypto Affine)
 theorem partialSign_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (secnonce : SecNonce) (skBytes : Bytes32) (ctx : SessionContext) :
     BitcoinLedger.Musig2.partialSign c secnonce skBytes ctx =
-      Spec.Musig2.partialSign c secnonce skBytes ctx := by
-  unfold BitcoinLedger.Musig2.partialSign Spec.Musig2.partialSign
+      InternalSpec.Musig2.partialSign c secnonce skBytes ctx := by
+  unfold BitcoinLedger.Musig2.partialSign InternalSpec.Musig2.partialSign
   rw [getSessionValues_refines_spec]
-  cases Spec.Musig2.getSessionValues c ctx with
+  cases InternalSpec.Musig2.getSessionValues c ctx with
   | error e => rfl
   | ok vals =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
     rw [secp256k1Order_eq]
-    cases (!(decide (0 < secnonce.k1) && decide (secnonce.k1 < Spec.Musig2.secp256k1Order))) with
+    cases (!(decide (0 < secnonce.k1) && decide (secnonce.k1 < InternalSpec.Musig2.secp256k1Order))) with
     | true => rfl
     | false =>
-      cases (!(decide (0 < secnonce.k2) && decide (secnonce.k2 < Spec.Musig2.secp256k1Order))) with
+      cases (!(decide (0 < secnonce.k2) && decide (secnonce.k2 < InternalSpec.Musig2.secp256k1Order))) with
       | true => rfl
       | false =>
         rw [parseNonZeroScalar_eq]
-        cases Spec.Musig2.parseNonZeroScalar skBytes with
+        cases InternalSpec.Musig2.parseNonZeroScalar skBytes with
         | none => rfl
         | some sk =>
           dsimp only [Bind.bind, Except.bind]
@@ -462,7 +462,7 @@ theorem partialSign_refines_spec {Affine : Type} (c : MusigCrypto Affine)
             | true => rfl
             | false =>
               rw [listMem_eq]
-              cases (!Spec.Musig2.listMem (c.compress pubPoint) ctx.pubkeys) with
+              cases (!InternalSpec.Musig2.listMem (c.compress pubPoint) ctx.pubkeys) with
               | true => rfl
               | false =>
                 rw [keyAggCoeff_refines_spec, scalarToBytes32_eq]
@@ -471,15 +471,15 @@ theorem sumPartialSigsLoop_eq_foldlM :
     ∀ (psigs : List PartialSig) (acc : Nat),
       BitcoinLedger.Musig2.sumPartialSigsLoop psigs acc =
         psigs.foldlM (fun a psig =>
-          match Spec.Musig2.parseScalarStrict psig with
-          | some s_i => .ok ((a + s_i) % Spec.Musig2.secp256k1Order)
+          match InternalSpec.Musig2.parseScalarStrict psig with
+          | some s_i => .ok ((a + s_i) % InternalSpec.Musig2.secp256k1Order)
           | none => .error .invalidPartialSignature) acc
   | [], _ => rfl
   | psig :: rest, acc => by
     unfold BitcoinLedger.Musig2.sumPartialSigsLoop
     simp only [List.foldlM]
     rw [parseScalarStrict_eq, secp256k1Order_eq]
-    cases Spec.Musig2.parseScalarStrict psig with
+    cases InternalSpec.Musig2.parseScalarStrict psig with
     | none => rfl
     | some s_i => exact sumPartialSigsLoop_eq_foldlM rest _
 
@@ -500,22 +500,22 @@ theorem nat_bne_eq_decide_ne (a b : Nat) : (a != b) = decide (a ≠ b) := by
 theorem partialSigAgg_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (ctx : SessionContext) (psigs : List PartialSig) :
     BitcoinLedger.Musig2.partialSigAgg c ctx psigs =
-      Spec.Musig2.partialSigAgg c ctx psigs := by
-  unfold BitcoinLedger.Musig2.partialSigAgg Spec.Musig2.partialSigAgg
+      InternalSpec.Musig2.partialSigAgg c ctx psigs := by
+  unfold BitcoinLedger.Musig2.partialSigAgg InternalSpec.Musig2.partialSigAgg
   rw [nat_bne_eq_decide_ne]
   cases decide (psigs.length ≠ ctx.pubkeys.length) with
   | true => rfl
   | false =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
     rw [getSessionValues_refines_spec]
-    cases Spec.Musig2.getSessionValues c ctx with
+    cases InternalSpec.Musig2.getSessionValues c ctx with
     | error e => rfl
     | ok vals =>
       dsimp only [Bind.bind, Except.bind]
       rw [sumPartialSigsLoop_eq_foldlM]
       cases (psigs.foldlM (fun acc psig =>
-          match Spec.Musig2.parseScalarStrict psig with
-          | some s_i => Except.ok ((acc + s_i) % Spec.Musig2.secp256k1Order)
+          match InternalSpec.Musig2.parseScalarStrict psig with
+          | some s_i => Except.ok ((acc + s_i) % InternalSpec.Musig2.secp256k1Order)
           | none => Except.error MusigError.invalidPartialSignature) 0 : Except MusigError Nat) with
       | error e => rfl
       | ok sumS =>
@@ -527,22 +527,22 @@ theorem partialSigAgg_refines_spec {Affine : Type} (c : MusigCrypto Affine)
 theorem syntheticRandIJ_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (randRoot : RandRoot) (inputIndex placeholderIndex : UInt32) :
     BitcoinLedger.Musig2.syntheticRandIJ c randRoot inputIndex placeholderIndex =
-      Spec.Musig2.syntheticRandIJ c randRoot inputIndex placeholderIndex := rfl
+      InternalSpec.Musig2.syntheticRandIJ c randRoot inputIndex placeholderIndex := rfl
 
 theorem computeBolosPsbtSessionId_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (descSha256 merkleRoot : Bytes32) (musig2SessionId : Option ByteArray) :
     BitcoinLedger.Musig2.computeBolosPsbtSessionId c descSha256 merkleRoot musig2SessionId =
-      Spec.Musig2.computeBolosPsbtSessionId c descSha256 merkleRoot musig2SessionId := rfl
+      InternalSpec.Musig2.computeBolosPsbtSessionId c descSha256 merkleRoot musig2SessionId := rfl
 
 theorem computeVanadiumPsbtSessionId_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (walletId unsignedTxId : Bytes32) :
     BitcoinLedger.Musig2.computeVanadiumPsbtSessionId c walletId unsignedTxId =
-      Spec.Musig2.computeVanadiumPsbtSessionId c walletId unsignedTxId := rfl
+      InternalSpec.Musig2.computeVanadiumPsbtSessionId c walletId unsignedTxId := rfl
 
 theorem selectNonceAggPk_refines_spec (mode : NonceAggPkMode)
     (untweaked tweaked : CompressedPubKey) :
     BitcoinLedger.Musig2.selectNonceAggPk mode untweaked tweaked =
-      Spec.Musig2.selectNonceAggPk mode untweaked tweaked := by
+      InternalSpec.Musig2.selectNonceAggPk mode untweaked tweaked := by
   cases mode <;> rfl
 
 theorem bolosDefaultStore_eq :
@@ -559,11 +559,11 @@ theorem isRandRootConsumed_eq (store : MusigSessionStore) (rr : RandRoot) :
 theorem findActiveEntry_eq (idMatchBytes : Nat) (sid : PsbtSessionId) :
     ∀ entries : List (PsbtSessionId × RandRoot),
       BitcoinLedger.Musig2.findActiveEntry idMatchBytes sid entries =
-        entries.find? (fun p => Spec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid)
+        entries.find? (fun p => InternalSpec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid)
   | [] => rfl
   | p :: rest => by
     simp only [BitcoinLedger.Musig2.findActiveEntry, List.find?, sessionIdPrefixEq_eq]
-    cases Spec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid <;>
+    cases InternalSpec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid <;>
       simp [findActiveEntry_eq idMatchBytes sid rest]
 
 theorem lookupActive_refines_spec (store : MusigSessionStore) (sid : PsbtSessionId) :
@@ -579,24 +579,24 @@ theorem sessionStatus_refines_spec (store : MusigSessionStore) (sid : PsbtSessio
   rfl
 
 theorem trimToCapacity_eq (cap : Option Nat) (entries : List (PsbtSessionId × RandRoot)) :
-    BitcoinLedger.Musig2.trimToCapacity cap entries = Spec.Musig2.trimToCapacity cap entries := by
+    BitcoinLedger.Musig2.trimToCapacity cap entries = InternalSpec.Musig2.trimToCapacity cap entries := by
   cases cap with
   | none => rfl
   | some m =>
     cases m with
     | zero => rfl
     | succ k =>
-      unfold BitcoinLedger.Musig2.trimToCapacity Spec.Musig2.trimToCapacity
+      unfold BitcoinLedger.Musig2.trimToCapacity InternalSpec.Musig2.trimToCapacity
       by_cases hLe : entries.length ≤ k + 1 <;> simp [hLe]
 
 theorem filterOutMatchingSid_eq (idMatchBytes : Nat) (sid : PsbtSessionId) :
     ∀ entries : List (PsbtSessionId × RandRoot),
       BitcoinLedger.Musig2.filterOutMatchingSid idMatchBytes sid entries =
-        entries.filter (fun p => !Spec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid)
+        entries.filter (fun p => !InternalSpec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid)
   | [] => rfl
   | p :: rest => by
     simp only [BitcoinLedger.Musig2.filterOutMatchingSid, List.filter, sessionIdPrefixEq_eq]
-    cases (!Spec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid) <;>
+    cases (!InternalSpec.Musig2.sessionIdPrefixEq idMatchBytes p.1 sid) <;>
       simp [filterOutMatchingSid_eq idMatchBytes sid rest]
 
 theorem registerRound1_refines_spec (store : MusigSessionStore)
@@ -611,7 +611,7 @@ theorem consumeRound2_refines_spec (store : MusigSessionStore) (sid : PsbtSessio
     BitcoinLedger.Musig2.consumeRound2 store sid = store.consumeRound2 sid := by
   unfold BitcoinLedger.Musig2.consumeRound2 MusigSessionStore.consumeRound2
   rw [findActiveEntry_eq]
-  cases store.activeEntries.find? (fun p => Spec.Musig2.sessionIdPrefixEq store.idMatchBytes p.1 sid) with
+  cases store.activeEntries.find? (fun p => InternalSpec.Musig2.sessionIdPrefixEq store.idMatchBytes p.1 sid) with
   | none => rfl
   | some pair =>
     rcases pair with ⟨_, rr⟩
@@ -624,30 +624,30 @@ theorem evictUnconsumed_refines_spec (store : MusigSessionStore) (sid : PsbtSess
   rw [filterOutMatchingSid_eq]
 
 theorem distinctTaskCoordinates_eq :
-    ∀ cs, BitcoinLedger.Musig2.distinctTaskCoordinates cs = Spec.Musig2.distinctTaskCoordinates cs
+    ∀ cs, BitcoinLedger.Musig2.distinctTaskCoordinates cs = InternalSpec.Musig2.distinctTaskCoordinates cs
   | [] => rfl
   | c :: cs => by
-    simp only [BitcoinLedger.Musig2.distinctTaskCoordinates, Spec.Musig2.distinctTaskCoordinates,
+    simp only [BitcoinLedger.Musig2.distinctTaskCoordinates, InternalSpec.Musig2.distinctTaskCoordinates,
       listMem_eq, distinctTaskCoordinates_eq cs]
 
 theorem round1ProduceTaskNonce_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (randRoot : RandRoot) (task : MusigSignTask) :
     BitcoinLedger.Musig2.round1ProduceTaskNonce c mode randRoot task =
-      Spec.Musig2.round1ProduceTaskNonce c mode randRoot task := by
-  unfold BitcoinLedger.Musig2.round1ProduceTaskNonce Spec.Musig2.round1ProduceTaskNonce
+      InternalSpec.Musig2.round1ProduceTaskNonce c mode randRoot task := by
+  unfold BitcoinLedger.Musig2.round1ProduceTaskNonce InternalSpec.Musig2.round1ProduceTaskNonce
   cases task.sortedPubkeys.isEmpty with
   | true => rfl
   | false =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
-    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = Spec.Musig2.maxPubkeysPerMusig := rfl
+    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = InternalSpec.Musig2.maxPubkeysPerMusig := rfl
     rw [hMax]
-    by_cases hGt : task.sortedPubkeys.length > Spec.Musig2.maxPubkeysPerMusig
+    by_cases hGt : task.sortedPubkeys.length > InternalSpec.Musig2.maxPubkeysPerMusig
     · simp [hGt]
     · simp only [hGt, decide_false, ↓reduceIte]
       rw [syntheticRandIJ_refines_spec, selectNonceAggPk_refines_spec, nonceGen_refines_spec]
-      cases Spec.Musig2.nonceGen c
-        (Spec.Musig2.syntheticRandIJ c randRoot task.inputIndex task.placeholderIndex)
-        task.internalPk (Spec.Musig2.selectNonceAggPk mode task.untweakedAggPk task.tweakedAggPk) <;> rfl
+      cases InternalSpec.Musig2.nonceGen c
+        (InternalSpec.Musig2.syntheticRandIJ c randRoot task.inputIndex task.placeholderIndex)
+        task.internalPk (InternalSpec.Musig2.selectNonceAggPk mode task.untweakedAggPk task.tweakedAggPk) <;> rfl
 
 theorem mapM_congr_except {α β ε : Type} {f g : α → Except ε β} (hfg : ∀ x, f x = g x) :
     ∀ xs : List α, xs.mapM f = xs.mapM g := by
@@ -660,8 +660,8 @@ theorem executeRound1Pass_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (store : MusigSessionStore)
     (sid : PsbtSessionId) (freshRandRoot : RandRoot) (tasks : List MusigSignTask) :
     BitcoinLedger.Musig2.executeRound1Pass c mode store sid freshRandRoot tasks =
-      Spec.Musig2.executeRound1Pass c mode store sid freshRandRoot tasks := by
-  unfold BitcoinLedger.Musig2.executeRound1Pass Spec.Musig2.executeRound1Pass
+      InternalSpec.Musig2.executeRound1Pass c mode store sid freshRandRoot tasks := by
+  unfold BitcoinLedger.Musig2.executeRound1Pass InternalSpec.Musig2.executeRound1Pass
   dsimp only
   rw [isAllZeros_eq, isAllZeros_eq, isRandRootConsumed_eq,
       evictUnconsumed_refines_spec, distinctTaskCoordinates_eq,
@@ -669,10 +669,10 @@ theorem executeRound1Pass_refines_spec {Affine : Type} (c : MusigCrypto Affine)
   cases (sid.isAllZeros || freshRandRoot.isAllZeros || store.isRandRootConsumed freshRandRoot) with
   | true => rfl
   | false =>
-    cases (!Spec.Musig2.distinctTaskCoordinates (tasks.map (fun t => (t.inputIndex, t.placeholderIndex, t.internalPk)))) with
+    cases (!InternalSpec.Musig2.distinctTaskCoordinates (tasks.map (fun t => (t.inputIndex, t.placeholderIndex, t.internalPk)))) with
     | true => rfl
     | false =>
-      cases tasks.mapM (Spec.Musig2.round1ProduceTaskNonce c mode freshRandRoot) with
+      cases tasks.mapM (InternalSpec.Musig2.round1ProduceTaskNonce c mode freshRandRoot) with
       | error err => rfl
       | ok outputs =>
         dsimp only
@@ -683,15 +683,15 @@ theorem round2SignTask_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (mode : NonceAggPkMode) (randRoot : RandRoot) (inp : MusigRound2TaskInput)
     (checkSelfPubnonce : Bool) :
     BitcoinLedger.Musig2.round2SignTask c mode randRoot inp checkSelfPubnonce =
-      Spec.Musig2.round2SignTask c mode randRoot inp checkSelfPubnonce := by
-  unfold BitcoinLedger.Musig2.round2SignTask Spec.Musig2.round2SignTask
+      InternalSpec.Musig2.round2SignTask c mode randRoot inp checkSelfPubnonce := by
+  unfold BitcoinLedger.Musig2.round2SignTask InternalSpec.Musig2.round2SignTask
   cases inp.task.sortedPubkeys.isEmpty with
   | true => rfl
   | false =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
-    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = Spec.Musig2.maxPubkeysPerMusig := rfl
+    have hMax : BitcoinLedger.Musig2.maxPubkeysPerMusig = InternalSpec.Musig2.maxPubkeysPerMusig := rfl
     rw [hMax]
-    by_cases hGt : inp.task.sortedPubkeys.length > Spec.Musig2.maxPubkeysPerMusig
+    by_cases hGt : inp.task.sortedPubkeys.length > InternalSpec.Musig2.maxPubkeysPerMusig
     · simp [hGt]
     · simp only [hGt, decide_false, ↓reduceIte]
       cases inp.psbtMyPubnonce with
@@ -703,15 +703,15 @@ theorem round2SignTask_refines_spec {Affine : Type} (c : MusigCrypto Affine)
         | true => rfl
         | false =>
           rw [nonceAgg_refines_spec]
-          cases Spec.Musig2.nonceAgg c inp.cosignerPubnonces with
+          cases InternalSpec.Musig2.nonceAgg c inp.cosignerPubnonces with
           | error e => rfl
           | ok aggnonce =>
             dsimp only [Bind.bind, Except.bind]
             rw [syntheticRandIJ_refines_spec, selectNonceAggPk_refines_spec, nonceGen_refines_spec]
-            cases Spec.Musig2.nonceGen c
-              (Spec.Musig2.syntheticRandIJ c randRoot inp.task.inputIndex inp.task.placeholderIndex)
+            cases InternalSpec.Musig2.nonceGen c
+              (InternalSpec.Musig2.syntheticRandIJ c randRoot inp.task.inputIndex inp.task.placeholderIndex)
               inp.task.internalPk
-              (Spec.Musig2.selectNonceAggPk mode inp.task.untweakedAggPk inp.task.tweakedAggPk) with
+              (InternalSpec.Musig2.selectNonceAggPk mode inp.task.untweakedAggPk inp.task.tweakedAggPk) with
             | error e => rfl
             | ok pair =>
               rcases pair with ⟨secnonce, recomputedPn⟩
@@ -720,7 +720,7 @@ theorem round2SignTask_refines_spec {Affine : Type} (c : MusigCrypto Affine)
               | true => rfl
               | false =>
                 rw [partialSign_refines_spec]
-                cases Spec.Musig2.partialSign c secnonce inp.secretKey
+                cases InternalSpec.Musig2.partialSign c secnonce inp.secretKey
                   { aggnonce := aggnonce
                     pubkeys := inp.task.sortedPubkeys
                     tweaks := inp.task.tweaks
@@ -731,8 +731,8 @@ theorem executeRound2Pass_refines_spec {Affine : Type} (c : MusigCrypto Affine)
     (sid : PsbtSessionId) (inputs : List MusigRound2TaskInput)
     (checkSelfPubnonce : Bool) :
     BitcoinLedger.Musig2.executeRound2Pass c mode store sid inputs checkSelfPubnonce =
-      Spec.Musig2.executeRound2Pass c mode store sid inputs checkSelfPubnonce := by
-  unfold BitcoinLedger.Musig2.executeRound2Pass Spec.Musig2.executeRound2Pass
+      InternalSpec.Musig2.executeRound2Pass c mode store sid inputs checkSelfPubnonce := by
+  unfold BitcoinLedger.Musig2.executeRound2Pass InternalSpec.Musig2.executeRound2Pass
   rw [consumeRound2_refines_spec]
   cases store.consumeRound2 sid with
   | error err => rfl
@@ -746,27 +746,27 @@ theorem executeRound2Pass_refines_spec {Affine : Type} (c : MusigCrypto Affine)
 theorem stepMusigOp_refines_spec {Affine : Type} (c : MusigCrypto Affine) (mode : NonceAggPkMode)
     (store : MusigSessionStore) (op : MusigOp) (checkSelfPubnonce : Bool) :
     BitcoinLedger.Musig2.stepMusigOp c mode store op checkSelfPubnonce =
-      Spec.Musig2.stepMusigOp c mode store op checkSelfPubnonce := by
+      InternalSpec.Musig2.stepMusigOp c mode store op checkSelfPubnonce := by
   cases op with
   | round1 sid freshRand tasks =>
-    simp only [BitcoinLedger.Musig2.stepMusigOp, Spec.Musig2.stepMusigOp, executeRound1Pass_refines_spec]
+    simp only [BitcoinLedger.Musig2.stepMusigOp, InternalSpec.Musig2.stepMusigOp, executeRound1Pass_refines_spec]
     rfl
   | round2 sid inputs =>
-    simp only [BitcoinLedger.Musig2.stepMusigOp, Spec.Musig2.stepMusigOp,
+    simp only [BitcoinLedger.Musig2.stepMusigOp, InternalSpec.Musig2.stepMusigOp,
       lookupActive_refines_spec, executeRound2Pass_refines_spec]
     rfl
   | evict sid =>
-    simp only [BitcoinLedger.Musig2.stepMusigOp, Spec.Musig2.stepMusigOp, evictUnconsumed_refines_spec]
+    simp only [BitcoinLedger.Musig2.stepMusigOp, InternalSpec.Musig2.stepMusigOp, evictUnconsumed_refines_spec]
 
 theorem runMusigTrace_refines_spec {Affine : Type} (c : MusigCrypto Affine) (mode : NonceAggPkMode)
     (checkSelfPubnonce : Bool) :
     ∀ (ops : List MusigOp) (store : MusigSessionStore),
       BitcoinLedger.Musig2.runMusigTrace c mode store ops checkSelfPubnonce =
-        Spec.Musig2.runMusigTrace c mode store ops checkSelfPubnonce
+        InternalSpec.Musig2.runMusigTrace c mode store ops checkSelfPubnonce
   | [], _ => rfl
   | op :: restOps, store => by
-    simp only [BitcoinLedger.Musig2.runMusigTrace, Spec.Musig2.runMusigTrace, stepMusigOp_refines_spec]
-    cases Spec.Musig2.stepMusigOp c mode store op checkSelfPubnonce with
+    simp only [BitcoinLedger.Musig2.runMusigTrace, InternalSpec.Musig2.runMusigTrace, stepMusigOp_refines_spec]
+    cases InternalSpec.Musig2.stepMusigOp c mode store op checkSelfPubnonce with
     | mk ev store' =>
       simp only [runMusigTrace_refines_spec c mode checkSelfPubnonce restOps store']
 
@@ -781,7 +781,7 @@ theorem impl_musig_nonce_single_use_linearity {Affine : Type} (c : MusigCrypto A
     countRound2SuccessForRandRoot rr
       (BitcoinLedger.Musig2.runMusigTrace c mode store ops checkSelfPubnonce).1 ≤ 1 := by
   rw [runMusigTrace_refines_spec]
-  exact Spec.Musig2.musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops store
+  exact InternalSpec.Musig2.musig_nonce_single_use_linearity c mode rr checkSelfPubnonce ops store
 
 /-- **Immediate Round-2 Replay Rejection**:
     Any immediate Round-2 replay on `sid` after a successful `BitcoinLedger.Musig2.executeRound2Pass`
@@ -794,7 +794,7 @@ theorem impl_round2_replay_rejected_missingSession {Affine : Type} (c : MusigCry
     BitcoinLedger.Musig2.executeRound2Pass c mode store' sid replayInputs replayCheck =
       .error (.missingSession, store') := by
   rw [executeRound2Pass_refines_spec] at hOk ⊢
-  exact Spec.Musig2.round2_replay_without_round1_missingSession
+  exact InternalSpec.Musig2.round2_replay_without_round1_missingSession
     c mode store store' sid inputs replayInputs checkSelfPubnonce replayCheck sigs hOk
 
 /-- **Self-Pubnonce Mismatch Rejection**:
@@ -818,7 +818,7 @@ theorem impl_round2SignTask_rejects_mismatched_self_pubnonce {Affine : Type} (c 
   rw [round2SignTask_refines_spec]
   rw [nonceAgg_refines_spec] at hAgg
   rw [nonceGen_refines_spec, syntheticRandIJ_refines_spec, selectNonceAggPk_refines_spec] at hGen
-  exact Spec.Musig2.round2SignTask_rejects_mismatched_self_pubnonce
+  exact InternalSpec.Musig2.round2SignTask_rejects_mismatched_self_pubnonce
     c mode randRoot inp myPn recomputedPn aggnonce sec hNonEmpty hBound hMyPn hLen hAgg hGen hMismatch
 
 /-- **Re-Registration After Round-2 Completion & Replay Rejection Witness**:
@@ -845,7 +845,7 @@ theorem impl_re_registration_after_round2_completion :
       BitcoinLedger.Musig2.executeRound2Pass nonVacuousToyCrypto .untweakedBolos
         s3 sid [t2] = .ok (r2Out2, s4) ∧
       r2Out2.length = 1 := by
-  rcases Spec.Musig2.nonvacuous_round1_then_round2_and_replay_rejected with
+  rcases InternalSpec.Musig2.nonvacuous_round1_then_round2_and_replay_rejected with
     ⟨sid, rr1, rr2, t1, t2, r1Out, s1, r2Out, s2, r1Out2, s3, r2Out2, s4,
      h1, hLen1, h2, hLen2, hRep, h3, h4, hLen4⟩
   refine ⟨sid, rr1, rr2, t1, t2, r1Out, s1, r2Out, s2, r1Out2, s3, r2Out2, s4, ?_⟩

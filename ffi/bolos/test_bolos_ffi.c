@@ -592,8 +592,50 @@ static void test_ui_review(void) {
   TEST_CHECK(llb_bolos_ui_review(NULL, "b", ui_choice_cb, NULL) == LLB_BOLOS_ERR_PARAM);
 }
 
+static void test_wave4_opt_kernels(void) {
+  TEST_NOTE("test_wave4_opt_kernels");
+  /* Division-free satoshi split across 0, 1, 1 BTC, MAX_MONEY, UINT64_MAX */
+  TEST_CHECK(llb_sats_div_1e8(UINT64_C(0)) == UINT64_C(0));
+  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(0)) == UINT32_C(0));
+  TEST_CHECK(llb_sats_div_1e8(UINT64_C(99999999)) == UINT64_C(0));
+  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(99999999)) == UINT32_C(99999999));
+  TEST_CHECK(llb_sats_div_1e8(UINT64_C(100000000)) == UINT64_C(1));
+  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(100000000)) == UINT32_C(0));
+  TEST_CHECK(llb_sats_div_1e8(UINT64_C(2100000000000000)) == UINT64_C(21000000));
+  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(2100000000000000)) == UINT32_C(0));
+  TEST_CHECK(llb_sats_div_1e8(UINT64_MAX) == UINT64_C(184467440737));
+  TEST_CHECK(llb_sats_mod_1e8(UINT64_MAX) == UINT32_C(9551615));
+
+  /* O(1)-step Merkle descent state & direction */
+  uint64_t st = (UINT64_C(7) << 32) | UINT64_C(5);
+  TEST_CHECK(llb_merkle_state_dir(st) == 1); /* mask=4, 5>=4 -> right (size=3, idx=1) */
+  st = llb_merkle_advance_state(st);
+  TEST_CHECK(llb_merkle_state_dir(st) == 0); /* mask=2, 1<2 -> left (size=2, idx=1) */
+  st = llb_merkle_advance_state(st);
+  TEST_CHECK(llb_merkle_state_dir(st) == 1); /* mask=1, 1>=1 -> right (size=1, idx=0) */
+  st = llb_merkle_advance_state(st);
+  TEST_CHECK(llb_merkle_state_dir(st) == 0xFF); /* leaf */
+
+  /* BIP-32 pubkey export prefix safety, Bech32 final constant, wallet name char */
+  TEST_CHECK(llb_bip32_pubkey_export_prefix_ok(
+      0x80000054u, 0x80000000u, 0x80000000u, 0u, 3u, 0u, 1u) == 1);
+  TEST_CHECK(llb_bip32_pubkey_export_prefix_ok(
+      0x80000030u, 0x80000000u, 0x80000000u, 0x80000002u, 4u, 0u, 1u) == 1);
+  TEST_CHECK(llb_bip32_pubkey_export_prefix_ok(
+      0x80000030u, 0x80000000u, 0x80000000u, 0x80000003u, 4u, 0u, 1u) == 0);
+  TEST_CHECK(llb_bip32_pubkey_export_prefix_ok(
+      0x80454C45u, 0xC2494532u, 0u, 0u, 2u, 0u, 1u) == 1);
+  TEST_CHECK(llb_bech32_final_constant(1) == 1u);
+  TEST_CHECK(llb_bech32_final_constant(2) == 0x2bc830a3u);
+  TEST_CHECK(llb_bech32_final_constant(0) == 0u);
+  TEST_CHECK(llb_wallet_name_char_ok((uint8_t)' ', 1) == 0);
+  TEST_CHECK(llb_wallet_name_char_ok((uint8_t)' ', 0) == 1);
+  TEST_CHECK(llb_wallet_name_char_ok((uint8_t)'A', 1) == 1);
+}
+
 int main(void) {
   test_kernel_version_abi();
+  test_wave4_opt_kernels();
   test_fail_closed_without_tcb();
   test_tcb_table_validation();
   install_mock_tcb();

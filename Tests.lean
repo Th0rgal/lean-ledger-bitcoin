@@ -1,4 +1,5 @@
 import Spec
+import InternalSpec
 import BitcoinLedger
 import Tests.AxiomAudit
 import Tests.BolosDifferential

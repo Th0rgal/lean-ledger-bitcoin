@@ -10,6 +10,11 @@ lean_lib «Spec» where
   precompileModules := false
 
 @[default_target]
+lean_lib «InternalSpec» where
+  roots := #[`InternalSpec]
+  precompileModules := false
+
+@[default_target]
 lean_lib «BitcoinLedger» where
   roots := #[`BitcoinLedger]
   precompileModules := false

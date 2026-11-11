@@ -13,7 +13,7 @@
       `apps/bitcoin/app/src/handlers/sign_psbt/silent_payments.rs`)
 -/
 
-namespace Spec.SilentPayments
+namespace InternalSpec.SilentPayments
 
 /-! ## 1. Domain Constants & Fixed-Width Byte Wrappers -/
 
@@ -1369,4 +1369,4 @@ theorem nonvacuous_finalizePsbtSilentPayments_ok :
       List.mapM, List.mapM.loop, Bind.bind, Except.bind, Pure.pure, Except.pure]
   exact ⟨psbt, [shareOut], [scriptOut], hFin, rfl, rfl⟩
 
-end Spec.SilentPayments
+end InternalSpec.SilentPayments

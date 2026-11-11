@@ -1,20 +1,20 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Psbt
 
 namespace Proofs.Psbt
 
-open Spec.Psbt
+open InternalSpec.Psbt
 
 /-!
 # `Proofs.Psbt` — Machine-Checked Refinement & Security Theorems for `BitcoinLedger.Psbt`
 
 Proves constructive (`0 sorryAx`, `0 Classical.choice`, `0 native_decide`) refinement and
-security theorems linking `BitcoinLedger.Psbt` to `Spec.Psbt`:
+security theorems linking `BitcoinLedger.Psbt` to `InternalSpec.Psbt`:
 1. Structural equality & encoding primitives agreement (`eqBytes`, `eqBytes32`, `computeTxid`).
 2. Exact PSBTv0-to-PSBTv2 normalization refinement (`normalizePsbtV0ToV2_eq_spec`).
 3. Single-pass BIP-370 `determineLocktime` equivalence (`determineLocktime_eq_spec`) & conflict/fallback theorems.
 4. Checked `UInt64` satoshi arithmetic refinement (`checkedAddSats?`, `checkedSubSats?`, `scanOutputsChecked`, `scanInputsCheckedLoop`).
-5. Exact equivalence `BitcoinLedger.Psbt.validatePsbtTransaction = Spec.Psbt.validatePsbt` and `authorizePsbtSigning_eq_spec`.
+5. Exact equivalence `BitcoinLedger.Psbt.validatePsbtTransaction = InternalSpec.Psbt.validatePsbt` and `authorizePsbtSigning_eq_spec`.
 6. Sighash digest exact agreement (`computeSighashLegacy`, `computeSighashSegwitV0`, `computeSighashTaproot`).
 7. Security & conservation theorems:
    - Fee conservation (`totalIn = totalOut + fee`),
@@ -30,7 +30,7 @@ security theorems linking `BitcoinLedger.Psbt` to `Spec.Psbt`:
 /-! ## 1. Primitive Equality, Encoding & `computeTxid` Agreement -/
 
 theorem eqByteList_eq_spec (xs ys : List UInt8) :
-    BitcoinLedger.Psbt.eqByteList xs ys = Spec.Psbt.byteListEq xs ys := by
+    BitcoinLedger.Psbt.eqByteList xs ys = InternalSpec.Psbt.byteListEq xs ys := by
   induction xs generalizing ys with
   | nil =>
       cases ys <;> rfl
@@ -38,72 +38,72 @@ theorem eqByteList_eq_spec (xs ys : List UInt8) :
       cases ys with
       | nil => rfl
       | cons y ys =>
-          unfold BitcoinLedger.Psbt.eqByteList Spec.Psbt.byteListEq
+          unfold BitcoinLedger.Psbt.eqByteList InternalSpec.Psbt.byteListEq
           rw [ih ys]
 
 theorem eqBytes_eq_spec (a b : ByteArray) :
-    BitcoinLedger.Psbt.eqBytes a b = Spec.Psbt.bytesEq a b :=
+    BitcoinLedger.Psbt.eqBytes a b = InternalSpec.Psbt.bytesEq a b :=
   eqByteList_eq_spec a.data.toList b.data.toList
 
 theorem eqBytes32_eq_spec (a b : Bytes32) :
-    BitcoinLedger.Psbt.eqBytes32 a b = Spec.Psbt.bytes32Eq a b :=
+    BitcoinLedger.Psbt.eqBytes32 a b = InternalSpec.Psbt.bytes32Eq a b :=
   eqBytes_eq_spec a.bytes b.bytes
 
 theorem eqOptU8_eq_spec (a b : Option UInt8) :
-    BitcoinLedger.Psbt.eqOptU8 a b = Spec.Psbt.optUInt8Eq a b := by
+    BitcoinLedger.Psbt.eqOptU8 a b = InternalSpec.Psbt.optUInt8Eq a b := by
   cases a <;> cases b <;> rfl
 
 theorem eqOptU32_eq_spec (a b : Option UInt32) :
-    BitcoinLedger.Psbt.eqOptU32 a b = Spec.Psbt.optUInt32Eq a b := by
+    BitcoinLedger.Psbt.eqOptU32 a b = InternalSpec.Psbt.optUInt32Eq a b := by
   cases a <;> cases b <;> rfl
 
 theorem eqOptBytes_eq_spec (a b : Option ByteArray) :
-    BitcoinLedger.Psbt.eqOptBytes a b = Spec.Psbt.optBytesEq a b := by
-  cases a <;> cases b <;> simp [BitcoinLedger.Psbt.eqOptBytes, Spec.Psbt.optBytesEq, eqBytes_eq_spec]
+    BitcoinLedger.Psbt.eqOptBytes a b = InternalSpec.Psbt.optBytesEq a b := by
+  cases a <;> cases b <;> simp [BitcoinLedger.Psbt.eqOptBytes, InternalSpec.Psbt.optBytesEq, eqBytes_eq_spec]
 
 theorem eqOptString_eq_spec (a b : Option String) :
-    BitcoinLedger.Psbt.eqOptString a b = Spec.Psbt.optStringEq a b := by
+    BitcoinLedger.Psbt.eqOptString a b = InternalSpec.Psbt.optStringEq a b := by
   cases a <;> cases b <;> rfl
 
 theorem eqU32List_eq_spec (xs ys : List UInt32) :
-    BitcoinLedger.Psbt.eqU32List xs ys = Spec.Psbt.u32ListEq xs ys := by
+    BitcoinLedger.Psbt.eqU32List xs ys = InternalSpec.Psbt.u32ListEq xs ys := by
   induction xs generalizing ys with
   | nil => cases ys <;> rfl
   | cons x xs ih =>
       cases ys with
       | nil => rfl
       | cons y ys =>
-          unfold BitcoinLedger.Psbt.eqU32List Spec.Psbt.u32ListEq
+          unfold BitcoinLedger.Psbt.eqU32List InternalSpec.Psbt.u32ListEq
           rw [ih ys]
 
 theorem eqTxOut_eq_spec (a b : TxOut) :
-    BitcoinLedger.Psbt.eqTxOut a b = Spec.Psbt.txOutEq a b := by
-  unfold BitcoinLedger.Psbt.eqTxOut Spec.Psbt.txOutEq
+    BitcoinLedger.Psbt.eqTxOut a b = InternalSpec.Psbt.txOutEq a b := by
+  unfold BitcoinLedger.Psbt.eqTxOut InternalSpec.Psbt.txOutEq
   rw [eqBytes_eq_spec]
 
 theorem putU16LE_eq_spec (v : UInt16) :
-    BitcoinLedger.Psbt.putU16LE v = Spec.Psbt.encodeU16LE v := rfl
+    BitcoinLedger.Psbt.putU16LE v = InternalSpec.Psbt.encodeU16LE v := rfl
 
 theorem putU32LE_eq_spec (v : UInt32) :
-    BitcoinLedger.Psbt.putU32LE v = Spec.Psbt.encodeU32LE v := rfl
+    BitcoinLedger.Psbt.putU32LE v = InternalSpec.Psbt.encodeU32LE v := rfl
 
 theorem putU64LE_eq_spec (v : UInt64) :
-    BitcoinLedger.Psbt.putU64LE v = Spec.Psbt.encodeU64LE v := rfl
+    BitcoinLedger.Psbt.putU64LE v = InternalSpec.Psbt.encodeU64LE v := rfl
 
 theorem putVarInt_eq_spec (n : Nat) :
-    BitcoinLedger.Psbt.putVarInt n = Spec.Psbt.encodeVarInt n := rfl
+    BitcoinLedger.Psbt.putVarInt n = InternalSpec.Psbt.encodeVarInt n := rfl
 
 theorem joinByteArrays_eq_spec (xs : List ByteArray) :
-    BitcoinLedger.Psbt.joinByteArrays xs = Spec.Psbt.concatBytes xs := rfl
+    BitcoinLedger.Psbt.joinByteArrays xs = InternalSpec.Psbt.concatBytes xs := rfl
 
 theorem hash256d_eq_spec (sha256 : ByteArray → Bytes32) (bs : ByteArray) :
-    BitcoinLedger.Psbt.hash256d sha256 bs = Spec.Psbt.doubleSha256 sha256 bs := rfl
+    BitcoinLedger.Psbt.hash256d sha256 bs = InternalSpec.Psbt.doubleSha256 sha256 bs := rfl
 
 theorem bip340TaggedHash_eq_spec (sha256 : ByteArray → Bytes32) (tag : String) (msg : ByteArray) :
-    BitcoinLedger.Psbt.bip340TaggedHash sha256 tag msg = Spec.Psbt.taggedHash sha256 tag msg := rfl
+    BitcoinLedger.Psbt.bip340TaggedHash sha256 tag msg = InternalSpec.Psbt.taggedHash sha256 tag msg := rfl
 
 theorem computeTxid_eq_spec (sha256 : ByteArray → Bytes32) (tx : RawTx) :
-    BitcoinLedger.Psbt.computeTxid sha256 tx = Spec.Psbt.computeTxid sha256 tx := rfl
+    BitcoinLedger.Psbt.computeTxid sha256 tx = InternalSpec.Psbt.computeTxid sha256 tx := rfl
 
 /-! ## 2. PSBTv0-to-PSBTv2 Normalization Refinement -/
 
@@ -268,8 +268,8 @@ private theorem buildV2OutputsLoop_eq_ofFn
 
 /-- Exact refinement theorem for `normalizePsbtV0ToV2`. -/
 theorem normalizePsbtV0ToV2_eq_spec (v0 : PsbtV0) :
-    BitcoinLedger.Psbt.normalizePsbtV0ToV2 v0 = Spec.Psbt.normalizePsbtV0ToV2 v0 := by
-  unfold BitcoinLedger.Psbt.normalizePsbtV0ToV2 Spec.Psbt.normalizePsbtV0ToV2
+    BitcoinLedger.Psbt.normalizePsbtV0ToV2 v0 = InternalSpec.Psbt.normalizePsbtV0ToV2 v0 := by
+  unfold BitcoinLedger.Psbt.normalizePsbtV0ToV2 InternalSpec.Psbt.normalizePsbtV0ToV2
   dsimp only
   rw [checkUnsignedVinEmptyScripts_neg_eq_any]
   cases hVer : (!match v0.version with | some ver => decide (ver = 0) | none => true)
@@ -316,7 +316,7 @@ theorem normalizePsbtV0ToV2_eq_spec (v0 : PsbtV0) :
 /-! ## 3. Single-Pass BIP-370 `determineLocktime` Refinement -/
 
 theorem checkInputLocktimeBounds_eq_spec (inp : PsbtInput) :
-    BitcoinLedger.Psbt.checkInputLocktimeBounds inp = Spec.Psbt.validateInputLocktimeFields inp := rfl
+    BitcoinLedger.Psbt.checkInputLocktimeBounds inp = InternalSpec.Psbt.validateInputLocktimeFields inp := rfl
 
 private theorem foldl_maxHeight_eq
     (stMax : UInt32)
@@ -370,7 +370,7 @@ private theorem scanLocktimeInputs_eq
     (st : BitcoinLedger.Psbt.LocktimeScanState)
     (inputs : List PsbtInput) :
     BitcoinLedger.Psbt.scanLocktimeInputs st inputs =
-      if inputs.all Spec.Psbt.validateInputLocktimeFields then
+      if inputs.all InternalSpec.Psbt.validateInputLocktimeFields then
         some {
           hasHeightOnly := st.hasHeightOnly || inputs.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone)
           hasTimeOnly := st.hasTimeOnly || inputs.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone)
@@ -393,13 +393,13 @@ private theorem scanLocktimeInputs_eq
   | cons inp rest ih =>
       unfold BitcoinLedger.Psbt.scanLocktimeInputs
       rw [checkInputLocktimeBounds_eq_spec]
-      cases hVal : Spec.Psbt.validateInputLocktimeFields inp with
+      cases hVal : InternalSpec.Psbt.validateInputLocktimeFields inp with
       | false =>
           simp [hVal]
       | true =>
           simp only [hVal, Bool.not_true, Bool.false_eq_true, ↓reduceIte, List.all_cons, Bool.true_and]
           rw [ih]
-          cases rest.all Spec.Psbt.validateInputLocktimeFields with
+          cases rest.all InternalSpec.Psbt.validateInputLocktimeFields with
           | false => rfl
           | true =>
               simp only [↓reduceIte, List.any_cons, List.foldl_cons, Bool.or_assoc]
@@ -410,10 +410,10 @@ theorem determineLocktime_eq_spec
     (fallbackLocktime : Option UInt32)
     (inputs : List PsbtInput) :
     BitcoinLedger.Psbt.determineLocktime fallbackLocktime inputs =
-      Spec.Psbt.determineLocktime fallbackLocktime inputs := by
-  unfold BitcoinLedger.Psbt.determineLocktime Spec.Psbt.determineLocktime
+      InternalSpec.Psbt.determineLocktime fallbackLocktime inputs := by
+  unfold BitcoinLedger.Psbt.determineLocktime InternalSpec.Psbt.determineLocktime
   rw [scanLocktimeInputs_eq {} inputs]
-  cases hAll : inputs.all Spec.Psbt.validateInputLocktimeFields with
+  cases hAll : inputs.all InternalSpec.Psbt.validateInputLocktimeFields with
   | false =>
       simp
   | true =>
@@ -455,61 +455,61 @@ theorem determineLocktime_eq_spec
 /-! ## 4. Sighash Classification, Script Templates, Dual-UTXO & Derivation Matching Agreement -/
 
 theorem buildP2SHScript_eq_spec (h20 : ByteArray) :
-    BitcoinLedger.Psbt.buildP2SHScript h20 = Spec.Psbt.mkP2SHScript h20 := rfl
+    BitcoinLedger.Psbt.buildP2SHScript h20 = InternalSpec.Psbt.mkP2SHScript h20 := rfl
 
 theorem buildP2WSHScript_eq_spec (h32 : Bytes32) :
-    BitcoinLedger.Psbt.buildP2WSHScript h32 = Spec.Psbt.mkP2WSHScript h32 := rfl
+    BitcoinLedger.Psbt.buildP2WSHScript h32 = InternalSpec.Psbt.mkP2WSHScript h32 := rfl
 
 theorem checkP2WPKH_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkP2WPKH s = Spec.Psbt.isP2WPKHScript s := by
-  unfold BitcoinLedger.Psbt.checkP2WPKH Spec.Psbt.isP2WPKHScript
+    BitcoinLedger.Psbt.checkP2WPKH s = InternalSpec.Psbt.isP2WPKHScript s := by
+  unfold BitcoinLedger.Psbt.checkP2WPKH InternalSpec.Psbt.isP2WPKHScript
   rw [eqOptU8_eq_spec, eqOptU8_eq_spec]
   rfl
 
 theorem checkP2WSH_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkP2WSH s = Spec.Psbt.isP2WSHScript s := by
-  unfold BitcoinLedger.Psbt.checkP2WSH Spec.Psbt.isP2WSHScript
+    BitcoinLedger.Psbt.checkP2WSH s = InternalSpec.Psbt.isP2WSHScript s := by
+  unfold BitcoinLedger.Psbt.checkP2WSH InternalSpec.Psbt.isP2WSHScript
   rw [eqOptU8_eq_spec, eqOptU8_eq_spec]
   rfl
 
 theorem checkP2TR_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkP2TR s = Spec.Psbt.isP2TRScript s := by
-  unfold BitcoinLedger.Psbt.checkP2TR Spec.Psbt.isP2TRScript
+    BitcoinLedger.Psbt.checkP2TR s = InternalSpec.Psbt.isP2TRScript s := by
+  unfold BitcoinLedger.Psbt.checkP2TR InternalSpec.Psbt.isP2TRScript
   rw [eqOptU8_eq_spec, eqOptU8_eq_spec]
   rfl
 
 theorem checkUnknownSegwit_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkUnknownSegwit s = Spec.Psbt.isUnknownSegwitScript s := by
-  unfold BitcoinLedger.Psbt.checkUnknownSegwit Spec.Psbt.isUnknownSegwitScript
+    BitcoinLedger.Psbt.checkUnknownSegwit s = InternalSpec.Psbt.isUnknownSegwitScript s := by
+  unfold BitcoinLedger.Psbt.checkUnknownSegwit InternalSpec.Psbt.isUnknownSegwitScript
   rw [checkP2WPKH_eq_spec, checkP2WSH_eq_spec, checkP2TR_eq_spec]
   rfl
 
 theorem classifyInputSpendClass_eq_spec (spk : ByteArray) (rs : Option ByteArray) :
-    BitcoinLedger.Psbt.classifyInputSpendClass spk rs = Spec.Psbt.detectInputSpendClass spk rs := by
-  unfold BitcoinLedger.Psbt.classifyInputSpendClass Spec.Psbt.detectInputSpendClass
+    BitcoinLedger.Psbt.classifyInputSpendClass spk rs = InternalSpec.Psbt.detectInputSpendClass spk rs := by
+  unfold BitcoinLedger.Psbt.classifyInputSpendClass InternalSpec.Psbt.detectInputSpendClass
   dsimp only
   rw [checkP2WPKH_eq_spec, checkP2WSH_eq_spec, checkP2TR_eq_spec, checkUnknownSegwit_eq_spec]
 
 theorem classifySighashType_eq_spec (sc : SpendClass) (rawOpt : Option UInt32) :
-    BitcoinLedger.Psbt.classifySighashType sc rawOpt = Spec.Psbt.classifySighash sc rawOpt := rfl
+    BitcoinLedger.Psbt.classifySighashType sc rawOpt = InternalSpec.Psbt.classifySighash sc rawOpt := rfl
 
 theorem sighashHasAnyoneCanPay_eq_spec (b : UInt8) :
-    BitcoinLedger.Psbt.sighashHasAnyoneCanPay b = Spec.Psbt.sighashOpensInputs b := rfl
+    BitcoinLedger.Psbt.sighashHasAnyoneCanPay b = InternalSpec.Psbt.sighashOpensInputs b := rfl
 
 theorem sighashLeavesOutputsOpen_eq_spec (b : UInt8) :
-    BitcoinLedger.Psbt.sighashLeavesOutputsOpen b = Spec.Psbt.sighashOpensOutputs b := rfl
+    BitcoinLedger.Psbt.sighashLeavesOutputsOpen b = InternalSpec.Psbt.sighashOpensOutputs b := rfl
 
 theorem sighashBaseIsSingle_eq_spec (b : UInt8) :
-    BitcoinLedger.Psbt.sighashBaseIsSingle b = Spec.Psbt.sighashIsSingle b := rfl
+    BitcoinLedger.Psbt.sighashBaseIsSingle b = InternalSpec.Psbt.sighashIsSingle b := rfl
 
 theorem sighashCommitsAllProvidedOutputs_eq_spec (b : UInt8) (nOutputs : Nat) :
     BitcoinLedger.Psbt.sighashCommitsAllProvidedOutputs b nOutputs =
-      Spec.Psbt.sighashCommitsProvidedOutputs b nOutputs := rfl
+      InternalSpec.Psbt.sighashCommitsProvidedOutputs b nOutputs := rfl
 
 /-- Exact refinement for `extractInputPrevout` (including dual-UTXO cross-check). -/
 theorem extractInputPrevout_eq_spec (sha256 : ByteArray → Bytes32) (inp : PsbtInput) :
-    BitcoinLedger.Psbt.extractInputPrevout sha256 inp = Spec.Psbt.extractInputPrevout sha256 inp := by
-  unfold BitcoinLedger.Psbt.extractInputPrevout Spec.Psbt.extractInputPrevout
+    BitcoinLedger.Psbt.extractInputPrevout sha256 inp = InternalSpec.Psbt.extractInputPrevout sha256 inp := by
+  unfold BitcoinLedger.Psbt.extractInputPrevout InternalSpec.Psbt.extractInputPrevout
   cases inp.nonWitnessUtxo <;> cases inp.witnessUtxo
   · rfl
   · rfl
@@ -524,10 +524,10 @@ theorem validateExternalInputUtxo_eq_spec
     (crypto : CryptoOracles)
     (inp : PsbtInput) :
     BitcoinLedger.Psbt.validateExternalInputUtxo crypto inp =
-      Spec.Psbt.validateExternalInputUtxo crypto inp := by
-  unfold BitcoinLedger.Psbt.validateExternalInputUtxo Spec.Psbt.validateExternalInputUtxo
+      InternalSpec.Psbt.validateExternalInputUtxo crypto inp := by
+  unfold BitcoinLedger.Psbt.validateExternalInputUtxo InternalSpec.Psbt.validateExternalInputUtxo
   rw [extractInputPrevout_eq_spec]
-  cases Spec.Psbt.extractInputPrevout crypto.sha256 inp with
+  cases InternalSpec.Psbt.extractInputPrevout crypto.sha256 inp with
   | error _ => rfl
   | ok pair =>
       rcases pair with ⟨txOut, _⟩
@@ -541,10 +541,10 @@ theorem validateInternalInputUtxo_eq_spec
     (inp : PsbtInput)
     (exempt : Bool) :
     BitcoinLedger.Psbt.validateInternalInputUtxo crypto inp exempt =
-      Spec.Psbt.validateInputUtxo crypto inp exempt := by
-  unfold BitcoinLedger.Psbt.validateInternalInputUtxo Spec.Psbt.validateInputUtxo
+      InternalSpec.Psbt.validateInputUtxo crypto inp exempt := by
+  unfold BitcoinLedger.Psbt.validateInternalInputUtxo InternalSpec.Psbt.validateInputUtxo
   rw [extractInputPrevout_eq_spec]
-  cases Spec.Psbt.extractInputPrevout crypto.sha256 inp with
+  cases InternalSpec.Psbt.extractInputPrevout crypto.sha256 inp with
   | error _ => rfl
   | ok pair =>
       rcases pair with ⟨txOut, hasNw⟩
@@ -556,17 +556,17 @@ theorem validateInternalInputUtxo_eq_spec
         (cases decide (txOut.amount > MAX_MONEY) <;> rfl)
 
 theorem matchOriginPrefix_eq_spec (orig entryOrig : KeyOrigin) :
-    BitcoinLedger.Psbt.matchOriginPrefix orig entryOrig = Spec.Psbt.matchOriginSteps orig entryOrig := by
-  unfold BitcoinLedger.Psbt.matchOriginPrefix Spec.Psbt.matchOriginSteps
+    BitcoinLedger.Psbt.matchOriginPrefix orig entryOrig = InternalSpec.Psbt.matchOriginSteps orig entryOrig := by
+  unfold BitcoinLedger.Psbt.matchOriginPrefix InternalSpec.Psbt.matchOriginSteps
   rw [eqU32List_eq_spec]
   rfl
 
 theorem findFirstSome?_eq_spec {α β : Type} (f : α → Option β) (xs : List α) :
-    BitcoinLedger.Psbt.findFirstSome? f xs = Spec.Psbt.findSomePure? f xs := by
+    BitcoinLedger.Psbt.findFirstSome? f xs = InternalSpec.Psbt.findSomePure? f xs := by
   induction xs with
   | nil => rfl
   | cons x xs ih =>
-      unfold BitcoinLedger.Psbt.findFirstSome? Spec.Psbt.findSomePure?
+      unfold BitcoinLedger.Psbt.findFirstSome? InternalSpec.Psbt.findSomePure?
       cases f x with
       | some _ => rfl
       | none => exact ih
@@ -576,8 +576,8 @@ theorem matchPlaceholderDerivation_eq_spec
     (ph : InternalKeyPlaceholder)
     (entry : KeyDerivationEntry) :
     BitcoinLedger.Psbt.matchPlaceholderDerivation mfpr ph entry =
-      Spec.Psbt.derivationMatchesPlaceholderWithMaster mfpr ph entry := by
-  unfold BitcoinLedger.Psbt.matchPlaceholderDerivation Spec.Psbt.derivationMatchesPlaceholderWithMaster
+      InternalSpec.Psbt.derivationMatchesPlaceholderWithMaster mfpr ph entry := by
+  unfold BitcoinLedger.Psbt.matchPlaceholderDerivation InternalSpec.Psbt.derivationMatchesPlaceholderWithMaster
   cases ph.isMusig <;> cases ph.expectedOrigin <;>
     simp only [↓reduceIte, Bool.false_eq_true, matchOriginPrefix_eq_spec, findFirstSome?_eq_spec]
     <;> rfl
@@ -587,8 +587,8 @@ theorem gatherCandidateCoordinates_eq_spec
     (policy : WalletPolicySpec)
     (derivations : List KeyDerivationEntry) :
     BitcoinLedger.Psbt.gatherCandidateCoordinates mfpr policy derivations =
-      Spec.Psbt.collectMatchingCoordinatesWithMaster mfpr policy derivations := by
-  unfold BitcoinLedger.Psbt.gatherCandidateCoordinates Spec.Psbt.collectMatchingCoordinatesWithMaster
+      InternalSpec.Psbt.collectMatchingCoordinatesWithMaster mfpr policy derivations := by
+  unfold BitcoinLedger.Psbt.gatherCandidateCoordinates InternalSpec.Psbt.collectMatchingCoordinatesWithMaster
   congr 1
   funext entry acc
   congr 1
@@ -602,12 +602,12 @@ theorem evalInternalInputCandidates_eq_spec
     (utxo : TxOut)
     (coords : List (Bool × UInt32)) :
     BitcoinLedger.Psbt.evalInternalInputCandidates policy inp utxo coords =
-      Spec.Psbt.checkInternalInputCandidates policy inp utxo coords := by
+      InternalSpec.Psbt.checkInternalInputCandidates policy inp utxo coords := by
   induction coords with
   | nil => rfl
   | cons hd rest ih =>
       rcases hd with ⟨isChange, addrIdx⟩
-      unfold BitcoinLedger.Psbt.evalInternalInputCandidates Spec.Psbt.checkInternalInputCandidates
+      unfold BitcoinLedger.Psbt.evalInternalInputCandidates InternalSpec.Psbt.checkInternalInputCandidates
       cases policy.deriveScripts isChange addrIdx with
       | none => exact ih
       | some triple =>
@@ -624,8 +624,8 @@ theorem classifyInternalInput_eq_spec
     (inp : PsbtInput)
     (utxo : TxOut) :
     BitcoinLedger.Psbt.classifyInternalInput mfpr policy inp utxo =
-      Spec.Psbt.classifyInternalInputWithMaster mfpr policy inp utxo := by
-  unfold BitcoinLedger.Psbt.classifyInternalInput Spec.Psbt.classifyInternalInputWithMaster
+      InternalSpec.Psbt.classifyInternalInputWithMaster mfpr policy inp utxo := by
+  unfold BitcoinLedger.Psbt.classifyInternalInput InternalSpec.Psbt.classifyInternalInputWithMaster
   rw [gatherCandidateCoordinates_eq_spec, evalInternalInputCandidates_eq_spec]
 
 theorem checkOutputDerivedScripts_eq_spec
@@ -635,8 +635,8 @@ theorem checkOutputDerivedScripts_eq_spec
     (isChange : Bool)
     (addrIdx : UInt32) :
     BitcoinLedger.Psbt.checkOutputDerivedScripts policy out spk isChange addrIdx =
-      Spec.Psbt.outputMatchesDerivedAt policy out spk isChange addrIdx := by
-  unfold BitcoinLedger.Psbt.checkOutputDerivedScripts Spec.Psbt.outputMatchesDerivedAt
+      InternalSpec.Psbt.outputMatchesDerivedAt policy out spk isChange addrIdx := by
+  unfold BitcoinLedger.Psbt.checkOutputDerivedScripts InternalSpec.Psbt.outputMatchesDerivedAt
   cases policy.deriveScripts isChange addrIdx with
   | none => rfl
   | some triple =>
@@ -652,8 +652,8 @@ theorem isInternalOutput_eq_spec
     (policy : WalletPolicySpec)
     (out : PsbtOutput) :
     BitcoinLedger.Psbt.isInternalOutput mfpr treatReceive policy out =
-      Spec.Psbt.isInternalOutputWithOptions mfpr treatReceive policy out := by
-  unfold BitcoinLedger.Psbt.isInternalOutput Spec.Psbt.isInternalOutputWithOptions
+      InternalSpec.Psbt.isInternalOutputWithOptions mfpr treatReceive policy out := by
+  unfold BitcoinLedger.Psbt.isInternalOutput InternalSpec.Psbt.isInternalOutputWithOptions
   cases out.silentPayment.isSome
   · simp only [Bool.false_eq_true, ↓reduceIte]
     cases out.scriptPubKey with
@@ -671,7 +671,7 @@ theorem isVerifiedChangeOutput_eq_spec
     (policy : WalletPolicySpec)
     (out : PsbtOutput) :
     BitcoinLedger.Psbt.isVerifiedChangeOutput policy out =
-      Spec.Psbt.isVerifiedChange policy out :=
+      InternalSpec.Psbt.isVerifiedChange policy out :=
   isInternalOutput_eq_spec none false policy out
 
 /-! ## 5. Checked `UInt64` Satoshi Arithmetic & Input/Output Scan Refinement -/
@@ -717,19 +717,19 @@ theorem checkedSubSats?_spec (total part : UInt64) (ht : total.toNat ≤ MAX_MON
 
 theorem scanOpReturnPushes_eq_spec (s : ByteArray) (fuel pos nPushes : Nat) :
     BitcoinLedger.Psbt.scanOpReturnPushes s fuel pos nPushes =
-      Spec.Psbt.verifyOpReturnPushes s fuel pos nPushes := by
+      InternalSpec.Psbt.verifyOpReturnPushes s fuel pos nPushes := by
   induction fuel generalizing pos nPushes with
   | zero => rfl
   | succ f ih =>
-      unfold BitcoinLedger.Psbt.scanOpReturnPushes Spec.Psbt.verifyOpReturnPushes
-      have hByte : BitcoinLedger.Psbt.getByte? s pos = Spec.Psbt.byteAt? s pos := rfl
-      have hByte1 : BitcoinLedger.Psbt.getByte? s (pos + 1) = Spec.Psbt.byteAt? s (pos + 1) := rfl
-      have hMin : ∀ b, BitcoinLedger.Psbt.isNonMinimalOneBytePush b = Spec.Psbt.isNonMinimalSingleByteOpReturnPush b := fun _ => rfl
+      unfold BitcoinLedger.Psbt.scanOpReturnPushes InternalSpec.Psbt.verifyOpReturnPushes
+      have hByte : BitcoinLedger.Psbt.getByte? s pos = InternalSpec.Psbt.byteAt? s pos := rfl
+      have hByte1 : BitcoinLedger.Psbt.getByte? s (pos + 1) = InternalSpec.Psbt.byteAt? s (pos + 1) := rfl
+      have hMin : ∀ b, BitcoinLedger.Psbt.isNonMinimalOneBytePush b = InternalSpec.Psbt.isNonMinimalSingleByteOpReturnPush b := fun _ => rfl
       dsimp only
       rw [hByte, hByte1]
       cases decide (pos ≥ s.size)
       · cases decide (nPushes ≥ 5)
-        · cases Spec.Psbt.byteAt? s pos with
+        · cases InternalSpec.Psbt.byteAt? s pos with
           | none => rfl
           | some opByte =>
               dsimp only
@@ -737,7 +737,7 @@ theorem scanOpReturnPushes_eq_spec (s : ByteArray) (fuel pos nPushes : Nat) :
               · cases decide (1 ≤ opByte.toNat ∧ opByte.toNat ≤ 75)
                 · cases decide (opByte.toNat = 0x4c)
                   · rfl
-                  · cases Spec.Psbt.byteAt? s (pos + 1) with
+                  · cases InternalSpec.Psbt.byteAt? s (pos + 1) with
                     | none => rfl
                     | some lenByte =>
                         dsimp only
@@ -749,34 +749,34 @@ theorem scanOpReturnPushes_eq_spec (s : ByteArray) (fuel pos nPushes : Nat) :
                   · cases decide (opByte.toNat = 1)
                     · simp only [Bool.false_eq_true, ↓reduceIte, ih]
                     · simp only [Bool.false_eq_true, ↓reduceIte]
-                      cases Spec.Psbt.byteAt? s (pos + 1) with
+                      cases InternalSpec.Psbt.byteAt? s (pos + 1) with
                       | none => rfl
                       | some pushedByte =>
                           dsimp only
                           rw [hMin]
-                          cases Spec.Psbt.isNonMinimalSingleByteOpReturnPush pushedByte <;> simp [ih]
+                          cases InternalSpec.Psbt.isNonMinimalSingleByteOpReturnPush pushedByte <;> simp [ih]
               · simp only [Bool.false_eq_true, ↓reduceIte, ih]
         · rfl
       · rfl
 
 theorem checkValidOpReturn_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkValidOpReturn s = Spec.Psbt.isValidOpReturnScript s := by
-  unfold BitcoinLedger.Psbt.checkValidOpReturn Spec.Psbt.isValidOpReturnScript
+    BitcoinLedger.Psbt.checkValidOpReturn s = InternalSpec.Psbt.isValidOpReturnScript s := by
+  unfold BitcoinLedger.Psbt.checkValidOpReturn InternalSpec.Psbt.isValidOpReturnScript
   rw [eqOptU8_eq_spec, scanOpReturnPushes_eq_spec]
   rfl
 
 theorem checkIsOpReturn_eq_spec (s : ByteArray) :
-    BitcoinLedger.Psbt.checkIsOpReturn s = Spec.Psbt.isOpReturnScript s := by
-  unfold BitcoinLedger.Psbt.checkIsOpReturn Spec.Psbt.isOpReturnScript
+    BitcoinLedger.Psbt.checkIsOpReturn s = InternalSpec.Psbt.isOpReturnScript s := by
+  unfold BitcoinLedger.Psbt.checkIsOpReturn InternalSpec.Psbt.isOpReturnScript
   rw [eqOptU8_eq_spec]
   rfl
 
 theorem checkMusig2SessionIdOpt_eq_spec (opt : Option ByteArray) :
-    BitcoinLedger.Psbt.checkMusig2SessionIdOpt opt = Spec.Psbt.validateMusig2SessionIdOpt opt := rfl
+    BitcoinLedger.Psbt.checkMusig2SessionIdOpt opt = InternalSpec.Psbt.validateMusig2SessionIdOpt opt := rfl
 
 theorem checkPolicyHeader_eq_spec (policy : WalletPolicySpec) :
-    BitcoinLedger.Psbt.checkPolicyHeader policy = Spec.Psbt.validatePolicyHeader policy := by
-  unfold BitcoinLedger.Psbt.checkPolicyHeader Spec.Psbt.validatePolicyHeader
+    BitcoinLedger.Psbt.checkPolicyHeader policy = InternalSpec.Psbt.validatePolicyHeader policy := by
+  unfold BitcoinLedger.Psbt.checkPolicyHeader InternalSpec.Psbt.validatePolicyHeader
   rw [eqByteList_eq_spec]
 
 theorem validateOutputScript_eq_spec
@@ -784,8 +784,8 @@ theorem validateOutputScript_eq_spec
     (allowOpReturn : Bool)
     (out : PsbtOutput) :
     BitcoinLedger.Psbt.validateOutputScript crypto allowOpReturn out =
-      Spec.Psbt.validateSingleOutputScriptWithOptions crypto allowOpReturn out := by
-  unfold BitcoinLedger.Psbt.validateOutputScript Spec.Psbt.validateSingleOutputScriptWithOptions
+      InternalSpec.Psbt.validateSingleOutputScriptWithOptions crypto allowOpReturn out := by
+  unfold BitcoinLedger.Psbt.validateOutputScript InternalSpec.Psbt.validateSingleOutputScriptWithOptions
   cases out.scriptPubKey <;> cases out.silentPayment
   · rfl
   · rfl
@@ -810,7 +810,7 @@ private theorem scanOutputsCheckedLoop_refines
     (hChgBound : sumChgSats.toNat ≤ sumOutSats.toNat) :
     (BitcoinLedger.Psbt.scanOutputsCheckedLoop crypto cfg isBip322 policy idx rem dispAcc chgAcc sumOutSats sumChgSats).map
       (fun t => (t.1, t.2.1, t.2.2.1.toNat, t.2.2.2.toNat)) =
-    Spec.Psbt.classifyAndValidateOutputsLoopWithConfig crypto cfg isBip322 policy idx rem dispAcc chgAcc
+    InternalSpec.Psbt.classifyAndValidateOutputsLoopWithConfig crypto cfg isBip322 policy idx rem dispAcc chgAcc
       sumOutSats.toNat sumChgSats.toNat ∧
     (∀ disp chg finalOut finalChg,
       BitcoinLedger.Psbt.scanOutputsCheckedLoop crypto cfg isBip322 policy idx rem dispAcc chgAcc sumOutSats sumChgSats =
@@ -818,7 +818,7 @@ private theorem scanOutputsCheckedLoop_refines
       finalOut.toNat ≤ MAX_MONEY ∧ finalChg.toNat ≤ finalOut.toNat) := by
   induction rem generalizing idx dispAcc chgAcc sumOutSats sumChgSats with
   | nil =>
-      unfold BitcoinLedger.Psbt.scanOutputsCheckedLoop Spec.Psbt.classifyAndValidateOutputsLoopWithConfig
+      unfold BitcoinLedger.Psbt.scanOutputsCheckedLoop InternalSpec.Psbt.classifyAndValidateOutputsLoopWithConfig
       dsimp only
       cases cfg.maxChangeOutputs with
       | none =>
@@ -847,7 +847,7 @@ private theorem scanOutputsCheckedLoop_refines
             subst hO; subst hC
             exact ⟨hOutBound, hChgBound⟩
   | cons out rest ih =>
-      unfold BitcoinLedger.Psbt.scanOutputsCheckedLoop Spec.Psbt.classifyAndValidateOutputsLoopWithConfig
+      unfold BitcoinLedger.Psbt.scanOutputsCheckedLoop InternalSpec.Psbt.classifyAndValidateOutputsLoopWithConfig
       unfold BitcoinLedger.Psbt.natToValidSats?
       cases hAmtGt : decide (out.amount > MAX_MONEY) with
       | true =>
@@ -877,7 +877,7 @@ private theorem scanOutputsCheckedLoop_refines
                 rw [hNextOutNat]; exact hNextOutLe
               simp only [Bool.false_eq_true, ↓reduceIte]
               rw [validateOutputScript_eq_spec]
-              cases Spec.Psbt.validateSingleOutputScriptWithOptions crypto (cfg.allowOpReturnOutputs || isBip322) out with
+              cases InternalSpec.Psbt.validateSingleOutputScriptWithOptions crypto (cfg.allowOpReturnOutputs || isBip322) out with
               | error e =>
                   refine ⟨rfl, ?_⟩
                   intro _ _ _ _ hOk
@@ -886,7 +886,7 @@ private theorem scanOutputsCheckedLoop_refines
                   cases u
                   dsimp only
                   rw [isInternalOutput_eq_spec]
-                  cases Spec.Psbt.isInternalOutputWithOptions cfg.masterFingerprint cfg.treatReceiveBranchAsInternal policy out with
+                  cases InternalSpec.Psbt.isInternalOutputWithOptions cfg.masterFingerprint cfg.treatReceiveBranchAsInternal policy out with
                   | true =>
                       simp only [↓reduceIte]
                       have hChgBoundMax : sumChgSats.toNat ≤ MAX_MONEY := Nat.le_trans hChgBound hOutBound
@@ -919,7 +919,7 @@ theorem scanOutputsChecked_refines
     (outputs : List PsbtOutput) :
     (BitcoinLedger.Psbt.scanOutputsChecked crypto cfg isBip322 policy outputs).map
       (fun t => (t.1, t.2.1, t.2.2.1.toNat, t.2.2.2.toNat)) =
-    Spec.Psbt.classifyAndValidateOutputsWithConfig crypto cfg isBip322 policy outputs ∧
+    InternalSpec.Psbt.classifyAndValidateOutputsWithConfig crypto cfg isBip322 policy outputs ∧
     (∀ disp chg finalOut finalChg,
       BitcoinLedger.Psbt.scanOutputsChecked crypto cfg isBip322 policy outputs =
         .ok (disp, chg, finalOut, finalChg) →
@@ -937,10 +937,10 @@ private theorem validateInputUtxo_amount_le_max_money
     (inp : PsbtInput)
     (exempt : Bool)
     (utxoInfo : ValidatedInputUtxo)
-    (hOk : Spec.Psbt.validateInputUtxo crypto inp exempt = .ok utxoInfo) :
+    (hOk : InternalSpec.Psbt.validateInputUtxo crypto inp exempt = .ok utxoInfo) :
     utxoInfo.prevoutTxOut.amount ≤ MAX_MONEY := by
-  unfold Spec.Psbt.validateInputUtxo at hOk
-  cases hExt : Spec.Psbt.extractInputPrevout crypto.sha256 inp with
+  unfold InternalSpec.Psbt.validateInputUtxo at hOk
+  cases hExt : InternalSpec.Psbt.extractInputPrevout crypto.sha256 inp with
   | error _ => rw [hExt] at hOk; contradiction
   | ok pair =>
       rcases pair with ⟨txOut, hasNw⟩
@@ -964,10 +964,10 @@ private theorem validateExternalInputUtxo_amount_le_max_money
     (crypto : CryptoOracles)
     (inp : PsbtInput)
     (utxoInfo : ValidatedInputUtxo)
-    (hOk : Spec.Psbt.validateExternalInputUtxo crypto inp = .ok utxoInfo) :
+    (hOk : InternalSpec.Psbt.validateExternalInputUtxo crypto inp = .ok utxoInfo) :
     utxoInfo.prevoutTxOut.amount ≤ MAX_MONEY := by
-  unfold Spec.Psbt.validateExternalInputUtxo at hOk
-  cases hExt : Spec.Psbt.extractInputPrevout crypto.sha256 inp with
+  unfold InternalSpec.Psbt.validateExternalInputUtxo at hOk
+  cases hExt : InternalSpec.Psbt.extractInputPrevout crypto.sha256 inp with
   | error _ => rw [hExt] at hOk; contradiction
   | ok pair =>
       rcases pair with ⟨txOut, _⟩
@@ -982,7 +982,7 @@ private theorem validateExternalInputUtxo_amount_le_max_money
           subst hEq
           exact Nat.le_of_not_lt (of_decide_eq_false hGt)
 
-private def checkedInputStateToSpec (st : BitcoinLedger.Psbt.CheckedInputScanState) : Spec.Psbt.InputScanAcc := {
+private def checkedInputStateToSpec (st : BitcoinLedger.Psbt.CheckedInputScanState) : InternalSpec.Psbt.InputScanAcc := {
   valInputs := st.valInputs
   sumIn := st.sumInSats.toNat
   sumInternalIn := st.sumInternalInSats.toNat
@@ -1010,13 +1010,13 @@ private theorem scanInputsCheckedLoop_refines
     (hIntBound : st.sumInternalInSats.toNat ≤ st.sumInSats.toNat) :
     (BitcoinLedger.Psbt.scanInputsCheckedLoop crypto cfg policy isBip322 nOutputs idx rem st).map
       checkedInputStateToSpec =
-    Spec.Psbt.validateInputsLoop crypto cfg policy isBip322 nOutputs idx rem (checkedInputStateToSpec st) ∧
+    InternalSpec.Psbt.validateInputsLoop crypto cfg policy isBip322 nOutputs idx rem (checkedInputStateToSpec st) ∧
     (∀ finalSt,
       BitcoinLedger.Psbt.scanInputsCheckedLoop crypto cfg policy isBip322 nOutputs idx rem st = .ok finalSt →
       finalSt.sumInSats.toNat ≤ MAX_MONEY ∧ finalSt.sumInternalInSats.toNat ≤ finalSt.sumInSats.toNat) := by
   induction rem generalizing idx st with
   | nil =>
-      unfold BitcoinLedger.Psbt.scanInputsCheckedLoop Spec.Psbt.validateInputsLoop checkedInputStateToSpec
+      unfold BitcoinLedger.Psbt.scanInputsCheckedLoop InternalSpec.Psbt.validateInputsLoop checkedInputStateToSpec
       dsimp only
       by_cases hZero : st.nInternal = 0
       · simp only [decide_eq_true hZero, ↓reduceIte]
@@ -1029,22 +1029,22 @@ private theorem scanInputsCheckedLoop_refines
         subst hEq
         exact ⟨hInBound, hIntBound⟩
   | cons inp rest ih =>
-      unfold BitcoinLedger.Psbt.scanInputsCheckedLoop Spec.Psbt.validateInputsLoop
-      have hConfEq : BitcoinLedger.Psbt.MAX_CLEARTEXT_CONFUSION = Spec.Psbt.MAX_CLEARTEXT_CONFUSION_SCORE := rfl
+      unfold BitcoinLedger.Psbt.scanInputsCheckedLoop InternalSpec.Psbt.validateInputsLoop
+      have hConfEq : BitcoinLedger.Psbt.MAX_CLEARTEXT_CONFUSION = InternalSpec.Psbt.MAX_CLEARTEXT_CONFUSION_SCORE := rfl
       rw [hConfEq]
-      by_cases hConf : inp.cleartextConfusionScore > Spec.Psbt.MAX_CLEARTEXT_CONFUSION_SCORE
+      by_cases hConf : inp.cleartextConfusionScore > InternalSpec.Psbt.MAX_CLEARTEXT_CONFUSION_SCORE
       · simp only [decide_eq_true hConf, ↓reduceIte]
         exact ⟨rfl, fun _ hOk => by cases hOk⟩
       · simp only [decide_eq_false hConf, Bool.false_eq_true, ↓reduceIte]
         rw [extractInputPrevout_eq_spec]
-        cases Spec.Psbt.extractInputPrevout crypto.sha256 inp with
+        cases InternalSpec.Psbt.extractInputPrevout crypto.sha256 inp with
         | error e =>
             exact ⟨rfl, fun _ hOk => by cases hOk⟩
         | ok prevPair =>
             rcases prevPair with ⟨prevTxOut, _⟩
             dsimp only
             rw [classifyInternalInput_eq_spec]
-            cases Spec.Psbt.classifyInternalInputWithMaster cfg.masterFingerprint policy inp prevTxOut with
+            cases InternalSpec.Psbt.classifyInternalInputWithMaster cfg.masterFingerprint policy inp prevTxOut with
             | redeemMismatch =>
                 exact ⟨rfl, fun _ hOk => by cases hOk⟩
             | witnessMismatch =>
@@ -1052,7 +1052,7 @@ private theorem scanInputsCheckedLoop_refines
             | matched _ _ =>
                 dsimp only
                 rw [validateInternalInputUtxo_eq_spec]
-                cases hUtxo : Spec.Psbt.validateInputUtxo crypto inp (isBip322 && decide (idx = 0)) with
+                cases hUtxo : InternalSpec.Psbt.validateInputUtxo crypto inp (isBip322 && decide (idx = 0)) with
                 | error e =>
                     exact ⟨rfl, fun _ hOk => by cases hOk⟩
                 | ok utxoInfo =>
@@ -1093,7 +1093,7 @@ private theorem scanInputsCheckedLoop_refines
                         | false =>
                             simp only [Bool.false_eq_true, ↓reduceIte]
                             rw [classifySighashType_eq_spec]
-                            rcases hSh : Spec.Psbt.classifySighash policy.spendClass inp.sighashType with ⟨safety, shByte⟩
+                            rcases hSh : InternalSpec.Psbt.classifySighash policy.spendClass inp.sighashType with ⟨safety, shByte⟩
                             cases safety with
                             | unsupported =>
                                 exact ⟨rfl, fun _ hOk => by cases hOk⟩
@@ -1103,7 +1103,7 @@ private theorem scanInputsCheckedLoop_refines
                                     exact ⟨rfl, fun _ hOk => by cases hOk⟩
                                 | false =>
                                     simp only [Bool.false_eq_true, ↓reduceIte, sighashBaseIsSingle_eq_spec]
-                                    cases hSingleOob : Spec.Psbt.sighashIsSingle shByte && decide (idx ≥ nOutputs) with
+                                    cases hSingleOob : InternalSpec.Psbt.sighashIsSingle shByte && decide (idx ≥ nOutputs) with
                                     | true =>
                                         exact ⟨rfl, fun _ hOk => by cases hOk⟩
                                     | false =>
@@ -1118,8 +1118,8 @@ private theorem scanInputsCheckedLoop_refines
                                           anyExternalMissingNw := st.anyExternalMissingNw
                                           warnMissingNw := st.warnMissingNw || utxoInfo.missingNonWitnessUtxoWarning
                                           warnNonDefaultSighash := true
-                                          sighashInputsOpen := st.sighashInputsOpen || Spec.Psbt.sighashOpensInputs shByte
-                                          sighashOutputsOpen := st.sighashOutputsOpen || Spec.Psbt.sighashOpensOutputs shByte
+                                          sighashInputsOpen := st.sighashInputsOpen || InternalSpec.Psbt.sighashOpensInputs shByte
+                                          sighashOutputsOpen := st.sighashOutputsOpen || InternalSpec.Psbt.sighashOpensOutputs shByte
                                           firstSighash := (match st.firstSighash with
                                             | none => (some (if decide (shByte = SIGHASH_DEFAULT) then SIGHASH_ALL else shByte), st.sighashMixed)
                                             | some prev => (some prev, st.sighashMixed || !decide (prev = (if decide (shByte = SIGHASH_DEFAULT) then SIGHASH_ALL else shByte)))).1
@@ -1136,7 +1136,7 @@ private theorem scanInputsCheckedLoop_refines
                                         rfl
                             | safe =>
                                 simp only [sighashBaseIsSingle_eq_spec]
-                                cases hSingleOob : Spec.Psbt.sighashIsSingle shByte && decide (idx ≥ nOutputs) with
+                                cases hSingleOob : InternalSpec.Psbt.sighashIsSingle shByte && decide (idx ≥ nOutputs) with
                                 | true =>
                                     exact ⟨rfl, fun _ hOk => by cases hOk⟩
                                 | false =>
@@ -1151,8 +1151,8 @@ private theorem scanInputsCheckedLoop_refines
                                       anyExternalMissingNw := st.anyExternalMissingNw
                                       warnMissingNw := st.warnMissingNw || utxoInfo.missingNonWitnessUtxoWarning
                                       warnNonDefaultSighash := st.warnNonDefaultSighash
-                                      sighashInputsOpen := st.sighashInputsOpen || Spec.Psbt.sighashOpensInputs shByte
-                                      sighashOutputsOpen := st.sighashOutputsOpen || Spec.Psbt.sighashOpensOutputs shByte
+                                      sighashInputsOpen := st.sighashInputsOpen || InternalSpec.Psbt.sighashOpensInputs shByte
+                                      sighashOutputsOpen := st.sighashOutputsOpen || InternalSpec.Psbt.sighashOpensOutputs shByte
                                       firstSighash := (match st.firstSighash with
                                         | none => (some (if decide (shByte = SIGHASH_DEFAULT) then SIGHASH_ALL else shByte), st.sighashMixed)
                                         | some prev => (some prev, st.sighashMixed || !decide (prev = (if decide (shByte = SIGHASH_DEFAULT) then SIGHASH_ALL else shByte)))).1
@@ -1174,7 +1174,7 @@ private theorem scanInputsCheckedLoop_refines
                 | false =>
                     simp only [Bool.false_eq_true, ↓reduceIte]
                     rw [validateExternalInputUtxo_eq_spec]
-                    cases hExtUtxo : Spec.Psbt.validateExternalInputUtxo crypto inp with
+                    cases hExtUtxo : InternalSpec.Psbt.validateExternalInputUtxo crypto inp with
                     | error e =>
                         exact ⟨rfl, fun _ hOk => by cases hOk⟩
                     | ok utxoInfo =>
@@ -1232,8 +1232,8 @@ theorem computeCheckedFeeSats_refines
     (hInBound : sumInSats.toNat ≤ MAX_MONEY) :
     (BitcoinLedger.Psbt.computeCheckedFeeSats inputsOpen outputsOpen sumInSats sumOutSats).map
       (fun opt => opt.map UInt64.toNat) =
-    Spec.Psbt.computeClosedFee inputsOpen outputsOpen sumInSats.toNat sumOutSats.toNat := by
-  unfold BitcoinLedger.Psbt.computeCheckedFeeSats Spec.Psbt.computeClosedFee
+    InternalSpec.Psbt.computeClosedFee inputsOpen outputsOpen sumInSats.toNat sumOutSats.toNat := by
+  unfold BitcoinLedger.Psbt.computeCheckedFeeSats InternalSpec.Psbt.computeClosedFee
   cases (!inputsOpen && !outputsOpen) with
   | false => rfl
   | true =>
@@ -1257,27 +1257,27 @@ theorem selectTxDisplayMode_eq_spec
     (externalAmountUnverified displayedOutsEmpty : Bool) :
     BitcoinLedger.Psbt.selectTxDisplayMode warnNonDefaultSighash sighashMixed firstSighash
       nOutputs nExternal externalAmountUnverified displayedOutsEmpty =
-    Spec.Psbt.decideDisplayMode warnNonDefaultSighash sighashMixed firstSighash
+    InternalSpec.Psbt.decideDisplayMode warnNonDefaultSighash sighashMixed firstSighash
       nOutputs nExternal externalAmountUnverified displayedOutsEmpty := rfl
 
 /-- **MAIN REFINEMENT THEOREM**:
     `BitcoinLedger.Psbt.validatePsbtTransaction` (using fixed-width checked `UInt64` satoshi arithmetic,
     single-pass `determineLocktime`, and freestanding equality checks) is extensionally equal to
-    `Spec.Psbt.validatePsbt` on ALL inputs, configurations, and wallet policies! -/
+    `InternalSpec.Psbt.validatePsbt` on ALL inputs, configurations, and wallet policies! -/
 theorem validatePsbtTransaction_eq_spec
     (crypto : CryptoOracles)
     (cfg : SigningConfig)
     (policy : WalletPolicySpec)
     (psbt : PsbtTx) :
     BitcoinLedger.Psbt.validatePsbtTransaction crypto cfg policy psbt =
-      Spec.Psbt.validatePsbt crypto cfg policy psbt := by
-  unfold BitcoinLedger.Psbt.validatePsbtTransaction Spec.Psbt.validatePsbt
+      InternalSpec.Psbt.validatePsbt crypto cfg policy psbt := by
+  unfold BitcoinLedger.Psbt.validatePsbtTransaction InternalSpec.Psbt.validatePsbt
   rw [checkMusig2SessionIdOpt_eq_spec, checkPolicyHeader_eq_spec]
-  cases (!Spec.Psbt.validateMusig2SessionIdOpt cfg.musig2SessionId) with
+  cases (!InternalSpec.Psbt.validateMusig2SessionIdOpt cfg.musig2SessionId) with
   | true => rfl
   | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
-      cases Spec.Psbt.validatePolicyHeader policy with
+      cases InternalSpec.Psbt.validatePolicyHeader policy with
       | error _ => rfl
       | ok u =>
           cases u
@@ -1287,14 +1287,14 @@ theorem validatePsbtTransaction_eq_spec
           | false =>
               simp only [Bool.false_eq_true, ↓reduceIte]
               rw [determineLocktime_eq_spec]
-              cases Spec.Psbt.determineLocktime psbt.fallbackLocktime psbt.inputs.toList with
+              cases InternalSpec.Psbt.determineLocktime psbt.fallbackLocktime psbt.inputs.toList with
               | error _ => rfl
               | ok locktime =>
                   dsimp only
                   have ⟨hInRef, hInBnd⟩ := scanInputsCheckedLoop_refines
                     crypto cfg policy psbt.bip322Message.isSome psbt.outputs.size 0 psbt.inputs.toList {}
                     (Nat.zero_le _) (Nat.zero_le _)
-                  have hInitSpec : checkedInputStateToSpec {} = ({} : Spec.Psbt.InputScanAcc) := rfl
+                  have hInitSpec : checkedInputStateToSpec {} = ({} : InternalSpec.Psbt.InputScanAcc) := rfl
                   rw [hInitSpec] at hInRef
                   cases hInRun : BitcoinLedger.Psbt.scanInputsCheckedLoop
                       crypto cfg policy psbt.bip322Message.isSome psbt.outputs.size 0 psbt.inputs.toList {} with
@@ -1341,19 +1341,19 @@ theorem validatePsbtTransaction_eq_spec
                               dsimp only
                               rw [selectTxDisplayMode_eq_spec]
                               cases feeSats? <;>
-                                (cases Spec.Psbt.decideDisplayMode inSt.warnNonDefaultSighash inSt.sighashMixed
+                                (cases InternalSpec.Psbt.decideDisplayMode inSt.warnNonDefaultSighash inSt.sighashMixed
                                    inSt.firstSighash psbt.outputs.size inSt.nExternal
                                    (inSt.anyExternalMissingNw && !(inSt.anyTaprootInternal && !inSt.sighashInputsOpen))
                                    displayedOuts.isEmpty <;> rfl)
 
-/-- Alias agreement `validatePsbt = Spec.Psbt.validatePsbt`. -/
+/-- Alias agreement `validatePsbt = InternalSpec.Psbt.validatePsbt`. -/
 theorem validatePsbt_eq_spec
     (crypto : CryptoOracles)
     (cfg : SigningConfig)
     (policy : WalletPolicySpec)
     (psbt : PsbtTx) :
     BitcoinLedger.Psbt.validatePsbt crypto cfg policy psbt =
-      Spec.Psbt.validatePsbt crypto cfg policy psbt :=
+      InternalSpec.Psbt.validatePsbt crypto cfg policy psbt :=
   validatePsbtTransaction_eq_spec crypto cfg policy psbt
 
 /-! ## 6. Sighash Digest, BIP-322, Ledger Swap & `authorizePsbtSigning` Refinement -/
@@ -1363,7 +1363,7 @@ theorem computeTxHashes_eq_spec
     (inputs : List (PsbtInput × TxOut))
     (outputs : List TxOut) :
     BitcoinLedger.Psbt.computeTxHashes sha256 inputs outputs =
-      Spec.Psbt.computeTxHashes sha256 inputs outputs := rfl
+      InternalSpec.Psbt.computeTxHashes sha256 inputs outputs := rfl
 
 theorem computeSighashLegacy_eq_spec
     (sha256 : ByteArray → Bytes32)
@@ -1375,14 +1375,14 @@ theorem computeSighashLegacy_eq_spec
     (scriptCode : ByteArray)
     (sighashByte : UInt8) :
     BitcoinLedger.Psbt.computeSighashLegacy sha256 txVersion locktime inputs outputs inputIndex scriptCode sighashByte =
-      Spec.Psbt.sighashLegacy sha256 txVersion locktime inputs outputs inputIndex scriptCode sighashByte := rfl
+      InternalSpec.Psbt.sighashLegacy sha256 txVersion locktime inputs outputs inputIndex scriptCode sighashByte := rfl
 
 theorem buildSegwitV0ScriptCode_eq_spec
     (activeScript : ByteArray)
     (witnessScript : Option ByteArray) :
     BitcoinLedger.Psbt.buildSegwitV0ScriptCode activeScript witnessScript =
-      Spec.Psbt.segwitV0ScriptCode activeScript witnessScript := by
-  unfold BitcoinLedger.Psbt.buildSegwitV0ScriptCode Spec.Psbt.segwitV0ScriptCode
+      InternalSpec.Psbt.segwitV0ScriptCode activeScript witnessScript := by
+  unfold BitcoinLedger.Psbt.buildSegwitV0ScriptCode InternalSpec.Psbt.segwitV0ScriptCode
   rw [checkP2WPKH_eq_spec, checkP2WSH_eq_spec]
   rfl
 
@@ -1398,7 +1398,7 @@ theorem computeSighashSegwitV0_eq_spec
     (inputIndex : Nat)
     (sighashByte : UInt8) :
     BitcoinLedger.Psbt.computeSighashSegwitV0 sha256 txVersion locktime hashes inp utxoAmount scriptCodeWithLen outputs inputIndex sighashByte =
-      Spec.Psbt.sighashSegwitV0 sha256 txVersion locktime hashes inp utxoAmount scriptCodeWithLen outputs inputIndex sighashByte := rfl
+      InternalSpec.Psbt.sighashSegwitV0 sha256 txVersion locktime hashes inp utxoAmount scriptCodeWithLen outputs inputIndex sighashByte := rfl
 
 theorem computeSighashTaproot_eq_spec
     (sha256 : ByteArray → Bytes32)
@@ -1412,34 +1412,34 @@ theorem computeSighashTaproot_eq_spec
     (tapleafHash : Option Bytes32)
     (sighashByte : UInt8) :
     BitcoinLedger.Psbt.computeSighashTaproot sha256 txVersion locktime hashes inp utxo outputs inputIndex tapleafHash sighashByte =
-      Spec.Psbt.sighashTaproot sha256 txVersion locktime hashes inp utxo outputs inputIndex tapleafHash sighashByte := rfl
+      InternalSpec.Psbt.sighashTaproot sha256 txVersion locktime hashes inp utxo outputs inputIndex tapleafHash sighashByte := rfl
 
 theorem formatSignatureWithSighash_eq_spec
     (isSchnorr : Bool)
     (rawSig : ByteArray)
     (sighashByte : UInt8) :
     BitcoinLedger.Psbt.formatSignatureWithSighash isSchnorr rawSig sighashByte =
-      Spec.Psbt.appendSighashSuffix isSchnorr rawSig sighashByte := rfl
+      InternalSpec.Psbt.appendSighashSuffix isSchnorr rawSig sighashByte := rfl
 
 theorem buildBip322ToSpendTx_eq_spec
     (sha256 : ByteArray → Bytes32)
     (message challengeScript : ByteArray) :
     BitcoinLedger.Psbt.buildBip322ToSpendTx sha256 message challengeScript =
-      Spec.Psbt.bip322ToSpendTx sha256 message challengeScript := rfl
+      InternalSpec.Psbt.bip322ToSpendTx sha256 message challengeScript := rfl
 
 theorem computeBip322ToSpendTxid_eq_spec
     (sha256 : ByteArray → Bytes32)
     (message challengeScript : ByteArray) :
     BitcoinLedger.Psbt.computeBip322ToSpendTxid sha256 message challengeScript =
-      Spec.Psbt.bip322ToSpendTxid sha256 message challengeScript := rfl
+      InternalSpec.Psbt.bip322ToSpendTxid sha256 message challengeScript := rfl
 
 theorem checkBip322PrintableAscii_eq_spec (msg : ByteArray) :
     BitcoinLedger.Psbt.checkBip322PrintableAscii msg =
-      Spec.Psbt.isBip322MessagePrintable msg := rfl
+      InternalSpec.Psbt.isBip322MessagePrintable msg := rfl
 
 theorem checkBip322ProofOfFundsSequence_eq_spec (inp : PsbtInput) :
     BitcoinLedger.Psbt.checkBip322ProofOfFundsSequence inp =
-      Spec.Psbt.bip322ProofOfFundsSequenceValid inp := rfl
+      InternalSpec.Psbt.bip322ProofOfFundsSequenceValid inp := rfl
 
 theorem validateBip322Psbt_eq_spec
     (sha256 : ByteArray → Bytes32)
@@ -1448,8 +1448,8 @@ theorem validateBip322Psbt_eq_spec
     (validated : ValidatedPsbt)
     (message : ByteArray) :
     BitcoinLedger.Psbt.validateBip322Psbt sha256 inSwapMode psbt validated message =
-      Spec.Psbt.validateBip322Psbt sha256 inSwapMode psbt validated message := by
-  unfold BitcoinLedger.Psbt.validateBip322Psbt Spec.Psbt.validateBip322Psbt
+      InternalSpec.Psbt.validateBip322Psbt sha256 inSwapMode psbt validated message := by
+  unfold BitcoinLedger.Psbt.validateBip322Psbt InternalSpec.Psbt.validateBip322Psbt
   cases inSwapMode with
   | true => rfl
   | false =>
@@ -1469,7 +1469,7 @@ theorem validateBip322Psbt_eq_spec
                   if hOut : 0 < psbt.outputs.size then
                     simp only [hOut, ↓reduceDIte, eqOptBytes_eq_spec]
                     cases (!decide ((psbt.outputs[0]'hOut).amount = 0) ||
-                           !Spec.Psbt.optBytesEq (psbt.outputs[0]'hOut).scriptPubKey (some (ByteArray.mk #[0x6a]))) with
+                           !InternalSpec.Psbt.optBytesEq (psbt.outputs[0]'hOut).scriptPubKey (some (ByteArray.mk #[0x6a]))) with
                     | true => rfl
                     | false =>
                         simp only [Bool.false_eq_true, ↓reduceIte]
@@ -1488,8 +1488,8 @@ theorem validateBip322Psbt_eq_spec
 
 theorem parseSwapOpReturnPayload_eq_spec (s : ByteArray) :
     BitcoinLedger.Psbt.parseSwapOpReturnPayload s =
-      Spec.Psbt.extractSwapOpReturnData s := by
-  unfold BitcoinLedger.Psbt.parseSwapOpReturnPayload Spec.Psbt.extractSwapOpReturnData
+      InternalSpec.Psbt.extractSwapOpReturnData s := by
+  unfold BitcoinLedger.Psbt.parseSwapOpReturnPayload InternalSpec.Psbt.extractSwapOpReturnData
   rw [eqOptU8_eq_spec]
   rfl
 
@@ -1498,8 +1498,8 @@ theorem resolveSwapRecipientOutput_eq_spec
     (mode : SwapMode)
     (displayedOutputs : List (Nat × PsbtOutput)) :
     BitcoinLedger.Psbt.resolveSwapRecipientOutput crypto mode displayedOutputs =
-      Spec.Psbt.extractSwapDestOutput crypto mode displayedOutputs := by
-  unfold BitcoinLedger.Psbt.resolveSwapRecipientOutput Spec.Psbt.extractSwapDestOutput
+      InternalSpec.Psbt.extractSwapDestOutput crypto mode displayedOutputs := by
+  unfold BitcoinLedger.Psbt.resolveSwapRecipientOutput InternalSpec.Psbt.extractSwapDestOutput
   cases mode with
   | standard => rfl
   | crossChain expectedHash =>
@@ -1524,7 +1524,7 @@ theorem resolveSwapRecipientOutput_eq_spec
                       | some spk =>
                           dsimp only
                           rw [parseSwapOpReturnPayload_eq_spec]
-                          cases Spec.Psbt.extractSwapOpReturnData spk with
+                          cases InternalSpec.Psbt.extractSwapOpReturnData spk with
                           | none => rfl
                           | some payinData =>
                               dsimp only
@@ -1537,8 +1537,8 @@ theorem validateSwapPsbt_eq_spec
     (validated : ValidatedPsbt)
     (swap : SwapParams) :
     BitcoinLedger.Psbt.validateSwapPsbt crypto policy psbt validated swap =
-      Spec.Psbt.validateSwapPsbt crypto policy psbt validated swap := by
-  unfold BitcoinLedger.Psbt.validateSwapPsbt Spec.Psbt.validateSwapPsbt
+      InternalSpec.Psbt.validateSwapPsbt crypto policy psbt validated swap := by
+  unfold BitcoinLedger.Psbt.validateSwapPsbt InternalSpec.Psbt.validateSwapPsbt
   rw [resolveSwapRecipientOutput_eq_spec]
   cases psbt.bip322Message.isSome with
   | true => rfl
@@ -1549,7 +1549,7 @@ theorem validateSwapPsbt_eq_spec
       | true => rfl
       | false =>
           simp only [Bool.false_eq_true, ↓reduceIte]
-          cases Spec.Psbt.extractSwapDestOutput crypto swap.mode validated.displayedOutputs with
+          cases InternalSpec.Psbt.extractSwapDestOutput crypto swap.mode validated.displayedOutputs with
           | error _ => rfl
           | ok destOut =>
               dsimp only
@@ -1577,7 +1577,7 @@ theorem validateSwapPsbt_eq_spec
                                   rw [eqOptString_eq_spec]
 
 /-- Top-level signing authorization refinement: `BitcoinLedger.Psbt.authorizePsbtSigning`
-    agrees identically with `Spec.Psbt.authorizePsbtSigning`. -/
+    agrees identically with `InternalSpec.Psbt.authorizePsbtSigning`. -/
 theorem authorizePsbtSigning_eq_spec
     (crypto : CryptoOracles)
     (cfg : SigningConfig)
@@ -1585,10 +1585,10 @@ theorem authorizePsbtSigning_eq_spec
     (psbt : PsbtTx)
     (swapParams : Option SwapParams) :
     BitcoinLedger.Psbt.authorizePsbtSigning crypto cfg policy psbt swapParams =
-      Spec.Psbt.authorizePsbtSigning crypto cfg policy psbt swapParams := by
-  unfold BitcoinLedger.Psbt.authorizePsbtSigning Spec.Psbt.authorizePsbtSigning
+      InternalSpec.Psbt.authorizePsbtSigning crypto cfg policy psbt swapParams := by
+  unfold BitcoinLedger.Psbt.authorizePsbtSigning InternalSpec.Psbt.authorizePsbtSigning
   rw [validatePsbtTransaction_eq_spec]
-  cases Spec.Psbt.validatePsbt crypto cfg policy psbt with
+  cases InternalSpec.Psbt.validatePsbt crypto cfg policy psbt with
   | error _ => rfl
   | ok validated =>
       dsimp only
@@ -1604,7 +1604,7 @@ theorem authorizePsbtSigning_eq_spec
       | some msg =>
           dsimp only
           rw [validateBip322Psbt_eq_spec]
-          cases Spec.Psbt.validateBip322Psbt crypto.sha256 swapParams.isSome psbt validated msg with
+          cases InternalSpec.Psbt.validateBip322Psbt crypto.sha256 swapParams.isSome psbt validated msg with
           | error _ => rfl
           | ok u =>
               cases u
@@ -1635,7 +1635,7 @@ theorem validated_psbt_fee_conservation
     f = v.sumInputs - v.sumOutputs ∧
     v.sumInputs = v.sumOutputs + f := by
   rw [validatePsbtTransaction_eq_spec] at hValid
-  have ⟨hLe, hSub⟩ := Spec.Psbt.validated_psbt_fee_non_negative crypto cfg policy psbt v f hValid hFee
+  have ⟨hLe, hSub⟩ := InternalSpec.Psbt.validated_psbt_fee_non_negative crypto cfg policy psbt v f hValid hFee
   refine ⟨hLe, hSub, ?_⟩
   rw [hSub, Nat.add_comm, Nat.sub_add_cancel hLe]
 
@@ -1650,7 +1650,7 @@ theorem computeCheckedFeeSats_negative_rejected
     BitcoinLedger.Psbt.computeCheckedFeeSats false false sumInSats sumOutSats =
       .error .negativeFeeOutputsExceedInputs := by
   have hRef := computeCheckedFeeSats_refines false false sumInSats sumOutSats hInMax
-  rw [Spec.Psbt.negative_fee_rejected sumInSats.toNat sumOutSats.toNat hLt] at hRef
+  rw [InternalSpec.Psbt.negative_fee_rejected sumInSats.toNat sumOutSats.toNat hLt] at hRef
   cases hRes : BitcoinLedger.Psbt.computeCheckedFeeSats false false sumInSats sumOutSats with
   | ok _ =>
       rw [hRes] at hRef
@@ -1677,14 +1677,14 @@ theorem extractInputPrevout_dual_utxo_mismatch_rejected
     (hDiff : rawTx.vout[inp.prevout.vout.toNat]'hBounds ≠ wUtxo) :
     BitcoinLedger.Psbt.extractInputPrevout sha256 inp = .error .dualUtxoMismatch := by
   rw [extractInputPrevout_eq_spec]
-  unfold Spec.Psbt.extractInputPrevout
+  unfold InternalSpec.Psbt.extractInputPrevout
   rw [computeTxid_eq_spec] at hTxid
-  have hTxEq : Spec.Psbt.bytes32Eq (Spec.Psbt.computeTxid sha256 rawTx) inp.prevout.txid = true :=
-    (Spec.Psbt.bytes32Eq_iff _ _).mpr hTxid
-  have hOutFalse : Spec.Psbt.txOutEq (rawTx.vout[inp.prevout.vout.toNat]'hBounds) wUtxo = false := by
-    cases hEq : Spec.Psbt.txOutEq (rawTx.vout[inp.prevout.vout.toNat]'hBounds) wUtxo with
+  have hTxEq : InternalSpec.Psbt.bytes32Eq (InternalSpec.Psbt.computeTxid sha256 rawTx) inp.prevout.txid = true :=
+    (InternalSpec.Psbt.bytes32Eq_iff _ _).mpr hTxid
+  have hOutFalse : InternalSpec.Psbt.txOutEq (rawTx.vout[inp.prevout.vout.toNat]'hBounds) wUtxo = false := by
+    cases hEq : InternalSpec.Psbt.txOutEq (rawTx.vout[inp.prevout.vout.toNat]'hBounds) wUtxo with
     | false => rfl
-    | true => exact absurd ((Spec.Psbt.txOutEq_iff _ _).mp hEq) hDiff
+    | true => exact absurd ((InternalSpec.Psbt.txOutEq_iff _ _).mp hEq) hDiff
   simp only [hNw, hW, hTxEq, Bool.not_true, Bool.false_eq_true, ↓reduceIte, hBounds, ↓reduceDIte,
              hOutFalse, Bool.not_false]
 
@@ -1702,7 +1702,7 @@ theorem dual_utxo_mismatch_rejected
     (hDiff : rawTx.vout[inp.prevout.vout.toNat]'hBounds ≠ wUtxo) :
     BitcoinLedger.Psbt.validateInternalInputUtxo crypto inp exempt = .error .dualUtxoMismatch := by
   rw [validateInternalInputUtxo_eq_spec]
-  exact Spec.Psbt.dual_utxo_mismatch_rejected crypto inp rawTx wUtxo exempt hNw hW hTxid hBounds hDiff
+  exact InternalSpec.Psbt.dual_utxo_mismatch_rejected crypto inp rawTx wUtxo exempt hNw hW hTxid hBounds hDiff
 
 /-- **Missing UTXO Rejection**: -/
 theorem missing_utxo_rejected
@@ -1713,7 +1713,7 @@ theorem missing_utxo_rejected
     (hNoW : inp.witnessUtxo = none) :
     BitcoinLedger.Psbt.validateInternalInputUtxo crypto inp exempt = .error .missingUtxo := by
   rw [validateInternalInputUtxo_eq_spec]
-  exact Spec.Psbt.missing_utxo_rejected crypto inp exempt hNoNw hNoW
+  exact InternalSpec.Psbt.missing_utxo_rejected crypto inp exempt hNoNw hNoW
 
 /-- **Mismatched `nonWitnessUtxo` Txid Rejection**: -/
 theorem mismatched_non_witness_utxo_txid_rejected
@@ -1725,7 +1725,7 @@ theorem mismatched_non_witness_utxo_txid_rejected
     (hMismatch : BitcoinLedger.Psbt.computeTxid crypto.sha256 rawTx ≠ inp.prevout.txid) :
     BitcoinLedger.Psbt.validateInternalInputUtxo crypto inp exempt = .error .nonWitnessUtxoTxidMismatch := by
   rw [validateInternalInputUtxo_eq_spec]
-  exact Spec.Psbt.mismatched_non_witness_utxo_txid_rejected crypto inp rawTx exempt hNw hMismatch
+  exact InternalSpec.Psbt.mismatched_non_witness_utxo_txid_rejected crypto inp rawTx exempt hNw hMismatch
 
 /-- **Legacy Internal Input With `witnessUtxo` Rejected**: -/
 theorem legacy_input_with_witness_utxo_rejected
@@ -1740,7 +1740,7 @@ theorem legacy_input_with_witness_utxo_rejected
     BitcoinLedger.Psbt.validateInternalInputUtxo crypto inp exempt = .error .legacyHasWitnessUtxo := by
   rw [validateInternalInputUtxo_eq_spec]
   rw [classifyInputSpendClass_eq_spec] at hLegacy
-  exact Spec.Psbt.legacy_input_with_witness_utxo_rejected crypto inp wUtxo exempt hNoNw hW hNoRedeem hLegacy
+  exact InternalSpec.Psbt.legacy_input_with_witness_utxo_rejected crypto inp wUtxo exempt hNoNw hW hNoRedeem hLegacy
 
 /-- **Unverified Change Never Hidden (`scanOutputsChecked`)**:
     Under default `SigningConfig`, every output `out` at index `k` with
@@ -1762,7 +1762,7 @@ theorem unverified_change_never_hidden
   rw [hOk] at hRef
   dsimp [Except.map] at hRef
   rw [isVerifiedChangeOutput_eq_spec] at hUnverified
-  exact Spec.Psbt.unverified_change_never_hidden crypto policy outputs
+  exact InternalSpec.Psbt.unverified_change_never_hidden crypto policy outputs
     dispOuts chgOuts sumOutSats.toNat sumChgSats.toNat hRef.symm k out hGet hUnverified
 
 /-- **Receive-Branch Output Never Classified as Verified Change**:
@@ -1775,7 +1775,7 @@ theorem receive_branch_output_not_verified_change
       (c, idx) ∈ BitcoinLedger.Psbt.gatherCandidateCoordinates none policy out.derivations → c = false) :
     BitcoinLedger.Psbt.isVerifiedChangeOutput policy out = false := by
   rw [isVerifiedChangeOutput_eq_spec]
-  apply Spec.Psbt.receive_branch_output_not_verified_change
+  apply InternalSpec.Psbt.receive_branch_output_not_verified_change
   intro c idx hMem
   rw [← gatherCandidateCoordinates_eq_spec] at hMem
   exact hAllReceive c idx hMem
@@ -1790,13 +1790,13 @@ theorem verified_change_requires_numSecond_branch
       out.scriptPubKey = some spk ∧
       entry ∈ out.derivations ∧
       ph ∈ policy.internalPlaceholders ∧
-      Spec.Psbt.derivationMatchesPlaceholder ph entry = some (true, addrIdx) ∧
+      InternalSpec.Psbt.derivationMatchesPlaceholder ph entry = some (true, addrIdx) ∧
       ph.numFirst ≠ ph.numSecond ∧
-      Spec.Psbt.outputMatchesDerivedAt policy out spk true addrIdx = true ∧
+      InternalSpec.Psbt.outputMatchesDerivedAt policy out spk true addrIdx = true ∧
       (∀ orig, ph.isMusig = false → ph.expectedOrigin = some orig →
         entry.origin.path.drop orig.path.length = [ph.numSecond, addrIdx]) := by
   rw [isVerifiedChangeOutput_eq_spec] at hVer
-  exact Spec.Psbt.verified_change_requires_numSecond_branch policy out hVer
+  exact InternalSpec.Psbt.verified_change_requires_numSecond_branch policy out hVer
 
 /-- **`TxDisplayMode.unavailable` on Open/Mixed Sighashes & Self-Transfer Invariants**:
     1. Mixed sighashes across signed inputs force `TxDisplayMode.unavailable`.
@@ -1815,7 +1815,7 @@ theorem display_mode_unavailable_and_self_transfer_invariants :
       BitcoinLedger.Psbt.selectTxDisplayMode warn mixed firstSh nOut nExt extUnv dispEmpty = .selfTransfer →
       nExt = 0) := by
   simp only [selectTxDisplayMode_eq_spec]
-  exact Spec.Psbt.display_mode_unavailable_and_self_transfer_invariants
+  exact InternalSpec.Psbt.display_mode_unavailable_and_self_transfer_invariants
 
 /-- **High-Fee Warning Detection in BOTH `full` and `selfTransfer` Display Modes**: -/
 theorem high_fee_warning_in_full_and_self_transfer
@@ -1832,7 +1832,7 @@ theorem high_fee_warning_in_full_and_self_transfer
     (hAbove100k : v.sumInputs > 100000) :
     v.warnings.highFee = true := by
   rw [validatePsbtTransaction_eq_spec] at hValid
-  exact Spec.Psbt.self_transfer_high_fee_triggers_warning crypto cfg policy psbt v f
+  exact InternalSpec.Psbt.self_transfer_high_fee_triggers_warning crypto cfg policy psbt v f
     hValid hMode hFee hTen hAbove100k
 
 /-- **Ledger Exchange Swap Rejects Fee Mismatch**: -/
@@ -1845,7 +1845,7 @@ theorem swap_rejects_fee_mismatch
     (hFeeMismatch : validated.fee ≠ some swap.fees) :
     ∀ u, BitcoinLedger.Psbt.validateSwapPsbt crypto policy psbt validated swap ≠ .ok u := by
   rw [validateSwapPsbt_eq_spec]
-  exact Spec.Psbt.swap_rejects_fee_mismatch crypto policy psbt validated swap hFeeMismatch
+  exact InternalSpec.Psbt.swap_rejects_fee_mismatch crypto policy psbt validated swap hFeeMismatch
 
 /-- **Ledger Exchange Swap Rejects Amount Mismatch**: -/
 theorem swap_rejects_amount_mismatch
@@ -1857,7 +1857,7 @@ theorem swap_rejects_amount_mismatch
     (hAmtMismatch : validated.sumOutputs - validated.sumChangeOutputs ≠ swap.amount) :
     ∀ u, BitcoinLedger.Psbt.validateSwapPsbt crypto policy psbt validated swap ≠ .ok u := by
   rw [validateSwapPsbt_eq_spec]
-  exact Spec.Psbt.swap_rejects_amount_mismatch crypto policy psbt validated swap hAmtMismatch
+  exact InternalSpec.Psbt.swap_rejects_amount_mismatch crypto policy psbt validated swap hAmtMismatch
 
 /-- **Ledger Exchange Swap Rejects Recipient Address Mismatch**: -/
 theorem swap_rejects_recipient_mismatch
@@ -1872,7 +1872,7 @@ theorem swap_rejects_recipient_mismatch
     (hAddrMismatch : ∀ spk, destOut.scriptPubKey = some spk → crypto.formatAddress spk ≠ some swap.destinationAddress) :
     ∀ u, BitcoinLedger.Psbt.validateSwapPsbt crypto policy psbt validated swap ≠ .ok u := by
   rw [validateSwapPsbt_eq_spec]
-  exact Spec.Psbt.swap_rejects_recipient_mismatch crypto policy psbt validated swap idx destOut hStd hOuts hAddrMismatch
+  exact InternalSpec.Psbt.swap_rejects_recipient_mismatch crypto policy psbt validated swap idx destOut hStd hOuts hAddrMismatch
 
 /-- **Ledger Exchange Swap Rejects Extra External Outputs**: -/
 theorem swap_standard_rejects_extra_external_outputs
@@ -1885,7 +1885,7 @@ theorem swap_standard_rejects_extra_external_outputs
     (hLen : validated.displayedOutputs.length ≠ 1) :
     ∀ u, BitcoinLedger.Psbt.validateSwapPsbt crypto policy psbt validated swap ≠ .ok u := by
   rw [validateSwapPsbt_eq_spec]
-  exact Spec.Psbt.swap_standard_rejects_extra_external_outputs crypto policy psbt validated swap hStd hLen
+  exact InternalSpec.Psbt.swap_standard_rejects_extra_external_outputs crypto policy psbt validated swap hStd hLen
 
 /-- **BIP-370 Locktime Rejects Height-Only vs Time-Only Conflicts**: -/
 theorem bip370_locktime_conflict_rejected
@@ -1898,7 +1898,7 @@ theorem bip370_locktime_conflict_rejected
     BitcoinLedger.Psbt.determineLocktime fallback [inHeightOnly, inTimeOnly] =
       .error .locktimeConflictOrInvalid := by
   rw [determineLocktime_eq_spec]
-  exact Spec.Psbt.bip370_locktime_conflict_rejected fallback inHeightOnly inTimeOnly hValid1 hValid2 hH hT
+  exact InternalSpec.Psbt.bip370_locktime_conflict_rejected fallback inHeightOnly inTimeOnly hValid1 hValid2 hH hT
 
 /-- **BIP-370 Locktime Ignores Fallback When Constrained by Required Height**: -/
 theorem bip370_locktime_ignores_fallback_when_constrained
@@ -1909,7 +1909,7 @@ theorem bip370_locktime_ignores_fallback_when_constrained
     BitcoinLedger.Psbt.determineLocktime fb1 [inp] = .ok 800000 ∧
     BitcoinLedger.Psbt.determineLocktime fb1 [inp] = BitcoinLedger.Psbt.determineLocktime fb2 [inp] := by
   rw [determineLocktime_eq_spec fb1, determineLocktime_eq_spec fb2]
-  exact Spec.Psbt.bip370_locktime_ignores_fallback_when_constrained fb1 fb2 inp hReq hNoTime
+  exact InternalSpec.Psbt.bip370_locktime_ignores_fallback_when_constrained fb1 fb2 inp hReq hNoTime
 
 /-- **PSBTv0 Normalization Rejects Non-Empty `scriptSig`**: -/
 theorem psbt_v0_nonempty_scriptsig_rejected
@@ -1922,7 +1922,7 @@ theorem psbt_v0_nonempty_scriptsig_rejected
     (hNonEmpty : txin.scriptSig.size ≠ 0) :
     BitcoinLedger.Psbt.normalizePsbtV0ToV2 v0 = .error .psbtV0NonEmptyScriptSig := by
   rw [normalizePsbtV0ToV2_eq_spec]
-  exact Spec.Psbt.psbt_v0_nonempty_scriptsig_rejected v0 hVer hNoWit hNoV2 txin hVin hNonEmpty
+  exact InternalSpec.Psbt.psbt_v0_nonempty_scriptsig_rejected v0 hVer hNoWit hNoV2 txin hVin hNonEmpty
 
 /-- **BIP-322 Message Signing Rejected in Swap Mode**: -/
 theorem bip322_rejected_in_swap_mode
@@ -1949,7 +1949,7 @@ theorem bip322_enforces_to_spend_binding
         BitcoinLedger.Psbt.computeBip322ToSpendTxid sha256 msg
           (validated.validatedInputs[0]'hVal0).1.prevoutTxOut.scriptPubKey := by
   rw [validateBip322Psbt_eq_spec] at hOk
-  exact Spec.Psbt.bip322_enforces_to_spend_binding sha256 psbt validated msg hOk
+  exact InternalSpec.Psbt.bip322_enforces_to_spend_binding sha256 psbt validated msg hOk
 
 /-- **Non-Vacuous Execution Witness 1: Valid Standard Taproot Swap PSBT Accepted End-to-End**: -/
 theorem non_vacuity_valid_swap_psbt_accepted :
@@ -1958,7 +1958,7 @@ theorem non_vacuity_valid_swap_psbt_accepted :
       res.fee = some 1 ∧
       res.displayedOutputs.length = 1 ∧
       res.changeOutputs.length = 1 := by
-  rcases Spec.Psbt.non_vacuity_valid_swap_psbt_accepted with ⟨crypto, policy, psbt, swap, res, hOk, hFee, hDisp, hChg⟩
+  rcases InternalSpec.Psbt.non_vacuity_valid_swap_psbt_accepted with ⟨crypto, policy, psbt, swap, res, hOk, hFee, hDisp, hChg⟩
   refine ⟨crypto, policy, psbt, swap, res, ?_, hFee, hDisp, hChg⟩
   rw [authorizePsbtSigning_eq_spec]
   exact hOk
@@ -1968,7 +1968,7 @@ theorem non_vacuity_valid_bip322_psbt_accepted :
     ∃ (crypto : CryptoOracles) (policy : WalletPolicySpec) (psbt : PsbtTx) (res : ValidatedPsbt),
       psbt.bip322Message = some ("Hello Ledger".toUTF8) ∧
       BitcoinLedger.Psbt.authorizePsbtSigning crypto {} policy psbt none = .ok res := by
-  rcases Spec.Psbt.non_vacuity_valid_bip322_psbt_accepted with ⟨crypto, policy, psbt, res, hMsg, hOk⟩
+  rcases InternalSpec.Psbt.non_vacuity_valid_bip322_psbt_accepted with ⟨crypto, policy, psbt, res, hMsg, hOk⟩
   refine ⟨crypto, policy, psbt, res, hMsg, ?_⟩
   rw [authorizePsbtSigning_eq_spec]
   exact hOk

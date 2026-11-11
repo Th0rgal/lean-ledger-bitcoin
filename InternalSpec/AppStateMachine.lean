@@ -9,13 +9,13 @@
       `apps/bitcoin/common/src/{identity,por}.rs`, `apps/bitcoin/app/src/{main,resident_key,sp_keys}.rs`,
       `apps/bitcoin/app/src/handlers/*`)
 -/
-import Spec.Musig2
-import Spec.SilentPayments
+import InternalSpec.Musig2
+import InternalSpec.SilentPayments
 
-namespace Spec.AppStateMachine
+namespace InternalSpec.AppStateMachine
 
-open Spec.Musig2
-open Spec.SilentPayments
+open InternalSpec.Musig2
+open InternalSpec.SilentPayments
 
 /-! ## 1. Wire Constants, Target Profiles & Byte Helpers -/
 
@@ -91,7 +91,7 @@ def TargetProfile.spScanHrp (p : TargetProfile) : SpScanHrp :=
 /-- Initialize an empty `MusigSessionStore` with target-faithful capacity and session-ID match width:
     - BOLOS (`musig_sessions.h:15-17`): `capacity = some 32, idMatchBytes = 28`
     - Vanadium (`musig_signing.rs:42`): `capacity = some 1, idMatchBytes = 32` -/
-def _root_.Spec.Musig2.MusigSessionStore.emptyForProfile : TargetProfile → MusigSessionStore
+def _root_.InternalSpec.Musig2.MusigSessionStore.emptyForProfile : TargetProfile → MusigSessionStore
   | .bolos _ => MusigSessionStore.bolosDefault
   | .vanadium _ => MusigSessionStore.vanadiumDefault
 
@@ -177,7 +177,7 @@ def isPrintableAsciiMessage (msg : ByteArray) : Bool :=
 /-- Format mode shown on the hardware screen when confirming `SIGN_MESSAGE`. -/
 inductive MessageDisplayForm where
   | cleartextAscii (raw : ByteArray)
-  | sha256Digest (digest : Spec.Musig2.Bytes32)
+  | sha256Digest (digest : InternalSpec.Musig2.Bytes32)
   deriving DecidableEq
 
 /-- Preimage hashed under double-SHA256 for Bitcoin `SIGN_MESSAGE`:
@@ -186,8 +186,8 @@ def bitcoinSignedMessagePreimage (msg : ByteArray) : ByteArray :=
   concatBytes [bitcoinSignedMessageMagic, encodeVarint msg.size, msg]
 
 /-- Double-SHA256 Bitcoin Signed Message digest (`SHA256(SHA256(magic || varint(len) || msg))`). -/
-def bitcoinSignedMessageDigest (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (msg : ByteArray) : Spec.Musig2.Bytes32 :=
+def bitcoinSignedMessageDigest (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (msg : ByteArray) : InternalSpec.Musig2.Bytes32 :=
   let first := sha256 (bitcoinSignedMessagePreimage msg)
   sha256 first.bytes
 
@@ -212,29 +212,29 @@ def CompactSigHeaderBase.baseByte : CompactSigHeaderBase → UInt8
 /-- Construct the 65-byte Bitcoin compact recoverable signature `(base + recId) || r (32B) || s (32B)`
     for `recId ∈ {0, 1, 2, 3}`. -/
 def formatCompactRecoverableSig (headerBase : CompactSigHeaderBase) (recId : UInt8)
-    (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
+    (r s : InternalSpec.Musig2.Bytes32) : Option InternalSpec.SilentPayments.Bytes65 :=
   if recId > 3 then
     none
   else
-    let hdr : Spec.SilentPayments.SizedBytes 1 :=
+    let hdr : InternalSpec.SilentPayments.SizedBytes 1 :=
       ⟨ByteArray.mk #[headerBase.baseByte + recId], rfl⟩
-    let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
-    let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
-    some (Spec.SilentPayments.SizedBytes.append hdr (Spec.SilentPayments.SizedBytes.append r32 s32))
+    let r32 : InternalSpec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
+    let s32 : InternalSpec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
+    some (InternalSpec.SilentPayments.SizedBytes.append hdr (InternalSpec.SilentPayments.SizedBytes.append r32 s32))
 
 /-- BOLOS `sign_message.c:186` compact signature encoding:
     `result[0] = 27 + 4 + ((info & CX_ECCINFO_PARITY_ODD) ? 1 : 0)` (`31` or `32` for compressed keys). -/
 def formatBolosSignMessageSig (recId : UInt8)
-    (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
+    (r s : InternalSpec.Musig2.Bytes32) : Option InternalSpec.SilentPayments.Bytes65 :=
   if recId > 3 then
     none
   else
     let parity : UInt8 := recId &&& 1
-    let hdr : Spec.SilentPayments.SizedBytes 1 :=
+    let hdr : InternalSpec.SilentPayments.SizedBytes 1 :=
       ⟨ByteArray.mk #[31 + parity], rfl⟩
-    let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
-    let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
-    some (Spec.SilentPayments.SizedBytes.append hdr (Spec.SilentPayments.SizedBytes.append r32 s32))
+    let r32 : InternalSpec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
+    let s32 : InternalSpec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
+    some (InternalSpec.SilentPayments.SizedBytes.append hdr (InternalSpec.SilentPayments.SizedBytes.append r32 s32))
 
 /-! ## 3. `GetExtendedPubkey` Path Policy & Vanadium Identity Keys -/
 
@@ -319,8 +319,8 @@ def buildIdentityMessage (msgType object : ByteArray) : Option ByteArray :=
 
 /-- Vanadium `IdentityKey::get_id(name)`:
     `SHA256("\x0CIDENTITY_KEY" || u8(name.utf8ByteSize) || name.toUTF8 || pubkey)`. -/
-def computeIdentityRegistrationId (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (name : String) (pubkey : CompressedPubKey) : Option Spec.Musig2.Bytes32 :=
+def computeIdentityRegistrationId (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (name : String) (pubkey : CompressedPubKey) : Option InternalSpec.Musig2.Bytes32 :=
   let nameBytes := name.toUTF8
   if nameBytes.size == 0 || nameBytes.size > 255 then
     none
@@ -342,7 +342,7 @@ structure IdentitySignature where
 structure RegisteredIdentityEntry where
   pubkey : CompressedPubKey
   name : String
-  por : Spec.Musig2.Bytes32
+  por : InternalSpec.Musig2.Bytes32
   deriving Repr, DecidableEq
 
 /-! ## 4. Unified Account, PSBT & Swap Domain Types -/
@@ -362,14 +362,14 @@ structure WalletPolicySpec where
   nInternalKeys : Nat
   isDefaultPolicy : Bool
   isSignable : Bool
-  walletId : Spec.Musig2.Bytes32
+  walletId : InternalSpec.Musig2.Bytes32
   keysInfoPayloads : List ByteArray
   deriving DecidableEq
 
 /-- Unified Account (`WalletPolicy` on both targets, `SilentPayment` on Vanadium). -/
 inductive AccountSpec (Affine : Type) where
   | walletPolicy (policy : WalletPolicySpec)
-  | silentPayment (name : String) (spAccount : SilentPaymentAccount Affine) (accountId : Spec.Musig2.Bytes32)
+  | silentPayment (name : String) (spAccount : SilentPaymentAccount Affine) (accountId : InternalSpec.Musig2.Bytes32)
   deriving DecidableEq
 
 /-- Coordinates for `GetAddress`. -/
@@ -381,7 +381,7 @@ inductive AddressCoordinates where
 /-- Ledger Swap protocol mode (`swap_globals.h` & `handle_swap_sign_transaction.c:71-90`). -/
 inductive SwapMode where
   | standard
-  | crossChain (payinHash : Spec.Musig2.Bytes32)
+  | crossChain (payinHash : InternalSpec.Musig2.Bytes32)
   | invalidMode
   deriving Repr, DecidableEq
 
@@ -402,8 +402,8 @@ structure ExternalOutputView where
 
 /-- Check cross-chain Swap first external output (`OP_RETURN <single_push>` with value `0` and
     `SHA256(pushed_data) == expectedPayinHash`, matching `swap_checks.c:115-168`). -/
-def validCrossChainOpReturn (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (out : ExternalOutputView) (expectedPayinHash : Spec.Musig2.Bytes32) : Bool :=
+def validCrossChainOpReturn (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (out : ExternalOutputView) (expectedPayinHash : InternalSpec.Musig2.Bytes32) : Bool :=
   if decide (out.amount ≠ 0) then
     false
   else
@@ -435,16 +435,16 @@ def validCrossChainOpReturn (sha256 : ByteArray → Spec.Musig2.Bytes32)
 structure StandardInputSigRequest where
   inputIndex : UInt32
   derivationPath : List UInt32
-  sighash : Spec.Musig2.Bytes32
+  sighash : InternalSpec.Musig2.Bytes32
   isSchnorr : Bool
-  leafHash : Option Spec.Musig2.Bytes32
+  leafHash : Option InternalSpec.Musig2.Bytes32
   deriving Repr, DecidableEq
 
 structure StandardInputSignature where
   inputIndex : UInt32
   signature : ByteArray
   pubkey : CompressedPubKey
-  leafHash : Option Spec.Musig2.Bytes32
+  leafHash : Option InternalSpec.Musig2.Bytes32
   deriving DecidableEq
 
 /-- MuSig2 phase behavior within a `SIGN_PSBT` request (`sign_psbt.c:99-140`, `musig_signing.rs`). -/
@@ -459,7 +459,7 @@ inductive PsbtMusigPlan where
     standard input signatures, MuSig2 Round-1/Round-2 plan, and BIP-375 Silent Payments. -/
 structure PsbtSignRequest (Affine : Type) where
   account : AccountSpec Affine
-  por : Option Spec.Musig2.Bytes32
+  por : Option InternalSpec.Musig2.Bytes32
   isBip322MessageSigning : Bool
   inputsTotalAmount : UInt64
   outputsTotalAmount : UInt64
@@ -477,14 +477,14 @@ structure PsbtSignRequest (Affine : Type) where
 
 /-- Whether `porOpt` denotes a default (unregistered) BOLOS wallet (`none` or 32 zero bytes,
     matching `is_array_all_zeros(wallet_hmac, 32)` in `get_wallet_address.c:124` and `sign_psbt.c`). -/
-def isDefaultPor (porOpt : Option Spec.Musig2.Bytes32) : Bool :=
+def isDefaultPor (porOpt : Option InternalSpec.Musig2.Bytes32) : Bool :=
   match porOpt with
   | none => true
   | some por => por.isAllZeros
 
 /-- Validate all BOLOS `execute_swap_checks` + `sign_psbt.c:55` invariants for bypassing interactive UI
     under a pre-approved `SwapLock`. -/
-def validSwapPsbt {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+def validSwapPsbt {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (lock : SwapLock) (req : PsbtSignRequest Affine) : Bool :=
   let isDefaultWallet :=
     match req.account with
@@ -633,7 +633,7 @@ inductive AppCommand (Affine : Type) where
   | getAddress
       (display : Bool)
       (account : AccountSpec Affine)
-      (por : Option Spec.Musig2.Bytes32)
+      (por : Option InternalSpec.Musig2.Bytes32)
       (coordinates : AddressCoordinates)
       (identityIndex : Option UInt32)
   | signMessage
@@ -672,9 +672,9 @@ inductive AppResponse where
   | version (v : AppVersion)
   | masterFingerprint (fpr : UInt32)
   | extendedPubkey (xpub : ByteArray) (identitySig : Option IdentitySignature)
-  | accountRegistered (accountId : Spec.Musig2.Bytes32) (hmac : Spec.Musig2.Bytes32)
+  | accountRegistered (accountId : InternalSpec.Musig2.Bytes32) (hmac : InternalSpec.Musig2.Bytes32)
   | address (addr : String) (identitySig : Option IdentitySignature)
-  | messageSigned (compactSig : Spec.SilentPayments.Bytes65)
+  | messageSigned (compactSig : InternalSpec.SilentPayments.Bytes65)
   | psbtSigned
       (signatures : List StandardInputSignature)
       (musigPubnonces : List MusigRound1Output)
@@ -683,7 +683,7 @@ inductive AppResponse where
       (spOutputScripts : List SilentPaymentOutputScriptOut)
       (swapCompleted : Bool)
   | spScanKeyExported (encodedKey : String)
-  | identityKeyRegistered (keyId : Spec.Musig2.Bytes32) (hmac : Spec.Musig2.Bytes32)
+  | identityKeyRegistered (keyId : InternalSpec.Musig2.Bytes32) (hmac : InternalSpec.Musig2.Bytes32)
   deriving DecidableEq
 
 /-- Unified error codes mapping cleanly to BOLOS status words (`sw.h`) and Vanadium `common::errors::Error`. -/
@@ -714,11 +714,11 @@ inductive AppError where
       causing any subsequent Swap retry APDUs to be rejected immediately
     - `residentKeys`: optional 32-byte Vanadium resident seed (`KeyTree::Resident`) -/
 structure AppPersistentState where
-  registeredAccounts : List (Spec.Musig2.Bytes32 × Spec.Musig2.Bytes32) := []
+  registeredAccounts : List (InternalSpec.Musig2.Bytes32 × InternalSpec.Musig2.Bytes32) := []
   musigSessions : MusigSessionStore := {}
   swapLock : Option SwapLock := none
   swapAborted : Bool := false
-  residentKeys : Option Spec.Musig2.Bytes32 := none
+  residentKeys : Option InternalSpec.Musig2.Bytes32 := none
   deriving Repr, DecidableEq
 
 /-- Canonical empty `AppPersistentState` initialized with the target-specific `MusigSessionStore`. -/
@@ -750,13 +750,13 @@ structure HardwareOracle (Affine : Type) where
   spCrypto : SpCrypto Affine
   bech32m : Bech32mCodec
   /-- Master key fingerprint for `KeyTree::Standard`, or derived from `residentSeed` for `KeyTree::Resident`. -/
-  masterFingerprint : KeyTree → Option Spec.Musig2.Bytes32 → Option UInt32
+  masterFingerprint : KeyTree → Option InternalSpec.Musig2.Bytes32 → Option UInt32
   /-- Derive serialized 78-byte BIP-32 extended pubkey & compressed key at `path`. -/
-  deriveExtendedPubkey : KeyTree → Option Spec.Musig2.Bytes32 → List UInt32 → Option (ByteArray × CompressedPubKey)
+  deriveExtendedPubkey : KeyTree → Option InternalSpec.Musig2.Bytes32 → List UInt32 → Option (ByteArray × CompressedPubKey)
   /-- Derive `m/"Proof of Registration"` SLIP-21 HMAC-SHA256 tag over a 32-byte `registrationId`. -/
-  computePorHmac : Spec.Musig2.Bytes32 → Spec.Musig2.Bytes32
+  computePorHmac : InternalSpec.Musig2.Bytes32 → InternalSpec.Musig2.Bytes32
   /-- Sign a 32-byte digest with recoverable ECDSA at `path`, returning `(recId ∈ 0..3, r, s)`. -/
-  signRecoverableEcdsa : List UInt32 → Spec.Musig2.Bytes32 → Option (UInt8 × Spec.Musig2.Bytes32 × Spec.Musig2.Bytes32)
+  signRecoverableEcdsa : List UInt32 → InternalSpec.Musig2.Bytes32 → Option (UInt8 × InternalSpec.Musig2.Bytes32 × InternalSpec.Musig2.Bytes32)
   /-- Sign a 32-byte sighash for a standard PSBT input (`DER || sighashByte` or 64/65B Schnorr). -/
   signPsbtInput : StandardInputSigRequest → Option (ByteArray × CompressedPubKey)
   /-- Produce a Vanadium BIP-340 identity signature over `build_identity_message(msgType, obj)` at `m/1229210958'/i`. -/
@@ -770,7 +770,7 @@ structure HardwareOracle (Affine : Type) where
   /-- Fresh 32-byte CSPRNG draw for MuSig2 Round-1 `randRoot`. -/
   freshMusigRandRoot : RandRoot
   /-- Fresh 32-byte CSPRNG draw for BIP-374 DLEQ proof generation. -/
-  freshDleqAuxRand : Spec.SilentPayments.Bytes32
+  freshDleqAuxRand : InternalSpec.SilentPayments.Bytes32
   /-- Whether Vanadium enforces self-pubnonce byte-equality in MuSig2 Round 2
       (`true` on BOLOS `musig_sessions.c`, configurable on Vanadium `musig_signing.rs:463-466`). -/
   vanadiumCheckSelfPubnonce : Bool := false
@@ -784,7 +784,7 @@ def HardwareOracle.checkSelfPubnonce {Affine : Type} (hw : HardwareOracle Affine
 
 /-- Validate Proof-of-Registration (or default-policy rules on BOLOS vs Vanadium). -/
 def validateAccountAuth {Affine : Type} (profile : TargetProfile) (hw : HardwareOracle Affine)
-    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option Spec.Musig2.Bytes32) :
+    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option InternalSpec.Musig2.Bytes32) :
     Except AppError Unit :=
   match account with
   | .walletPolicy wp =>
@@ -893,7 +893,7 @@ def round1NeedsApproval (profile : TargetProfile) (spShares : List SilentPayment
   (match profile with | .vanadium _ => true | .bolos _ => false) || !spShares.isEmpty
 
 /-- Helper: check SwapLock match OR user approval for standard / hybrid / Round-2 PSBT signing. -/
-def authorizePsbtStep {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+def authorizePsbtStep {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (swapLock : Option SwapLock) (ui : UserApprovalOracle Affine)
     (psbt : PsbtSignRequest Affine) : Except AppError Bool :=
   match swapLock with
@@ -1614,7 +1614,7 @@ theorem getExtendedPubkey_purity {Affine : Type} [DecidableEq Affine]
 
 theorem getAddress_purity {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile) (hw : HardwareOracle Affine) (ui : UserApprovalOracle Affine)
-    (display : Bool) (acc : AccountSpec Affine) (por : Option Spec.Musig2.Bytes32)
+    (display : Bool) (acc : AccountSpec Affine) (por : Option InternalSpec.Musig2.Bytes32)
     (coords : AddressCoordinates) (idIdx : Option UInt32)
     (s s' : AppPersistentState) (resp : AppResponse)
     (h : stepAppCommand profile hw ui (.getAddress display acc por coords idIdx) s = .ok (resp, s')) : s' = s :=
@@ -2311,10 +2311,10 @@ theorem nonvacuous_bolos_signMessage_ok :
         (.signMessage [84 ||| hardenedFlag, 0 ||| hardenedFlag, 0 ||| hardenedFlag, 0, 0]
           (ByteArray.mk #[0x48, 0x69]) .p2wpkh) {} = .ok (resp, s') ∧
       responseEmitsSignature resp = true := by
-  let hdr : Spec.SilentPayments.SizedBytes 1 := ⟨ByteArray.mk #[32], rfl⟩
-  let r32 : Spec.SilentPayments.Bytes32 := ⟨oneByte32.bytes, oneByte32.size_eq⟩
-  let s32 : Spec.SilentPayments.Bytes32 := ⟨threeByte32.bytes, threeByte32.size_eq⟩
-  let expectedSig := Spec.SilentPayments.SizedBytes.append hdr (Spec.SilentPayments.SizedBytes.append r32 s32)
+  let hdr : InternalSpec.SilentPayments.SizedBytes 1 := ⟨ByteArray.mk #[32], rfl⟩
+  let r32 : InternalSpec.SilentPayments.Bytes32 := ⟨oneByte32.bytes, oneByte32.size_eq⟩
+  let s32 : InternalSpec.SilentPayments.Bytes32 := ⟨threeByte32.bytes, threeByte32.size_eq⟩
+  let expectedSig := InternalSpec.SilentPayments.SizedBytes.append hdr (InternalSpec.SilentPayments.SizedBytes.append r32 s32)
   refine ⟨.messageSigned expectedSig, {}, ?_, rfl⟩
   have hPathOk : ¬(bolosMaxBip32PathSteps < 5) := by decide
   have hSizeOk : ¬(maxSignMessageLength ≤ (ByteArray.mk #[0x48, 0x69]).size) := by decide
@@ -2353,12 +2353,12 @@ theorem bolos_getAddress_zero_por_enforces_default_index_cap :
       keysInfoPayloads := []
     }
     stepAppCommand (.bolos 0) toyHardwareOracle ⟨fun _ => true⟩
-      (.getAddress false (.walletPolicy defaultWp) (some (Spec.Musig2.SizedBytes.zeros 32))
+      (.getAddress false (.walletPolicy defaultWp) (some (InternalSpec.Musig2.SizedBytes.zeros 32))
         (.walletPolicy false 50001) none) {} =
       .error (.incorrectData, {}) := by
   intro defaultWp
   have hEmpty : "".isEmpty = true := by decide
-  have hZeros : (Spec.Musig2.SizedBytes.zeros 32).isAllZeros = true := by decide
+  have hZeros : (InternalSpec.Musig2.SizedBytes.zeros 32).isAllZeros = true := by decide
   have hUnhard : ¬((50001 : UInt32) ≥ hardenedFlag) := by decide
   have hOverCap : (50001 : UInt32) > maxDefaultAddressIndex := by decide
   unfold stepAppCommand validateAccountAuth isDefaultPor
@@ -2623,4 +2623,4 @@ theorem nonvacuous_multistep_musig_trace :
   simp [s0, runAppTrace, countMusigRound2StepsForRandRoot, stepUsedMusigRandRoot, stepPostState,
     hStep1, hStep2, hStep3, hStep4, hStep5, hStep6, hLookMs1, hMs2Cons1, cmd1, cmd3, psbtR1, psbtR2]
 
-end Spec.AppStateMachine
+end InternalSpec.AppStateMachine

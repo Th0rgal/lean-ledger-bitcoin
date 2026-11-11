@@ -1,10 +1,10 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.SilentPayments
 
 /-!
 # `Proofs.SilentPayments` — Refinement & Security Proofs for `BitcoinLedger.SilentPayments`
 
-Connects every executable operation in `BitcoinLedger.SilentPayments` to `Spec.SilentPayments`:
+Connects every executable operation in `BitcoinLedger.SilentPayments` to `InternalSpec.SilentPayments`:
 1. Exact refinement of BIP-352 address encoding/decoding (`encodeSpAddress`, `decodeSpAddress`),
    BIP-392 scan-key encoding/decoding (`encodeSpScanKey`, `decodeSpScanKey`), `spKeyDerivationPath`,
    `labelTweak`, `labeledSpendKey`, `deriveAccountSpAddress`, `deriveAccountTweakScript`, and
@@ -24,31 +24,31 @@ All theorems satisfy `0 sorryAx`, `0 native_decide`, and `0 Classical.choice`.
 
 namespace Proofs.SilentPayments
 
-open Spec.SilentPayments
+open InternalSpec.SilentPayments
 
 /-! ## 1. Primitive & Byte-Encoding Refinement Lemmas -/
 
 theorem secp256k1Order_eq :
-    BitcoinLedger.SilentPayments.secp256k1Order = Spec.SilentPayments.secp256k1Order := rfl
+    BitcoinLedger.SilentPayments.secp256k1Order = InternalSpec.SilentPayments.secp256k1Order := rfl
 
 theorem spMaxOutputsPerScanKey_eq :
     BitcoinLedger.SilentPayments.spMaxOutputsPerScanKey =
-      Spec.SilentPayments.spMaxOutputsPerScanKey := rfl
+      InternalSpec.SilentPayments.spMaxOutputsPerScanKey := rfl
 
 theorem bip32HardenedBit_eq :
-    BitcoinLedger.SilentPayments.bip32HardenedBit = Spec.SilentPayments.bip32HardenedBit := rfl
+    BitcoinLedger.SilentPayments.bip32HardenedBit = InternalSpec.SilentPayments.bip32HardenedBit := rfl
 
 theorem bip352Purpose_eq :
-    BitcoinLedger.SilentPayments.bip352Purpose = Spec.SilentPayments.bip352Purpose := rfl
+    BitcoinLedger.SilentPayments.bip352Purpose = InternalSpec.SilentPayments.bip352Purpose := rfl
 
 theorem sighashAll_eq :
-    BitcoinLedger.SilentPayments.sighashAll = Spec.SilentPayments.sighashAll := rfl
+    BitcoinLedger.SilentPayments.sighashAll = InternalSpec.SilentPayments.sighashAll := rfl
 
 theorem sighashDefault_eq :
-    BitcoinLedger.SilentPayments.sighashDefault = Spec.SilentPayments.sighashDefault := rfl
+    BitcoinLedger.SilentPayments.sighashDefault = InternalSpec.SilentPayments.sighashDefault := rfl
 
 theorem bip341NumsXOnly_eq :
-    BitcoinLedger.SilentPayments.bip341NumsXOnly = Spec.SilentPayments.bip341NumsXOnly := by
+    BitcoinLedger.SilentPayments.bip341NumsXOnly = InternalSpec.SilentPayments.bip341NumsXOnly := by
   decide
 
 theorem sizedBytes_eq_of_bytes {n : Nat} {a b : SizedBytes n} (h : a.bytes = b.bytes) :
@@ -164,76 +164,76 @@ theorem bytesEq_not_eq_bne (a b : ByteArray) :
   rw [byteArray_beq_eq_decide]
 
 theorem spListAll_eq {α : Type} (p : α → Bool) :
-    ∀ xs, BitcoinLedger.SilentPayments.spListAll p xs = Spec.SilentPayments.spListAll p xs
+    ∀ xs, BitcoinLedger.SilentPayments.spListAll p xs = InternalSpec.SilentPayments.spListAll p xs
   | [] => rfl
   | x :: xs => by
-    simp only [BitcoinLedger.SilentPayments.spListAll, Spec.SilentPayments.spListAll,
+    simp only [BitcoinLedger.SilentPayments.spListAll, InternalSpec.SilentPayments.spListAll,
       spListAll_eq p xs]
 
 theorem spListMem_eq {α : Type} [DecidableEq α] (x : α) :
-    ∀ xs, BitcoinLedger.SilentPayments.spListMem x xs = Spec.SilentPayments.spListMem x xs
+    ∀ xs, BitcoinLedger.SilentPayments.spListMem x xs = InternalSpec.SilentPayments.spListMem x xs
   | [] => rfl
   | y :: ys => by
-    simp only [BitcoinLedger.SilentPayments.spListMem, Spec.SilentPayments.spListMem,
+    simp only [BitcoinLedger.SilentPayments.spListMem, InternalSpec.SilentPayments.spListMem,
       spListMem_eq x ys]
 
 theorem appendBytes_eq (a b : ByteArray) :
-    BitcoinLedger.SilentPayments.appendBytes a b = Spec.SilentPayments.appendBytes a b := rfl
+    BitcoinLedger.SilentPayments.appendBytes a b = InternalSpec.SilentPayments.appendBytes a b := rfl
 
 theorem concatBytes_eq (xs : List ByteArray) :
-    BitcoinLedger.SilentPayments.concatBytes xs = Spec.SilentPayments.concatBytes xs := rfl
+    BitcoinLedger.SilentPayments.concatBytes xs = InternalSpec.SilentPayments.concatBytes xs := rfl
 
 theorem appendSized_eq {m n : Nat} (a : SizedBytes m) (b : SizedBytes n) :
     BitcoinLedger.SilentPayments.appendSized a b = SizedBytes.append a b := rfl
 
 theorem natToBytesBEAux_eq (k v : Nat) (acc : List UInt8) :
     BitcoinLedger.SilentPayments.natToBytesBEAux k v acc =
-      Spec.SilentPayments.natToBytesBEAux k v acc := by
+      InternalSpec.SilentPayments.natToBytesBEAux k v acc := by
   induction k generalizing v acc with
   | zero => rfl
   | succ k ih =>
     simp only [BitcoinLedger.SilentPayments.natToBytesBEAux,
-      Spec.SilentPayments.natToBytesBEAux, ih]
+      InternalSpec.SilentPayments.natToBytesBEAux, ih]
 
 theorem scalarToBytes32_eq (v : Nat) :
-    BitcoinLedger.SilentPayments.scalarToBytes32 v = Spec.SilentPayments.scalarToBytes32 v := by
+    BitcoinLedger.SilentPayments.scalarToBytes32 v = InternalSpec.SilentPayments.scalarToBytes32 v := by
   apply sizedBytes_eq_of_bytes
-  unfold BitcoinLedger.SilentPayments.scalarToBytes32 Spec.SilentPayments.scalarToBytes32
+  unfold BitcoinLedger.SilentPayments.scalarToBytes32 InternalSpec.SilentPayments.scalarToBytes32
   dsimp only
   rw [natToBytesBEAux_eq]
 
 theorem bytes32ToNat_eq (b : Bytes32) :
-    BitcoinLedger.SilentPayments.bytes32ToNat b = Spec.SilentPayments.bytes32ToNat b := rfl
+    BitcoinLedger.SilentPayments.bytes32ToNat b = InternalSpec.SilentPayments.bytes32ToNat b := rfl
 
 theorem parseScalarStrict_eq (b : Bytes32) :
     BitcoinLedger.SilentPayments.parseScalarStrict b =
-      Spec.SilentPayments.parseScalarStrict b := by
-  unfold BitcoinLedger.SilentPayments.parseScalarStrict Spec.SilentPayments.parseScalarStrict
+      InternalSpec.SilentPayments.parseScalarStrict b := by
+  unfold BitcoinLedger.SilentPayments.parseScalarStrict InternalSpec.SilentPayments.parseScalarStrict
   dsimp only
   rw [bytes32ToNat_eq, secp256k1Order_eq]
-  by_cases h : Spec.SilentPayments.bytes32ToNat b < Spec.SilentPayments.secp256k1Order
+  by_cases h : InternalSpec.SilentPayments.bytes32ToNat b < InternalSpec.SilentPayments.secp256k1Order
   · simp [h]
   · simp [h]
 
 theorem parseNonZeroScalar_eq (b : Bytes32) :
     BitcoinLedger.SilentPayments.parseNonZeroScalar b =
-      Spec.SilentPayments.parseNonZeroScalar b := rfl
+      InternalSpec.SilentPayments.parseNonZeroScalar b := rfl
 
 theorem parseScalarModN_eq (b : Bytes32) :
     BitcoinLedger.SilentPayments.parseScalarModN b =
-      Spec.SilentPayments.parseScalarModN b := rfl
+      InternalSpec.SilentPayments.parseScalarModN b := rfl
 
 theorem encodeU32BE_eq (v : UInt32) :
-    BitcoinLedger.SilentPayments.encodeU32BE v = Spec.SilentPayments.encodeU32BE v := rfl
+    BitcoinLedger.SilentPayments.encodeU32BE v = InternalSpec.SilentPayments.encodeU32BE v := rfl
 
 theorem encodeU32LE_eq (v : UInt32) :
-    BitcoinLedger.SilentPayments.encodeU32LE v = Spec.SilentPayments.encodeU32LE v := rfl
+    BitcoinLedger.SilentPayments.encodeU32LE v = InternalSpec.SilentPayments.encodeU32LE v := rfl
 
 theorem xorBytes32_eq (a b : Bytes32) :
-    BitcoinLedger.SilentPayments.xorBytes32 a b = Spec.SilentPayments.xorBytes32 a b := rfl
+    BitcoinLedger.SilentPayments.xorBytes32 a b = InternalSpec.SilentPayments.xorBytes32 a b := rfl
 
 theorem mkP2trScript_eq (xOnly : Bytes32) :
-    BitcoinLedger.SilentPayments.mkP2trScript xOnly = Spec.SilentPayments.mkP2trScript xOnly := rfl
+    BitcoinLedger.SilentPayments.mkP2trScript xOnly = InternalSpec.SilentPayments.mkP2trScript xOnly := rfl
 
 theorem nat_beq_eq_decide (a b : Nat) : (a == b) = decide (a = b) := by
   by_cases h : a = b
@@ -261,13 +261,13 @@ theorem deserializeSpCode_eq {Affine : Type} (c : SpCrypto Affine) (raw : Bytes6
 theorem encodeSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
     (hrp : SpAddressHrp) (code : SilentPaymentCode Affine) :
     BitcoinLedger.SilentPayments.encodeSpAddress c bech hrp code =
-      Spec.SilentPayments.encodeSpAddress c bech hrp code := rfl
+      InternalSpec.SilentPayments.encodeSpAddress c bech hrp code := rfl
 
 theorem decodeSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
     (addr : String) :
     BitcoinLedger.SilentPayments.decodeSpAddress c bech addr =
-      Spec.SilentPayments.decodeSpAddress c bech addr := by
-  unfold BitcoinLedger.SilentPayments.decodeSpAddress Spec.SilentPayments.decodeSpAddress
+      InternalSpec.SilentPayments.decodeSpAddress c bech addr := by
+  unfold BitcoinLedger.SilentPayments.decodeSpAddress InternalSpec.SilentPayments.decodeSpAddress
   cases bech.decodeVersioned addr with
   | none => rfl
   | some triple =>
@@ -297,11 +297,11 @@ theorem decodeSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech
 theorem encodeSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
     (hrp : SpScanHrp) (bScan : Nat) (bSpend : Affine) :
     BitcoinLedger.SilentPayments.encodeSpScanKey c bech hrp bScan bSpend =
-      Spec.SilentPayments.encodeSpScanKey c bech hrp bScan bSpend := by
-  unfold BitcoinLedger.SilentPayments.encodeSpScanKey Spec.SilentPayments.encodeSpScanKey
+      InternalSpec.SilentPayments.encodeSpScanKey c bech hrp bScan bSpend := by
+  unfold BitcoinLedger.SilentPayments.encodeSpScanKey InternalSpec.SilentPayments.encodeSpScanKey
   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
   rw [secp256k1Order_eq]
-  cases (!(decide (0 < bScan) && decide (bScan < Spec.SilentPayments.secp256k1Order))) with
+  cases (!(decide (0 < bScan) && decide (bScan < InternalSpec.SilentPayments.secp256k1Order))) with
   | true => rfl
   | false =>
     rw [scalarToBytes32_eq, appendSized_eq]
@@ -310,8 +310,8 @@ theorem encodeSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech
 theorem decodeSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech : Bech32mCodec)
     (encoded : String) :
     BitcoinLedger.SilentPayments.decodeSpScanKey c bech encoded =
-      Spec.SilentPayments.decodeSpScanKey c bech encoded := by
-  unfold BitcoinLedger.SilentPayments.decodeSpScanKey Spec.SilentPayments.decodeSpScanKey
+      InternalSpec.SilentPayments.decodeSpScanKey c bech encoded := by
+  unfold BitcoinLedger.SilentPayments.decodeSpScanKey InternalSpec.SilentPayments.decodeSpScanKey
   cases bech.decodeVersioned encoded with
   | none => rfl
   | some triple =>
@@ -326,7 +326,7 @@ theorem decodeSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech
         subst hV
         simp only [hSz, and_self, ↓reduceDIte]
         rw [parseNonZeroScalar_eq]
-        cases Spec.SilentPayments.parseNonZeroScalar _ with
+        cases InternalSpec.SilentPayments.parseNonZeroScalar _ with
         | none => rfl
         | some bScan =>
           dsimp only [Bind.bind, Except.bind]
@@ -335,12 +335,12 @@ theorem decodeSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine) (bech
 
 theorem spKeyDerivationPath_refines_spec (coinType accountIndex : UInt32) (isScanBranch : Bool) :
     BitcoinLedger.SilentPayments.spKeyDerivationPath coinType accountIndex isScanBranch =
-      Spec.SilentPayments.spKeyDerivationPath coinType accountIndex isScanBranch := by
-  unfold BitcoinLedger.SilentPayments.spKeyDerivationPath Spec.SilentPayments.spKeyDerivationPath
+      InternalSpec.SilentPayments.spKeyDerivationPath coinType accountIndex isScanBranch := by
+  unfold BitcoinLedger.SilentPayments.spKeyDerivationPath InternalSpec.SilentPayments.spKeyDerivationPath
   rw [bip32HardenedBit_eq, bip352Purpose_eq]
-  by_cases h1 : Spec.SilentPayments.bip32HardenedBit ≤ accountIndex
+  by_cases h1 : InternalSpec.SilentPayments.bip32HardenedBit ≤ accountIndex
   · simp [h1]
-  · by_cases h2 : Spec.SilentPayments.bip32HardenedBit ≤ coinType <;> simp [h1, h2]
+  · by_cases h2 : InternalSpec.SilentPayments.bip32HardenedBit ≤ coinType <;> simp [h1, h2]
 
 theorem mkCheckedSpAccount_refines_spec {Affine : Type}
     (accountIndex : UInt32) (scanKey : Nat) (spendKey : Affine) :
@@ -348,38 +348,38 @@ theorem mkCheckedSpAccount_refines_spec {Affine : Type}
       SilentPaymentAccount.mkChecked accountIndex scanKey spendKey := by
   unfold BitcoinLedger.SilentPayments.mkCheckedSpAccount SilentPaymentAccount.mkChecked
   rw [bip32HardenedBit_eq, secp256k1Order_eq]
-  by_cases h1 : Spec.SilentPayments.bip32HardenedBit ≤ accountIndex
+  by_cases h1 : InternalSpec.SilentPayments.bip32HardenedBit ≤ accountIndex
   · simp [h1]
   · simp [h1]
 
 theorem labelTweak_refines_spec {Affine : Type} (c : SpCrypto Affine) (bScan : Nat) (m : UInt32) :
     BitcoinLedger.SilentPayments.labelTweak c bScan m =
-      Spec.SilentPayments.labelTweak c bScan m := by
-  unfold BitcoinLedger.SilentPayments.labelTweak Spec.SilentPayments.labelTweak
+      InternalSpec.SilentPayments.labelTweak c bScan m := by
+  unfold BitcoinLedger.SilentPayments.labelTweak InternalSpec.SilentPayments.labelTweak
   dsimp only
   rw [scalarToBytes32_eq, encodeU32BE_eq, appendBytes_eq, parseNonZeroScalar_eq]
-  cases Spec.SilentPayments.parseNonZeroScalar _ <;> rfl
+  cases InternalSpec.SilentPayments.parseNonZeroScalar _ <;> rfl
 
 theorem labeledSpendKey_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (bSpend : Affine) (bScan : Nat) (m : UInt32) :
     BitcoinLedger.SilentPayments.labeledSpendKey c bSpend bScan m =
-      Spec.SilentPayments.labeledSpendKey c bSpend bScan m := by
-  unfold BitcoinLedger.SilentPayments.labeledSpendKey Spec.SilentPayments.labeledSpendKey
+      InternalSpec.SilentPayments.labeledSpendKey c bSpend bScan m := by
+  unfold BitcoinLedger.SilentPayments.labeledSpendKey InternalSpec.SilentPayments.labeledSpendKey
   rw [labelTweak_refines_spec]
-  cases Spec.SilentPayments.labelTweak c bScan m <;> rfl
+  cases InternalSpec.SilentPayments.labelTweak c bScan m <;> rfl
 
 theorem deriveAccountSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (bech : Bech32mCodec) (hrp : SpAddressHrp)
     (account : SilentPaymentAccount Affine) (coords : SilentPaymentCoordinates) :
     BitcoinLedger.SilentPayments.deriveAccountSpAddress c bech hrp account coords =
-      Spec.SilentPayments.deriveAccountSpAddress c bech hrp account coords := by
+      InternalSpec.SilentPayments.deriveAccountSpAddress c bech hrp account coords := by
   cases coords with
   | tweak _ => rfl
   | code labelOpt =>
     cases labelOpt with
     | none =>
       unfold BitcoinLedger.SilentPayments.deriveAccountSpAddress
-        Spec.SilentPayments.deriveAccountSpAddress
+        InternalSpec.SilentPayments.deriveAccountSpAddress
       dsimp only [Bind.bind, Except.bind]
       cases c.pointMul account.scanKey (.affine c.generator) <;> rfl
     | some m =>
@@ -387,7 +387,7 @@ theorem deriveAccountSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine
       · subst hm
         rfl
       · unfold BitcoinLedger.SilentPayments.deriveAccountSpAddress
-          Spec.SilentPayments.deriveAccountSpAddress
+          InternalSpec.SilentPayments.deriveAccountSpAddress
         dsimp only [Bind.bind, Except.bind]
         split
         · contradiction
@@ -414,16 +414,16 @@ theorem deriveAccountSpAddress_refines_spec {Affine : Type} (c : SpCrypto Affine
             cases c.pointMul account.scanKey (.affine c.generator) with
             | infinity => rfl
             | affine bScanPub =>
-              cases Spec.SilentPayments.labeledSpendKey c account.spendKey account.scanKey m <;> rfl
+              cases InternalSpec.SilentPayments.labeledSpendKey c account.spendKey account.scanKey m <;> rfl
 
 theorem deriveAccountTweakScript_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (account : SilentPaymentAccount Affine) (tweakBytes : Bytes32) :
     BitcoinLedger.SilentPayments.deriveAccountTweakScript c account tweakBytes =
-      Spec.SilentPayments.deriveAccountTweakScript c account tweakBytes := by
+      InternalSpec.SilentPayments.deriveAccountTweakScript c account tweakBytes := by
   unfold BitcoinLedger.SilentPayments.deriveAccountTweakScript
-    Spec.SilentPayments.deriveAccountTweakScript
+    InternalSpec.SilentPayments.deriveAccountTweakScript
   rw [parseScalarStrict_eq]
-  cases Spec.SilentPayments.parseScalarStrict tweakBytes with
+  cases InternalSpec.SilentPayments.parseScalarStrict tweakBytes with
   | none => rfl
   | some t =>
     dsimp only [Bind.bind, Except.bind]
@@ -434,11 +434,11 @@ theorem exportSpScanKey_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (deriveAccount : UInt32 → Except SpError (SilentPaymentAccount Affine))
     (accountIndex : UInt32) (userApproved : Bool) :
     BitcoinLedger.SilentPayments.exportSpScanKey c bech hrp deriveAccount accountIndex userApproved =
-      Spec.SilentPayments.exportSpScanKey c bech hrp deriveAccount accountIndex userApproved := by
-  unfold BitcoinLedger.SilentPayments.exportSpScanKey Spec.SilentPayments.exportSpScanKey
+      InternalSpec.SilentPayments.exportSpScanKey c bech hrp deriveAccount accountIndex userApproved := by
+  unfold BitcoinLedger.SilentPayments.exportSpScanKey InternalSpec.SilentPayments.exportSpScanKey
   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
   rw [bip32HardenedBit_eq]
-  by_cases hIdx : Spec.SilentPayments.bip32HardenedBit ≤ accountIndex
+  by_cases hIdx : InternalSpec.SilentPayments.bip32HardenedBit ≤ accountIndex
   · simp [hIdx]
   · simp only [hIdx, decide_false, ↓reduceIte]
     cases deriveAccount accountIndex with
@@ -471,10 +471,10 @@ theorem isInputEligible_eq (inp : PsbtSpInput) :
   cases inp.scriptKind <;> rfl
 
 theorem outpointBytes_eq (op : OutPoint) :
-    BitcoinLedger.SilentPayments.outpointBytes op = Spec.SilentPayments.outpointBytes op := rfl
+    BitcoinLedger.SilentPayments.outpointBytes op = InternalSpec.SilentPayments.outpointBytes op := rfl
 
 theorem listLexLt_eq :
-    BitcoinLedger.SilentPayments.listLexLt = Spec.SilentPayments.listLexLt := by
+    BitcoinLedger.SilentPayments.listLexLt = InternalSpec.SilentPayments.listLexLt := by
   funext xs ys
   induction xs generalizing ys with
   | nil => cases ys <;> rfl
@@ -482,25 +482,25 @@ theorem listLexLt_eq :
     cases ys with
     | nil => rfl
     | cons b bs =>
-      simp only [BitcoinLedger.SilentPayments.listLexLt, Spec.SilentPayments.listLexLt, ih]
+      simp only [BitcoinLedger.SilentPayments.listLexLt, InternalSpec.SilentPayments.listLexLt, ih]
 
 theorem smallestOutpointBytes_refines_spec (ops : List OutPoint) :
     BitcoinLedger.SilentPayments.smallestOutpointBytes ops =
-      Spec.SilentPayments.smallestOutpointBytes ops := by
+      InternalSpec.SilentPayments.smallestOutpointBytes ops := by
   cases ops with
   | nil => rfl
   | cons op rest =>
     unfold BitcoinLedger.SilentPayments.smallestOutpointBytes
-      Spec.SilentPayments.smallestOutpointBytes
+      InternalSpec.SilentPayments.smallestOutpointBytes
     dsimp only
     rw [outpointBytes_eq, listLexLt_eq]
     have hFn :
         (fun best cur =>
           let curB := BitcoinLedger.SilentPayments.outpointBytes cur
-          if Spec.SilentPayments.listLexLt curB.bytes.data.toList best.bytes.data.toList then curB else best) =
+          if InternalSpec.SilentPayments.listLexLt curB.bytes.data.toList best.bytes.data.toList then curB else best) =
         (fun best cur =>
-          let curB := Spec.SilentPayments.outpointBytes cur
-          if Spec.SilentPayments.listLexLt curB.bytes.data.toList best.bytes.data.toList then curB else best) := by
+          let curB := InternalSpec.SilentPayments.outpointBytes cur
+          if InternalSpec.SilentPayments.listLexLt curB.bytes.data.toList best.bytes.data.toList then curB else best) := by
       funext best cur
       rfl
     rw [hFn]
@@ -508,12 +508,12 @@ theorem smallestOutpointBytes_refines_spec (ops : List OutPoint) :
 theorem normalizeInputPrivKey_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (d : Nat) (isTaproot : Bool) :
     BitcoinLedger.SilentPayments.normalizeInputPrivKey c d isTaproot =
-      Spec.SilentPayments.normalizeInputPrivKey c d isTaproot := by
+      InternalSpec.SilentPayments.normalizeInputPrivKey c d isTaproot := by
   unfold BitcoinLedger.SilentPayments.normalizeInputPrivKey
-    Spec.SilentPayments.normalizeInputPrivKey
+    InternalSpec.SilentPayments.normalizeInputPrivKey
   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
   rw [secp256k1Order_eq]
-  cases (!(decide (0 < d) && decide (d < Spec.SilentPayments.secp256k1Order))) with
+  cases (!(decide (0 < d) && decide (d < InternalSpec.SilentPayments.secp256k1Order))) with
   | true => rfl
   | false =>
     cases (!isTaproot) with
@@ -524,10 +524,10 @@ theorem normalizeInputPrivKey_refines_spec {Affine : Type} (c : SpCrypto Affine)
 theorem computeInputHash_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (outpoints : List OutPoint) (inputKeySum : SpPoint Affine) :
     BitcoinLedger.SilentPayments.computeInputHash c outpoints inputKeySum =
-      Spec.SilentPayments.computeInputHash c outpoints inputKeySum := by
-  unfold BitcoinLedger.SilentPayments.computeInputHash Spec.SilentPayments.computeInputHash
+      InternalSpec.SilentPayments.computeInputHash c outpoints inputKeySum := by
+  unfold BitcoinLedger.SilentPayments.computeInputHash InternalSpec.SilentPayments.computeInputHash
   rw [smallestOutpointBytes_refines_spec]
-  cases Spec.SilentPayments.smallestOutpointBytes outpoints with
+  cases InternalSpec.SilentPayments.smallestOutpointBytes outpoints with
   | error e => rfl
   | ok smallest =>
     dsimp only [Bind.bind, Except.bind]
@@ -536,116 +536,116 @@ theorem computeInputHash_refines_spec {Affine : Type} (c : SpCrypto Affine)
     | affine aAffine =>
       dsimp only [Bind.bind, Except.bind]
       rw [appendBytes_eq, parseNonZeroScalar_eq]
-      cases Spec.SilentPayments.parseNonZeroScalar _ <;> rfl
+      cases InternalSpec.SilentPayments.parseNonZeroScalar _ <;> rfl
 
 theorem ecdhShare_refines_spec {Affine : Type} (c : SpCrypto Affine) (a : Nat) (bScan : Affine) :
     BitcoinLedger.SilentPayments.ecdhShare c a bScan =
-      Spec.SilentPayments.ecdhShare c a bScan := rfl
+      InternalSpec.SilentPayments.ecdhShare c a bScan := rfl
 
 theorem sharedSecret_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (inputHashScalar : Nat) (share : SpPoint Affine) :
     BitcoinLedger.SilentPayments.sharedSecret c inputHashScalar share =
-      Spec.SilentPayments.sharedSecret c inputHashScalar share := rfl
+      InternalSpec.SilentPayments.sharedSecret c inputHashScalar share := rfl
 
 theorem outputTweak_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (secret : Affine) (k : UInt32) :
     BitcoinLedger.SilentPayments.outputTweak c secret k =
-      Spec.SilentPayments.outputTweak c secret k := by
-  unfold BitcoinLedger.SilentPayments.outputTweak Spec.SilentPayments.outputTweak
+      InternalSpec.SilentPayments.outputTweak c secret k := by
+  unfold BitcoinLedger.SilentPayments.outputTweak InternalSpec.SilentPayments.outputTweak
   dsimp only
   rw [encodeU32BE_eq, appendBytes_eq, parseNonZeroScalar_eq]
-  cases Spec.SilentPayments.parseNonZeroScalar _ <;> rfl
+  cases InternalSpec.SilentPayments.parseNonZeroScalar _ <;> rfl
 
 theorem outputKey_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (secret bSpend : Affine) (k : UInt32) :
     BitcoinLedger.SilentPayments.outputKey c secret bSpend k =
-      Spec.SilentPayments.outputKey c secret bSpend k := by
-  unfold BitcoinLedger.SilentPayments.outputKey Spec.SilentPayments.outputKey
+      InternalSpec.SilentPayments.outputKey c secret bSpend k := by
+  unfold BitcoinLedger.SilentPayments.outputKey InternalSpec.SilentPayments.outputKey
   rw [outputTweak_refines_spec]
-  cases Spec.SilentPayments.outputTweak c secret k <;> rfl
+  cases InternalSpec.SilentPayments.outputTweak c secret k <;> rfl
 
 theorem lookupCounter_eq {Affine : Type} [DecidableEq Affine] (scan : Affine) :
     ∀ cs, BitcoinLedger.SilentPayments.lookupCounter scan cs =
-      Spec.SilentPayments.lookupCounter scan cs
+      InternalSpec.SilentPayments.lookupCounter scan cs
   | [] => rfl
   | (s, cnt) :: rest => by
-    simp only [BitcoinLedger.SilentPayments.lookupCounter, Spec.SilentPayments.lookupCounter]
+    simp only [BitcoinLedger.SilentPayments.lookupCounter, InternalSpec.SilentPayments.lookupCounter]
     have hBeq : (s == scan) = decide (s = scan) := rfl
     rw [hBeq, lookupCounter_eq scan rest]
 
 theorem incrementCounter_eq {Affine : Type} [DecidableEq Affine] (scan : Affine) :
     ∀ cs, BitcoinLedger.SilentPayments.incrementCounter scan cs =
-      Spec.SilentPayments.incrementCounter scan cs
+      InternalSpec.SilentPayments.incrementCounter scan cs
   | [] => rfl
   | (s, cnt) :: rest => by
     simp only [BitcoinLedger.SilentPayments.incrementCounter,
-      Spec.SilentPayments.incrementCounter]
+      InternalSpec.SilentPayments.incrementCounter]
     have hBeq : (s == scan) = decide (s = scan) := rfl
     rw [hBeq, incrementCounter_eq scan rest]
 
 theorem assignKLoop_eq {Affine : Type} [DecidableEq Affine] :
     ∀ (codes : List (SilentPaymentCode Affine)) (counters : List (Affine × Nat)),
       BitcoinLedger.SilentPayments.assignKLoop codes counters =
-        Spec.SilentPayments.assignKLoop codes counters
+        InternalSpec.SilentPayments.assignKLoop codes counters
   | [], _ => rfl
   | code :: rest, counters => by
-    unfold BitcoinLedger.SilentPayments.assignKLoop Spec.SilentPayments.assignKLoop
+    unfold BitcoinLedger.SilentPayments.assignKLoop InternalSpec.SilentPayments.assignKLoop
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
     rw [lookupCounter_eq, spMaxOutputsPerScanKey_eq, incrementCounter_eq]
-    by_cases hGe : Spec.SilentPayments.lookupCounter code.scan counters ≥
-        Spec.SilentPayments.spMaxOutputsPerScanKey
+    by_cases hGe : InternalSpec.SilentPayments.lookupCounter code.scan counters ≥
+        InternalSpec.SilentPayments.spMaxOutputsPerScanKey
     · simp [hGe]
     · simp only [hGe, decide_false, ↓reduceIte]
       rw [assignKLoop_eq rest _]
-      cases Spec.SilentPayments.assignKLoop rest _ <;> rfl
+      cases InternalSpec.SilentPayments.assignKLoop rest _ <;> rfl
 
 theorem assignK_refines_spec {Affine : Type} [DecidableEq Affine]
     (recipients : List (SilentPaymentCode Affine)) :
     BitcoinLedger.SilentPayments.assignK recipients =
-      Spec.SilentPayments.assignK recipients :=
+      InternalSpec.SilentPayments.assignK recipients :=
   assignKLoop_eq recipients []
 
 theorem receiverSpendingKey_refines_spec (bSpend tweak : Nat) :
     BitcoinLedger.SilentPayments.receiverSpendingKey bSpend tweak =
-      Spec.SilentPayments.receiverSpendingKey bSpend tweak := by
+      InternalSpec.SilentPayments.receiverSpendingKey bSpend tweak := by
   unfold BitcoinLedger.SilentPayments.receiverSpendingKey
-    Spec.SilentPayments.receiverSpendingKey
+    InternalSpec.SilentPayments.receiverSpendingKey
   dsimp only
   rw [secp256k1Order_eq, nat_beq_eq_decide]
 
 theorem dleqChallenge_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (aPub b cPt g r1 r2 : Affine) (msg : Option Bytes32) :
     BitcoinLedger.SilentPayments.dleqChallenge c aPub b cPt g r1 r2 msg =
-      Spec.SilentPayments.dleqChallenge c aPub b cPt g r1 r2 msg := rfl
+      InternalSpec.SilentPayments.dleqChallenge c aPub b cPt g r1 r2 msg := rfl
 
 theorem splitDleqProof_eq (proof : Bytes64) :
     BitcoinLedger.SilentPayments.splitDleqProof proof =
-      Spec.SilentPayments.splitDleqProof proof := rfl
+      InternalSpec.SilentPayments.splitDleqProof proof := rfl
 
 theorem dleqVerify_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (aPub b cPt : Affine) (proof : Bytes64) (g : Affine) (msg : Option Bytes32) :
     BitcoinLedger.SilentPayments.dleqVerify c aPub b cPt proof g msg =
-      Spec.SilentPayments.dleqVerify c aPub b cPt proof g msg := by
-  unfold BitcoinLedger.SilentPayments.dleqVerify Spec.SilentPayments.dleqVerify
+      InternalSpec.SilentPayments.dleqVerify c aPub b cPt proof g msg := by
+  unfold BitcoinLedger.SilentPayments.dleqVerify InternalSpec.SilentPayments.dleqVerify
   rw [splitDleqProof_eq]
-  cases Spec.SilentPayments.splitDleqProof proof with
+  cases InternalSpec.SilentPayments.splitDleqProof proof with
   | mk eBytes sBytes =>
     dsimp only
     rw [parseScalarStrict_eq, parseScalarStrict_eq]
-    cases Spec.SilentPayments.parseScalarStrict eBytes with
+    cases InternalSpec.SilentPayments.parseScalarStrict eBytes with
     | none => rfl
     | some e =>
-      cases Spec.SilentPayments.parseScalarStrict sBytes with
+      cases InternalSpec.SilentPayments.parseScalarStrict sBytes with
       | none => rfl
       | some s =>
         dsimp only
         rw [secp256k1Order_eq]
         cases c.pointAdd (c.pointMul s (.affine g))
-            (c.pointMul ((Spec.SilentPayments.secp256k1Order - e % Spec.SilentPayments.secp256k1Order) % Spec.SilentPayments.secp256k1Order) (.affine aPub)) with
+            (c.pointMul ((InternalSpec.SilentPayments.secp256k1Order - e % InternalSpec.SilentPayments.secp256k1Order) % InternalSpec.SilentPayments.secp256k1Order) (.affine aPub)) with
         | infinity => rfl
         | affine r1 =>
           cases c.pointAdd (c.pointMul s (.affine b))
-              (c.pointMul ((Spec.SilentPayments.secp256k1Order - e % Spec.SilentPayments.secp256k1Order) % Spec.SilentPayments.secp256k1Order) (.affine cPt)) with
+              (c.pointMul ((InternalSpec.SilentPayments.secp256k1Order - e % InternalSpec.SilentPayments.secp256k1Order) % InternalSpec.SilentPayments.secp256k1Order) (.affine cPt)) with
           | infinity => rfl
           | affine r2 =>
             dsimp only
@@ -654,8 +654,8 @@ theorem dleqVerify_refines_spec {Affine : Type} (c : SpCrypto Affine)
 theorem dleqNonce_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (a : Nat) (aPub cPt : Affine) (auxRand : Bytes32) (msg : Option Bytes32) :
     BitcoinLedger.SilentPayments.dleqNonce c a aPub cPt auxRand msg =
-      Spec.SilentPayments.dleqNonce c a aPub cPt auxRand msg := by
-  unfold BitcoinLedger.SilentPayments.dleqNonce Spec.SilentPayments.dleqNonce
+      InternalSpec.SilentPayments.dleqNonce c a aPub cPt auxRand msg := by
+  unfold BitcoinLedger.SilentPayments.dleqNonce InternalSpec.SilentPayments.dleqNonce
   dsimp only
   rw [scalarToBytes32_eq, xorBytes32_eq, concatBytes_eq, parseScalarModN_eq]
   cases msg <;> rfl
@@ -663,11 +663,11 @@ theorem dleqNonce_refines_spec {Affine : Type} (c : SpCrypto Affine)
 theorem dleqProve_refines_spec {Affine : Type} (c : SpCrypto Affine)
     (a : Nat) (b : Affine) (auxRand : Bytes32) (g : Affine) (msg : Option Bytes32) :
     BitcoinLedger.SilentPayments.dleqProve c a b auxRand g msg =
-      Spec.SilentPayments.dleqProve c a b auxRand g msg := by
-  unfold BitcoinLedger.SilentPayments.dleqProve Spec.SilentPayments.dleqProve
+      InternalSpec.SilentPayments.dleqProve c a b auxRand g msg := by
+  unfold BitcoinLedger.SilentPayments.dleqProve InternalSpec.SilentPayments.dleqProve
   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
   rw [secp256k1Order_eq]
-  cases (!(decide (0 < a) && decide (a < Spec.SilentPayments.secp256k1Order))) with
+  cases (!(decide (0 < a) && decide (a < InternalSpec.SilentPayments.secp256k1Order))) with
   | true => rfl
   | false =>
     cases c.pointMul a (.affine g) with
@@ -679,14 +679,14 @@ theorem dleqProve_refines_spec {Affine : Type} (c : SpCrypto Affine)
       | affine cPt =>
         dsimp only [Bind.bind, Except.bind]
         rw [dleqNonce_refines_spec, nat_beq_eq_decide]
-        cases decide (Spec.SilentPayments.dleqNonce c a aPub cPt auxRand msg = 0) with
+        cases decide (InternalSpec.SilentPayments.dleqNonce c a aPub cPt auxRand msg = 0) with
         | true => rfl
         | false =>
-          cases c.pointMul (Spec.SilentPayments.dleqNonce c a aPub cPt auxRand msg) (.affine g) with
+          cases c.pointMul (InternalSpec.SilentPayments.dleqNonce c a aPub cPt auxRand msg) (.affine g) with
           | infinity => rfl
           | affine r1 =>
             dsimp only [Bind.bind, Except.bind]
-            cases c.pointMul (Spec.SilentPayments.dleqNonce c a aPub cPt auxRand msg) (.affine b) with
+            cases c.pointMul (InternalSpec.SilentPayments.dleqNonce c a aPub cPt auxRand msg) (.affine b) with
             | infinity => rfl
             | affine r2 =>
               dsimp only [Bind.bind, Except.bind]
@@ -701,7 +701,7 @@ theorem impl_dleqProve_implies_dleqVerify {Affine : Type} (c : SpCrypto Affine)
       c.pointMul a (.affine b) = .affine cPt ∧
       BitcoinLedger.SilentPayments.dleqVerify c aPub b cPt proof g msg = true := by
   rw [dleqProve_refines_spec] at hProve
-  rcases Spec.SilentPayments.dleqProve_implies_dleqVerify c a b g auxRand msg proof hProve with
+  rcases InternalSpec.SilentPayments.dleqProve_implies_dleqVerify c a b g auxRand msg proof hProve with
     ⟨aPub, cPt, hAG, hAB, hVer⟩
   exact ⟨aPub, cPt, hAG, hAB, by rw [dleqVerify_refines_spec]; exact hVer⟩
 
@@ -780,9 +780,9 @@ theorem nat_bne_zero_eq_decide (n : Nat) : (n != 0) = decide (n ≠ 0) := by
 theorem validatePsbtSpOutputs_refines_spec (outputs : List PsbtSpOutput)
     (txModifiable : Option UInt8) :
     BitcoinLedger.SilentPayments.validatePsbtSpOutputs outputs txModifiable =
-      Spec.SilentPayments.validatePsbtSpOutputs outputs txModifiable := by
+      InternalSpec.SilentPayments.validatePsbtSpOutputs outputs txModifiable := by
   unfold BitcoinLedger.SilentPayments.validatePsbtSpOutputs
-    Spec.SilentPayments.validatePsbtSpOutputs
+    InternalSpec.SilentPayments.validatePsbtSpOutputs
   dsimp only
   rw [nat_bne_zero_eq_decide, validatePsbtSpOutputsLoop_eq_forIn]
   rfl
@@ -814,9 +814,9 @@ theorem verifyOutputSpLabel_refines_spec {Affine : Type} [DecidableEq Affine]
     (c : SpCrypto Affine) (accounts : List (SilentPaymentAccount Affine))
     (code : SilentPaymentCode Affine) (labelOpt : Option UInt32) :
     BitcoinLedger.SilentPayments.verifyOutputSpLabel c accounts code labelOpt =
-      Spec.SilentPayments.verifyOutputSpLabel c accounts code labelOpt := by
+      InternalSpec.SilentPayments.verifyOutputSpLabel c accounts code labelOpt := by
   unfold BitcoinLedger.SilentPayments.verifyOutputSpLabel
-    Spec.SilentPayments.verifyOutputSpLabel
+    InternalSpec.SilentPayments.verifyOutputSpLabel
   cases labelOpt with
   | none => rfl
   | some m =>
@@ -827,19 +827,19 @@ theorem verifyOutputSpLabel_refines_spec {Affine : Type} [DecidableEq Affine]
     | some acc =>
       dsimp only [Bind.bind, Except.bind]
       rw [labeledSpendKey_refines_spec]
-      cases Spec.SilentPayments.labeledSpendKey c acc.spendKey acc.scanKey m <;> rfl
+      cases InternalSpec.SilentPayments.labeledSpendKey c acc.spendKey acc.scanKey m <;> rfl
 
 theorem collectSpRecipients_refines_spec {Affine : Type} [DecidableEq Affine]
     (c : SpCrypto Affine) (accounts : List (SilentPaymentAccount Affine)) :
     ∀ (idx : Nat) (outs : List PsbtSpOutput),
       BitcoinLedger.SilentPayments.collectSpRecipients c accounts idx outs =
-        Spec.SilentPayments.collectSpRecipients c accounts idx outs
+        InternalSpec.SilentPayments.collectSpRecipients c accounts idx outs
   | _, [] => rfl
   | idx, out :: rest => by
     unfold BitcoinLedger.SilentPayments.collectSpRecipients
-      Spec.SilentPayments.collectSpRecipients
+      InternalSpec.SilentPayments.collectSpRecipients
     rw [collectSpRecipients_refines_spec c accounts (idx + 1) rest]
-    cases Spec.SilentPayments.collectSpRecipients c accounts (idx + 1) rest with
+    cases InternalSpec.SilentPayments.collectSpRecipients c accounts (idx + 1) rest with
     | error e => rfl
     | ok tail =>
       dsimp only [Bind.bind, Except.bind]
@@ -853,7 +853,7 @@ theorem collectSpRecipients_refines_spec {Affine : Type} [DecidableEq Affine]
         | ok code =>
           dsimp only [Bind.bind, Except.bind]
           rw [verifyOutputSpLabel_refines_spec]
-          cases Spec.SilentPayments.verifyOutputSpLabel c accounts code out.spV0Label <;> rfl
+          cases InternalSpec.SilentPayments.verifyOutputSpLabel c accounts code out.spV0Label <;> rfl
 
 theorem eq_of_foldlM_eq {ε α β : Type} {f1 f2 : β → α → Except ε β} {init : β} {xs : List α}
     {r1 r2 : Except ε β} (h1 : List.foldlM f1 init xs = r1) (h2 : List.foldlM f2 init xs = r2)
@@ -874,7 +874,7 @@ theorem checkScanKeysInRecipients_eq_forIn {β : Type} (recipientScanKeys : List
       BitcoinLedger.SilentPayments.checkScanKeysInRecipients recipientScanKeys pairs =
         (do
           for (scanK, _) in pairs do
-            if !Spec.SilentPayments.spListMem scanK recipientScanKeys then
+            if !InternalSpec.SilentPayments.spListMem scanK recipientScanKeys then
               Except.error SpError.silentPaymentShareMismatch)
   | [] => rfl
   | (scanK, v) :: rest => by
@@ -884,7 +884,7 @@ theorem checkScanKeysInRecipients_eq_forIn {β : Type} (recipientScanKeys : List
     unfold BitcoinLedger.SilentPayments.checkScanKeysInRecipients
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at ih ⊢
     rw [spListMem_eq]
-    cases (!Spec.SilentPayments.spListMem scanK recipientScanKeys) with
+    cases (!InternalSpec.SilentPayments.spListMem scanK recipientScanKeys) with
     | true => rfl
     | false =>
       simp only [Bool.false_eq_true, ↓reduceIte]
@@ -897,7 +897,7 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
       (match inp.prevoutWitnessVersion with
        | some v =>
          if decide (1 < v) then Except.error SpError.silentPaymentSegwitVersion
-         else if decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) then
+         else if decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) then
            Except.error SpError.silentPaymentSighashType
          else if inp.hasInputSpEcdhShare || inp.hasInputSpDleq then
            Except.error SpError.silentPaymentShareMismatch
@@ -907,12 +907,12 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
            match inp.deviceEligiblePrivKey with
            | none => Except.error SpError.silentPaymentInputNotHeld
            | some rawPriv =>
-             match Spec.SilentPayments.normalizeInputPrivKey c rawPriv
+             match InternalSpec.SilentPayments.normalizeInputPrivKey c rawPriv
                  (match inp.scriptKind with | .tr _ => true | _ => false) with
              | .error err => Except.error err
              | .ok v => Except.ok (acc ++ [v])
        | none =>
-         if decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) then
+         if decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) then
            Except.error SpError.silentPaymentSighashType
          else if inp.hasInputSpEcdhShare || inp.hasInputSpDleq then
            Except.error SpError.silentPaymentShareMismatch
@@ -922,7 +922,7 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
            match inp.deviceEligiblePrivKey with
            | none => Except.error SpError.silentPaymentInputNotHeld
            | some rawPriv =>
-             match Spec.SilentPayments.normalizeInputPrivKey c rawPriv
+             match InternalSpec.SilentPayments.normalizeInputPrivKey c rawPriv
                  (match inp.scriptKind with | .tr _ => true | _ => false) with
              | .error err => Except.error err
              | .ok v => Except.ok (acc ++ [v])) := by
@@ -932,7 +932,7 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
   cases inp.prevoutWitnessVersion with
   | none =>
     dsimp only
-    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) with
+    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) with
     | true => rfl
     | false =>
       cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) with
@@ -946,13 +946,13 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
           | some rawPriv =>
             dsimp only
             rw [normalizeInputPrivKey_refines_spec]
-            cases Spec.SilentPayments.normalizeInputPrivKey c rawPriv _ <;> rfl
+            cases InternalSpec.SilentPayments.normalizeInputPrivKey c rawPriv _ <;> rfl
   | some v =>
     dsimp only
     cases decide (1 < v) with
     | true => rfl
     | false =>
-      cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) with
+      cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) with
       | true => rfl
       | false =>
         cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) with
@@ -966,22 +966,22 @@ theorem analyzeSpInputStep_eq {Affine : Type} (c : SpCrypto Affine)
             | some rawPriv =>
               dsimp only
               rw [normalizeInputPrivKey_refines_spec]
-              cases Spec.SilentPayments.normalizeInputPrivKey c rawPriv _ <;> rfl
+              cases InternalSpec.SilentPayments.normalizeInputPrivKey c rawPriv _ <;> rfl
 
 theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affine]
     (c : SpCrypto Affine) (psbt : PsbtSpTx Affine) :
     BitcoinLedger.SilentPayments.analyzePsbtSilentPayments c psbt =
-      Spec.SilentPayments.analyzePsbtSilentPayments c psbt := by
+      InternalSpec.SilentPayments.analyzePsbtSilentPayments c psbt := by
   unfold BitcoinLedger.SilentPayments.analyzePsbtSilentPayments
-    Spec.SilentPayments.analyzePsbtSilentPayments
+    InternalSpec.SilentPayments.analyzePsbtSilentPayments
   rw [validatePsbtSpOutputs_refines_spec]
-  cases Spec.SilentPayments.validatePsbtSpOutputs psbt.outputs psbt.txModifiable with
+  cases InternalSpec.SilentPayments.validatePsbtSpOutputs psbt.outputs psbt.txModifiable with
   | error e => rfl
   | ok u =>
     cases u
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
     rw [collectSpRecipients_refines_spec]
-    cases Spec.SilentPayments.collectSpRecipients c psbt.spAccounts 0 psbt.outputs with
+    cases InternalSpec.SilentPayments.collectSpRecipients c psbt.spAccounts 0 psbt.outputs with
     | error e => rfl
     | ok indexedCodes =>
       dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
@@ -990,7 +990,7 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
       | false =>
         simp only [Bool.false_eq_true, ↓reduceIte]
         rw [assignK_refines_spec]
-        cases Spec.SilentPayments.assignK (indexedCodes.map Prod.snd) with
+        cases InternalSpec.SilentPayments.assignK (indexedCodes.map Prod.snd) with
         | error e => rfl
         | ok ks =>
           dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
@@ -1004,23 +1004,23 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                 cases inp.prevoutWitnessVersion with
                 | none =>
                   cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl
                 | some v =>
                   dsimp only
                   by_cases hv : (1 : UInt8) < v <;> simp only [hv, decide_true, decide_false, Bool.false_eq_true, ↓reduceIte] <;>
                     cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl)
               injection hErr with hE
               subst hE
@@ -1034,23 +1034,23 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                 cases inp.prevoutWitnessVersion with
                 | none =>
                   cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl
                 | some v =>
                   dsimp only
                   by_cases hv : (1 : UInt8) < v <;> simp only [hv, decide_true, decide_false, Bool.false_eq_true, ↓reduceIte] <;>
                     cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl)
               cases hEq
           · apply Eq.symm; split <;> rename_i x2 h2 <;> apply Eq.symm
@@ -1063,23 +1063,23 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                 cases inp.prevoutWitnessVersion with
                 | none =>
                   cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl
                 | some v =>
                   dsimp only
                   by_cases hv : (1 : UInt8) < v <;> simp only [hv, decide_true, decide_false, Bool.false_eq_true, ↓reduceIte] <;>
                     cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl)
               cases hEq
             · have hEq := eq_of_foldlM_eq h1 h2 (by
@@ -1090,23 +1090,23 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                 cases inp.prevoutWitnessVersion with
                 | none =>
                   cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl
                 | some v =>
                   dsimp only
                   by_cases hv : (1 : UInt8) < v <;> simp only [hv, decide_true, decide_false, Bool.false_eq_true, ↓reduceIte] <;>
                     cases inp.scriptKind <;> dsimp only <;>
-                    cases decide (inp.effectiveSighashType ≠ Spec.SilentPayments.sighashAll) <;>
+                    cases decide (inp.effectiveSighashType ≠ InternalSpec.SilentPayments.sighashAll) <;>
                     cases (inp.hasInputSpEcdhShare || inp.hasInputSpDleq) <;>
                     cases (!inp.isEligible) <;>
                     cases inp.deviceEligiblePrivKey <;>
                     simp only [normalizeInputPrivKey_refines_spec] <;>
-                    (try cases Spec.SilentPayments.normalizeInputPrivKey c _ _) <;>
+                    (try cases InternalSpec.SilentPayments.normalizeInputPrivKey c _ _) <;>
                     rfl)
               injection hEq with hKeysEq
               subst hKeysEq
@@ -1119,7 +1119,7 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                 dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at hChk1
                 rw [hChk1]
                 cases forIn (m := Except SpError) psbt.globalEcdhShares PUnit.unit
-                    (fun x _ => if !Spec.SilentPayments.spListMem x.fst
+                    (fun x _ => if !InternalSpec.SilentPayments.spListMem x.fst
                         (indexedCodes.map (fun x => c.compress x.snd.scan)) then
                       Except.error SpError.silentPaymentShareMismatch
                     else Except.ok (ForInStep.yield PUnit.unit)) with
@@ -1132,7 +1132,7 @@ theorem analyzePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affi
                   dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure] at hChk2
                   rw [hChk2]
                   cases forIn (m := Except SpError) psbt.globalDleqProofs PUnit.unit
-                      (fun x _ => if !Spec.SilentPayments.spListMem x.fst
+                      (fun x _ => if !InternalSpec.SilentPayments.spListMem x.fst
                           (indexedCodes.map (fun x => c.compress x.snd.scan)) then
                         Except.error SpError.silentPaymentShareMismatch
                       else Except.ok (ForInStep.yield PUnit.unit)) <;> rfl
@@ -1162,11 +1162,11 @@ theorem lookupShareTuple_eq {Affine : Type} [DecidableEq Affine] (scanPt : Affin
 theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Affine]
     (c : SpCrypto Affine) (psbt : PsbtSpTx Affine) (dleqAuxRand : Bytes32) :
     BitcoinLedger.SilentPayments.finalizePsbtSilentPayments c psbt dleqAuxRand =
-      Spec.SilentPayments.finalizePsbtSilentPayments c psbt dleqAuxRand := by
+      InternalSpec.SilentPayments.finalizePsbtSilentPayments c psbt dleqAuxRand := by
   unfold BitcoinLedger.SilentPayments.finalizePsbtSilentPayments
-    Spec.SilentPayments.finalizePsbtSilentPayments
+    InternalSpec.SilentPayments.finalizePsbtSilentPayments
   rw [analyzePsbtSilentPayments_refines_spec]
-  cases Spec.SilentPayments.analyzePsbtSilentPayments c psbt with
+  cases InternalSpec.SilentPayments.analyzePsbtSilentPayments c psbt with
   | error e => rfl
   | ok opt =>
     dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
@@ -1177,18 +1177,18 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
       dsimp only [Bind.bind, Except.bind, Pure.pure, Except.pure]
       rw [secp256k1Order_eq, nat_beq_eq_decide]
       cases decide
-        (eligibleKeys.foldl (fun acc k => (acc + k) % Spec.SilentPayments.secp256k1Order) 0 = 0) with
+        (eligibleKeys.foldl (fun acc k => (acc + k) % InternalSpec.SilentPayments.secp256k1Order) 0 = 0) with
       | true => rfl
       | false =>
         simp only [Bool.false_eq_true, ↓reduceIte]
         cases c.pointMul
-          (eligibleKeys.foldl (fun acc k => (acc + k) % Spec.SilentPayments.secp256k1Order) 0)
+          (eligibleKeys.foldl (fun acc k => (acc + k) % InternalSpec.SilentPayments.secp256k1Order) 0)
           (.affine c.generator) with
         | infinity => rfl
         | affine aPub =>
           dsimp only [Bind.bind, Except.bind]
           rw [computeInputHash_refines_spec]
-          cases Spec.SilentPayments.computeInputHash c (psbt.inputs.map (·.outpoint)) (.affine aPub) with
+          cases InternalSpec.SilentPayments.computeInputHash c (psbt.inputs.map (·.outpoint)) (.affine aPub) with
           | error e => rfl
           | ok inHash =>
             dsimp only [Bind.bind, Except.bind]
@@ -1197,7 +1197,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                   if BitcoinLedger.SilentPayments.spListMem code.scan acc then acc
                   else acc ++ [code.scan]) []) =
                 (indexedCodes.foldl (fun acc x =>
-                  if Spec.SilentPayments.spListMem x.snd.scan acc then acc
+                  if InternalSpec.SilentPayments.spListMem x.snd.scan acc then acc
                   else acc ++ [x.snd.scan]) []) := by
               congr 1
               funext acc pair
@@ -1210,7 +1210,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
               · have hErr := eq_of_mapM_eq hs1 hs2 (by
                   intro scanPt
                   rw [ecdhShare_refines_spec]
-                  cases Spec.SilentPayments.ecdhShare c _ scanPt with
+                  cases InternalSpec.SilentPayments.ecdhShare c _ scanPt with
                   | infinity => rfl
                   | affine sharePt =>
                     dsimp only
@@ -1221,7 +1221,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                       | none =>
                         dsimp only
                         rw [dleqProve_refines_spec]
-                        cases Spec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
+                        cases InternalSpec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
                       | some _ => rfl
                     | some exShare =>
                       cases (psbt.globalDleqProofs.find? _).map Prod.snd with
@@ -1232,7 +1232,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         have hEqShare : (exShare == c.compress sharePt) = decide (exShare = c.compress sharePt) := rfl
                         rw [hEqShare]
                         cases (decide (exShare = c.compress sharePt) &&
-                          Spec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
+                          InternalSpec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
                 injection hErr with hE
                 subst hE
                 rfl
@@ -1240,7 +1240,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                 have hBad := eq_of_mapM_eq hs1 hs2 (by
                   intro scanPt
                   rw [ecdhShare_refines_spec]
-                  cases Spec.SilentPayments.ecdhShare c _ scanPt with
+                  cases InternalSpec.SilentPayments.ecdhShare c _ scanPt with
                   | infinity => rfl
                   | affine sharePt =>
                     dsimp only
@@ -1251,7 +1251,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                       | none =>
                         dsimp only
                         rw [dleqProve_refines_spec]
-                        cases Spec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
+                        cases InternalSpec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
                       | some _ => rfl
                     | some exShare =>
                       cases (psbt.globalDleqProofs.find? _).map Prod.snd with
@@ -1262,14 +1262,14 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         have hEqShare : (exShare == c.compress sharePt) = decide (exShare = c.compress sharePt) := rfl
                         rw [hEqShare]
                         cases (decide (exShare = c.compress sharePt) &&
-                          Spec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
+                          InternalSpec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
                 cases hBad
             · apply Eq.symm; split <;> rename_i _ hs2 <;> apply Eq.symm
               · exfalso
                 have hBad := eq_of_mapM_eq hs1 hs2 (by
                   intro scanPt
                   rw [ecdhShare_refines_spec]
-                  cases Spec.SilentPayments.ecdhShare c _ scanPt with
+                  cases InternalSpec.SilentPayments.ecdhShare c _ scanPt with
                   | infinity => rfl
                   | affine sharePt =>
                     dsimp only
@@ -1280,7 +1280,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                       | none =>
                         dsimp only
                         rw [dleqProve_refines_spec]
-                        cases Spec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
+                        cases InternalSpec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
                       | some _ => rfl
                     | some exShare =>
                       cases (psbt.globalDleqProofs.find? _).map Prod.snd with
@@ -1291,12 +1291,12 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         have hEqShare : (exShare == c.compress sharePt) = decide (exShare = c.compress sharePt) := rfl
                         rw [hEqShare]
                         cases (decide (exShare = c.compress sharePt) &&
-                          Spec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
+                          InternalSpec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
                 cases hBad
               · have hSpOk := eq_of_mapM_eq hs1 hs2 (by
                   intro scanPt
                   rw [ecdhShare_refines_spec]
-                  cases Spec.SilentPayments.ecdhShare c _ scanPt with
+                  cases InternalSpec.SilentPayments.ecdhShare c _ scanPt with
                   | infinity => rfl
                   | affine sharePt =>
                     dsimp only
@@ -1307,7 +1307,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                       | none =>
                         dsimp only
                         rw [dleqProve_refines_spec]
-                        cases Spec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
+                        cases InternalSpec.SilentPayments.dleqProve c _ scanPt dleqAuxRand c.generator none <;> rfl
                       | some _ => rfl
                     | some exShare =>
                       cases (psbt.globalDleqProofs.find? _).map Prod.snd with
@@ -1318,7 +1318,7 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         have hEqShare : (exShare == c.compress sharePt) = decide (exShare = c.compress sharePt) := rfl
                         rw [hEqShare]
                         cases (decide (exShare = c.compress sharePt) &&
-                          Spec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
+                          InternalSpec.SilentPayments.dleqVerify c aPub scanPt sharePt exProof c.generator none) <;> rfl)
                 injection hSpOk with hSpEq
                 subst hSpEq
                 split <;> rename_i _ ho1
@@ -1334,12 +1334,12 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         rcases entry with ⟨_, sharePt, _⟩
                         dsimp only
                         rw [sharedSecret_refines_spec]
-                        cases Spec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
+                        cases InternalSpec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
                         | error e => rfl
                         | ok secret =>
                           dsimp only
                           rw [outputKey_refines_spec]
-                          cases Spec.SilentPayments.outputKey c secret code.spend k with
+                          cases InternalSpec.SilentPayments.outputKey c secret code.spend k with
                           | error e => rfl
                           | ok outPt =>
                             dsimp only
@@ -1368,12 +1368,12 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         rcases entry with ⟨_, sharePt, _⟩
                         dsimp only
                         rw [sharedSecret_refines_spec]
-                        cases Spec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
+                        cases InternalSpec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
                         | error e => rfl
                         | ok secret =>
                           dsimp only
                           rw [outputKey_refines_spec]
-                          cases Spec.SilentPayments.outputKey c secret code.spend k with
+                          cases InternalSpec.SilentPayments.outputKey c secret code.spend k with
                           | error e => rfl
                           | ok outPt =>
                             dsimp only
@@ -1401,12 +1401,12 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         rcases entry with ⟨_, sharePt, _⟩
                         dsimp only
                         rw [sharedSecret_refines_spec]
-                        cases Spec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
+                        cases InternalSpec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
                         | error e => rfl
                         | ok secret =>
                           dsimp only
                           rw [outputKey_refines_spec]
-                          cases Spec.SilentPayments.outputKey c secret code.spend k with
+                          cases InternalSpec.SilentPayments.outputKey c secret code.spend k with
                           | error e => rfl
                           | ok outPt =>
                             dsimp only
@@ -1432,12 +1432,12 @@ theorem finalizePsbtSilentPayments_refines_spec {Affine : Type} [DecidableEq Aff
                         rcases entry with ⟨_, sharePt, _⟩
                         dsimp only
                         rw [sharedSecret_refines_spec]
-                        cases Spec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
+                        cases InternalSpec.SilentPayments.sharedSecret c inHash (.affine sharePt) with
                         | error e => rfl
                         | ok secret =>
                           dsimp only
                           rw [outputKey_refines_spec]
-                          cases Spec.SilentPayments.outputKey c secret code.spend k with
+                          cases InternalSpec.SilentPayments.outputKey c secret code.spend k with
                           | error e => rfl
                           | ok outPt =>
                             dsimp only
@@ -1471,7 +1471,7 @@ theorem impl_exportSpScanKey_requires_user_consent {Affine : Type}
     (accountIndex : UInt32) :
     ∀ s, BitcoinLedger.SilentPayments.exportSpScanKey c bech hrp deriveAccount accountIndex false ≠ .ok s := by
   rw [exportSpScanKey_refines_spec]
-  exact Spec.SilentPayments.exportSpScanKey_requires_user_consent c bech hrp deriveAccount accountIndex
+  exact InternalSpec.SilentPayments.exportSpScanKey_requires_user_consent c bech hrp deriveAccount accountIndex
 
 /-- `validatePsbtSpOutputs` rejects modifiable PSBTs carrying pre-computed `script` + `spV0Info`,
     orphan `spV0Label`, or `spV0Info` combined with account coordinates / identity auth. -/
@@ -1514,7 +1514,7 @@ theorem impl_analyzePsbtSilentPayments_rejects_taproot_implicit_sighash_default
     } = .error .silentPaymentSighashType := by
   rw [analyzePsbtSilentPayments_refines_spec]
   rw [deserializeSpCode_eq] at hCode
-  exact Spec.SilentPayments.analyzePsbtSilentPayments_rejects_taproot_implicit_sighash_default
+  exact InternalSpec.SilentPayments.analyzePsbtSilentPayments_rejects_taproot_implicit_sighash_default
     c code raw66 hCode op
 
 /-- `analyzePsbtSilentPayments` excludes Taproot inputs with BIP-341 NUMS internal key `H`. -/
@@ -1540,7 +1540,7 @@ theorem impl_analyzePsbtSilentPayments_excludes_bip341_nums
     } = .error .silentPaymentNoEligibleInputs := by
   rw [analyzePsbtSilentPayments_refines_spec, sighashAll_eq, bip341NumsXOnly_eq]
   rw [deserializeSpCode_eq] at hCode
-  exact Spec.SilentPayments.analyzePsbtSilentPayments_excludes_literal_bip341_nums
+  exact InternalSpec.SilentPayments.analyzePsbtSilentPayments_excludes_literal_bip341_nums
     c code raw66 hCode op
 
 /-- `analyzePsbtSilentPayments` rejects outputs with mismatched `PSBT_OUT_SP_V0_LABEL`. -/
@@ -1563,7 +1563,7 @@ theorem impl_analyzePsbtSilentPayments_rejects_mismatched_spV0Label
   rw [analyzePsbtSilentPayments_refines_spec]
   rw [deserializeSpCode_eq] at hCode
   rw [labeledSpendKey_refines_spec] at hLbl
-  exact Spec.SilentPayments.analyzePsbtSilentPayments_rejects_mismatched_spV0Label
+  exact InternalSpec.SilentPayments.analyzePsbtSilentPayments_rejects_mismatched_spV0Label
     c acc code expectedBm raw66 m hCode hScan hLbl hMismatch
 
 /-- **Non-Vacuity Witness**: `BitcoinLedger.SilentPayments.finalizePsbtSilentPayments` succeeds
@@ -1575,7 +1575,7 @@ theorem impl_nonvacuous_finalizePsbtSilentPayments_ok :
         nonVacuousSpCrypto psbt spFiveByte32 = .ok (shares, scripts) ∧
       shares.length = 1 ∧
       scripts.length = 1 := by
-  rcases Spec.SilentPayments.nonvacuous_finalizePsbtSilentPayments_ok with
+  rcases InternalSpec.SilentPayments.nonvacuous_finalizePsbtSilentPayments_ok with
     ⟨psbt, shares, scripts, hFin, hS, hSc⟩
   refine ⟨psbt, shares, scripts, ?_, hS, hSc⟩
   rw [finalizePsbtSilentPayments_refines_spec]

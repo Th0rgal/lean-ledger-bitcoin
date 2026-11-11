@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Musig2
 import BitcoinLedger.SilentPayments
 
@@ -26,17 +26,17 @@ refinement proofs in `Proofs.AppStateMachine`.
 
 namespace BitcoinLedger.AppStateMachine
 
-open Spec.Musig2 (
+open InternalSpec.Musig2 (
   CompressedPubKey SchnorrSig PsbtSessionId RandRoot
   MusigSignTask MusigRound1Output MusigRound2TaskInput MusigRound2Output
   MusigError NonceAggPkMode MusigSessionStore
 )
-open Spec.SilentPayments (
+open InternalSpec.SilentPayments (
   SpError SpAddressHrp SpScanHrp Bech32mCodec
   SilentPaymentAccount SilentPaymentCoordinates PsbtSpTx
   SilentPaymentShareOut SilentPaymentOutputScriptOut
 )
-open Spec.AppStateMachine (
+open InternalSpec.AppStateMachine (
   TargetProfile AppVersion BolosApduHeader BolosWireCommand VanadiumRequestTag
   CompactSigHeaderBase MessageDisplayForm KeyTree
   IdentitySignature RegisteredIdentityEntry
@@ -46,7 +46,7 @@ open Spec.AppStateMachine (
   AppCommand AppResponse AppError AppPersistentState
   UserPrompt UserApprovalOracle HardwareOracle AppTraceOutcome
 )
-open Spec.Unified (
+open InternalSpec.Unified (
   PsbtMerkleOpeningBundle VerifiedPsbtSignError
 )
 
@@ -196,8 +196,8 @@ def bitcoinSignedMessagePreimage (msg : ByteArray) : ByteArray :=
   concatBytes [bitcoinSignedMessageMagic, encodeVarint msg.size, msg]
 
 /-- Double-SHA256 Bitcoin Signed Message digest. -/
-def bitcoinSignedMessageDigest (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (msg : ByteArray) : Spec.Musig2.Bytes32 :=
+def bitcoinSignedMessageDigest (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (msg : ByteArray) : InternalSpec.Musig2.Bytes32 :=
   let first := sha256 (bitcoinSignedMessagePreimage msg)
   sha256 first.bytes
 
@@ -210,28 +210,28 @@ def compactHeaderBaseByte : CompactSigHeaderBase → UInt8
 
 /-- Construct a 65-byte BIP-137 compact recoverable signature. -/
 def formatCompactRecoverableSig (headerBase : CompactSigHeaderBase) (recId : UInt8)
-    (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
+    (r s : InternalSpec.Musig2.Bytes32) : Option InternalSpec.SilentPayments.Bytes65 :=
   if decide (recId > 3) then
     none
   else
-    let hdr : Spec.SilentPayments.SizedBytes 1 :=
+    let hdr : InternalSpec.SilentPayments.SizedBytes 1 :=
       ⟨ByteArray.mk #[compactHeaderBaseByte headerBase + recId], rfl⟩
-    let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
-    let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
+    let r32 : InternalSpec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
+    let s32 : InternalSpec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
     some (BitcoinLedger.SilentPayments.appendSized hdr
       (BitcoinLedger.SilentPayments.appendSized r32 s32))
 
 /-- BOLOS `sign_message.c:186` 65-byte compact signature (`31 + (recId & 1)`). -/
 def formatBolosSignMessageSig (recId : UInt8)
-    (r s : Spec.Musig2.Bytes32) : Option Spec.SilentPayments.Bytes65 :=
+    (r s : InternalSpec.Musig2.Bytes32) : Option InternalSpec.SilentPayments.Bytes65 :=
   if decide (recId > 3) then
     none
   else
     let parity : UInt8 := recId &&& 1
-    let hdr : Spec.SilentPayments.SizedBytes 1 :=
+    let hdr : InternalSpec.SilentPayments.SizedBytes 1 :=
       ⟨ByteArray.mk #[31 + parity], rfl⟩
-    let r32 : Spec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
-    let s32 : Spec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
+    let r32 : InternalSpec.SilentPayments.Bytes32 := ⟨r.bytes, r.size_eq⟩
+    let s32 : InternalSpec.SilentPayments.Bytes32 := ⟨s.bytes, s.size_eq⟩
     some (BitcoinLedger.SilentPayments.appendSized hdr
       (BitcoinLedger.SilentPayments.appendSized r32 s32))
 
@@ -308,8 +308,8 @@ def buildIdentityMessage (msgType object : ByteArray) : Option ByteArray :=
     ])
 
 /-- Vanadium `IdentityKey::get_id(name)`. -/
-def computeIdentityRegistrationId (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (name : String) (pubkey : CompressedPubKey) : Option Spec.Musig2.Bytes32 :=
+def computeIdentityRegistrationId (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (name : String) (pubkey : CompressedPubKey) : Option InternalSpec.Musig2.Bytes32 :=
   let nameBytes := name.toUTF8
   if decide (nameBytes.size = 0) || decide (nameBytes.size > 255) then
     none
@@ -322,8 +322,8 @@ def computeIdentityRegistrationId (sha256 : ByteArray → Spec.Musig2.Bytes32)
     ]))
 
 /-- Check cross-chain Swap first external output (`OP_RETURN <single_push>` with `SHA256 == expectedPayinHash`). -/
-def validCrossChainOpReturn (sha256 : ByteArray → Spec.Musig2.Bytes32)
-    (out : ExternalOutputView) (expectedPayinHash : Spec.Musig2.Bytes32) : Bool :=
+def validCrossChainOpReturn (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
+    (out : ExternalOutputView) (expectedPayinHash : InternalSpec.Musig2.Bytes32) : Bool :=
   if decide (out.amount ≠ 0) then
     false
   else
@@ -351,13 +351,13 @@ def validCrossChainOpReturn (sha256 : ByteArray → Spec.Musig2.Bytes32)
     | _ => false
 
 /-- Check whether `porOpt` denotes a default BOLOS wallet (`none` or 32 zero bytes). -/
-def isDefaultPor (porOpt : Option Spec.Musig2.Bytes32) : Bool :=
+def isDefaultPor (porOpt : Option InternalSpec.Musig2.Bytes32) : Bool :=
   match porOpt with
   | none => true
   | some por => BitcoinLedger.Musig2.isAllZeros por
 
 /-- Validate all BOLOS `execute_swap_checks` + `sign_psbt.c:55` invariants for `SwapLock`. -/
-def validSwapPsbt {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+def validSwapPsbt {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (lock : SwapLock) (req : PsbtSignRequest Affine) : Bool :=
   let isDefaultWallet :=
     match req.account with
@@ -467,7 +467,7 @@ def checkSelfPubnonce {Affine : Type} (hw : HardwareOracle Affine) : TargetProfi
 
 /-- Validate Proof-of-Registration (or default-policy rules on BOLOS vs Vanadium). -/
 def validateAccountAuth {Affine : Type} (profile : TargetProfile) (hw : HardwareOracle Affine)
-    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option Spec.Musig2.Bytes32) :
+    (inSwapMode : Bool) (account : AccountSpec Affine) (porOpt : Option InternalSpec.Musig2.Bytes32) :
     Except AppError Unit :=
   match account with
   | .walletPolicy wp =>
@@ -589,7 +589,7 @@ def round1NeedsApproval (profile : TargetProfile) (spShares : List SilentPayment
   (match profile with | .vanadium _ => true | .bolos _ => false) || !spShares.isEmpty
 
 /-- Authorize PSBT signing via pre-approved `SwapLock` OR interactive user approval. -/
-def authorizePsbtStep {Affine : Type} (sha256 : ByteArray → Spec.Musig2.Bytes32)
+def authorizePsbtStep {Affine : Type} (sha256 : ByteArray → InternalSpec.Musig2.Bytes32)
     (swapLock : Option SwapLock) (ui : UserApprovalOracle Affine)
     (psbt : PsbtSignRequest Affine) : Except AppError Bool :=
   match swapLock with
@@ -980,41 +980,41 @@ def responseEmitsSecretDerivedMaterial : AppResponse → Bool
 /-! ## 6. End-to-End Verified `SIGN_PSBT` & BIP-322 `verifyPsbtSignMessage` Composition -/
 
 /-- Canonical `PolicyProfile` corresponding to a `TargetProfile`. -/
-def policyProfileOfTarget : TargetProfile → Spec.WalletPolicy.PolicyProfile
+def policyProfileOfTarget : TargetProfile → InternalSpec.WalletPolicy.PolicyProfile
   | .bolos ct =>
-      Spec.WalletPolicy.bolosAppProfile (if decide (ct = 0) then .mainnet else .testnet)
+      InternalSpec.WalletPolicy.bolosAppProfile (if decide (ct = 0) then .mainnet else .testnet)
   | .vanadium ct =>
-      Spec.WalletPolicy.vanadiumAppProfile (if decide (ct = 0) then .mainnet else .testnet)
+      InternalSpec.WalletPolicy.vanadiumAppProfile (if decide (ct = 0) then .mainnet else .testnet)
 
-/-- Exact isomorphism `Spec.Psbt.Bytes32` ↔ `Spec.Musig2.Bytes32`. -/
-def psbtBytes32ToMusig (h : Spec.Psbt.Bytes32) : Spec.Musig2.Bytes32 :=
+/-- Exact isomorphism `InternalSpec.Psbt.Bytes32` ↔ `InternalSpec.Musig2.Bytes32`. -/
+def psbtBytes32ToMusig (h : InternalSpec.Psbt.Bytes32) : InternalSpec.Musig2.Bytes32 :=
   ⟨h.bytes, h.size_eq⟩
 
-def musigBytes32ToPsbt (h : Spec.Musig2.Bytes32) : Spec.Psbt.Bytes32 :=
+def musigBytes32ToPsbt (h : InternalSpec.Musig2.Bytes32) : InternalSpec.Psbt.Bytes32 :=
   ⟨h.bytes, h.size_eq⟩
 
-/-- Construct `Spec.Psbt.CryptoOracles` from `TargetProfile`, `Spec.Network`, `HardwareOracle`, and `hash160`. -/
+/-- Construct `InternalSpec.Psbt.CryptoOracles` from `TargetProfile`, `InternalSpec.Network`, `HardwareOracle`, and `hash160`. -/
 def mkPsbtCryptoOracles
     {Affine : Type}
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
-    (hash160 : ByteArray → ByteArray) : Spec.Psbt.CryptoOracles where
+    (hash160 : ByteArray → ByteArray) : InternalSpec.Psbt.CryptoOracles where
   sha256 bs := musigBytes32ToPsbt (hw.musigCrypto.sha256 bs)
   hash160 := hash160
   formatAddress spk :=
-    let addrTarget : Spec.AddressTarget :=
+    let addrTarget : InternalSpec.AddressTarget :=
       match profile with
       | .bolos _ => .bolos
       | .vanadium _ => .vanadium
     let dblSha256 : ByteArray → ByteArray := fun b =>
       (hw.musigCrypto.sha256 (hw.musigCrypto.sha256 b).bytes).bytes
-    Spec.scriptToAddress? addrTarget dblSha256 net spk
+    InternalSpec.scriptToAddress? addrTarget dblSha256 net spk
 
-/-- Canonical `Spec.Psbt.SigningConfig` for a `TargetProfile`. -/
+/-- Canonical `InternalSpec.Psbt.SigningConfig` for a `TargetProfile`. -/
 def signingConfigOfTarget
     (profile : TargetProfile)
-    (allowNonDefaultSighash : Bool := false) : Spec.Psbt.SigningConfig :=
+    (allowNonDefaultSighash : Bool := false) : InternalSpec.Psbt.SigningConfig :=
   match profile with
   | .bolos _ =>
       { allowNonDefaultSighash := allowNonDefaultSighash
@@ -1025,8 +1025,8 @@ def signingConfigOfTarget
         allowExternalInputs := false
         highFeeInclusiveAt100k := true }
 
-/-- Bridge `SwapLock` into `Spec.Psbt.SwapParams` (`none` if `.invalidMode`). -/
-def appSwapLockToPsbtSwapParams (lock : SwapLock) : Option Spec.Psbt.SwapParams :=
+/-- Bridge `SwapLock` into `InternalSpec.Psbt.SwapParams` (`none` if `.invalidMode`). -/
+def appSwapLockToPsbtSwapParams (lock : SwapLock) : Option InternalSpec.Psbt.SwapParams :=
   match lock.mode with
   | .standard =>
       some {
@@ -1047,24 +1047,24 @@ def appSwapLockToPsbtSwapParams (lock : SwapLock) : Option Spec.Psbt.SwapParams 
 /-- Verify all Merkle map commitments and sorted-key openings in a `PsbtMerkleOpeningBundle`
     against the PSBT's exact input and output counts (`0 Classical.choice`). -/
 def verifyPsbtMerkleBundle
-    (sha256 : ByteArray → Spec.Psbt.Bytes32)
+    (sha256 : ByteArray → InternalSpec.Psbt.Bytes32)
     (nInputs nOutputs : Nat)
     (bundle : PsbtMerkleOpeningBundle) : Bool :=
   decide (bundle.inputMaps.length = nInputs) &&
   decide (bundle.outputMaps.length = nOutputs) &&
-  Spec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 bundle.globalMap bundle.globalKeyOpenings &&
+  InternalSpec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 bundle.globalMap bundle.globalKeyOpenings &&
   appListAll (fun (m, ops) =>
-    Spec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 m ops) bundle.inputMaps &&
+    InternalSpec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 m ops) bundle.inputMaps &&
   appListAll (fun (m, ops) =>
-    Spec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 m ops) bundle.outputMaps
+    InternalSpec.MerkleProtocol.verifySortedMerkleMapOpenings sha256 m ops) bundle.outputMaps
 
-/-- Convert `Spec.WalletPolicy.KeyOrigin` to `Spec.Psbt.KeyOrigin`. -/
-def policyOriginToPsbt (orig : Spec.WalletPolicy.KeyOrigin) : Spec.Psbt.KeyOrigin :=
+/-- Convert `InternalSpec.WalletPolicy.KeyOrigin` to `InternalSpec.Psbt.KeyOrigin`. -/
+def policyOriginToPsbt (orig : InternalSpec.WalletPolicy.KeyOrigin) : InternalSpec.Psbt.KeyOrigin :=
   { fingerprint := orig.fingerprint
     path := orig.path }
 
 /-- Spend class (`legacy`, `segwitV0`, `taprootV1`) determined by a BIP-388 `DescriptorTemplate`. -/
-def descriptorSpendClass : Spec.WalletPolicy.DescriptorTemplate → Spec.Psbt.SpendClass
+def descriptorSpendClass : InternalSpec.WalletPolicy.DescriptorTemplate → InternalSpec.Psbt.SpendClass
   | .pkh _ => .legacy
   | .sh (.multi _ _) => .legacy
   | .sh (.sortedmulti _ _) => .legacy
@@ -1076,10 +1076,10 @@ def descriptorSpendClass : Spec.WalletPolicy.DescriptorTemplate → Spec.Psbt.Sp
 
 /-- Classify a `KeyInformation` entry against `DeviceRegistrationOracle`, supporting originless internal root xpubs. -/
 def classifyKeyInfoUnified
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (net : Spec.WalletPolicy.Network)
-    (ki : Spec.WalletPolicy.KeyInformation) : Spec.WalletPolicy.PolicyKeyRole :=
-  let baseRole := Spec.WalletPolicy.classifyKeyInfo dev net ki
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (net : InternalSpec.WalletPolicy.Network)
+    (ki : InternalSpec.WalletPolicy.KeyInformation) : InternalSpec.WalletPolicy.PolicyKeyRole :=
+  let baseRole := InternalSpec.WalletPolicy.classifyKeyInfo dev net ki
   match baseRole, ki.origin with
   | .external, none =>
       if decide (ki.xpub.depth = 0) then
@@ -1091,25 +1091,25 @@ def classifyKeyInfoUnified
         .external
   | role, _ => role
 
-/-- Extract internal (device-owned) key placeholders from a `Spec.WalletPolicy.WalletPolicy`. -/
+/-- Extract internal (device-owned) key placeholders from a `InternalSpec.WalletPolicy.WalletPolicy`. -/
 def extractInternalPlaceholders
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (net : Spec.WalletPolicy.Network)
-    (policy : Spec.WalletPolicy.WalletPolicy) : List Spec.Psbt.InternalKeyPlaceholder :=
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (net : InternalSpec.WalletPolicy.Network)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy) : List InternalSpec.Psbt.InternalKeyPlaceholder :=
   let roles := policy.keys.map (classifyKeyInfoUnified dev net)
-  let exprs := Spec.WalletPolicy.collectTemplateKeyExprs policy.template
+  let exprs := InternalSpec.WalletPolicy.collectTemplateKeyExprs policy.template
   exprs.flatMap fun ke =>
-    if decide (Spec.WalletPolicy.countInternalInKeyExpr roles ke = 0) then
+    if decide (InternalSpec.WalletPolicy.countInternalInKeyExpr roles ke = 0) then
       []
     else
       let (numFirst, numSecond) := ke.deriv.toPair
-      let resolvedOrigin (ki : Spec.WalletPolicy.KeyInformation) : Spec.Psbt.KeyOrigin :=
+      let resolvedOrigin (ki : InternalSpec.WalletPolicy.KeyInformation) : InternalSpec.Psbt.KeyOrigin :=
         match ki.origin with
         | some orig => policyOriginToPsbt orig
         | none => { fingerprint := dev.masterFingerprint, path := [] }
       match ke with
       | .single idx _ =>
-          match Spec.WalletPolicy.listNthOpt policy.keys idx with
+          match InternalSpec.WalletPolicy.listNthOpt policy.keys idx with
           | some ki =>
               [{
                 keyIndex := idx
@@ -1120,17 +1120,17 @@ def extractInternalPlaceholders
               }]
           | none => []
       | .musig idxs _ =>
-          let syntheticAgg : Spec.Psbt.InternalKeyPlaceholder := {
+          let syntheticAgg : InternalSpec.Psbt.InternalKeyPlaceholder := {
             keyIndex := idxs.headD 0
             expectedOrigin := none
             numFirst := numFirst
             numSecond := numSecond
             isMusig := true
           }
-          let participantPlaceholders : List Spec.Psbt.InternalKeyPlaceholder :=
+          let participantPlaceholders : List InternalSpec.Psbt.InternalKeyPlaceholder :=
             idxs.filterMap fun idx =>
-              if decide (Spec.WalletPolicy.listNthOpt roles idx = some .internal) then
-                match Spec.WalletPolicy.listNthOpt policy.keys idx with
+              if decide (InternalSpec.WalletPolicy.listNthOpt roles idx = some .internal) then
+                match InternalSpec.WalletPolicy.listNthOpt policy.keys idx with
                 | some ki =>
                     some {
                       keyIndex := idx
@@ -1146,12 +1146,12 @@ def extractInternalPlaceholders
 
 /-- Derive `(scriptPubKey, optionalRedeemScript, optionalWitnessScript)` for a `WalletPolicy`. -/
 def derivePolicyAllScripts
-    (profile : Spec.WalletPolicy.PolicyProfile)
-    (ora : Spec.WalletPolicy.CryptoPolicyOracle)
-    (policy : Spec.WalletPolicy.WalletPolicy)
+    (profile : InternalSpec.WalletPolicy.PolicyProfile)
+    (ora : InternalSpec.WalletPolicy.CryptoPolicyOracle)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
     (isChange : Bool)
     (addressIndex : UInt32) : Option (ByteArray × Option ByteArray × Option ByteArray) :=
-  match Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex with
+  match InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex with
   | .error _ => none
   | .ok spk =>
       let net := profile.network
@@ -1159,56 +1159,56 @@ def derivePolicyAllScripts
       | .pkh _ | .wpkh _ | .tr _ _ =>
           some (spk, none, none)
       | .wsh inner =>
-          match Spec.WalletPolicy.compileWshWitnessScript ora net policy.keys isChange addressIndex inner with
+          match InternalSpec.WalletPolicy.compileWshWitnessScript ora net policy.keys isChange addressIndex inner with
           | .ok ws => some (spk, none, some ws)
           | .error _ => none
       | .sh (.wpkh ke) =>
-          match Spec.WalletPolicy.deriveKeyExprCompressedPubkey ora net policy.keys isChange addressIndex ke with
+          match InternalSpec.WalletPolicy.deriveKeyExprCompressedPubkey ora net policy.keys isChange addressIndex ke with
           | .ok cpk =>
-              let rs := Spec.WalletPolicy.mkP2WPKH (ora.hash160 cpk)
+              let rs := InternalSpec.WalletPolicy.mkP2WPKH (ora.hash160 cpk)
               some (spk, some rs, none)
           | .error _ => none
       | .sh (.multi k kes) =>
-          match Spec.WalletPolicy.compileMultiScript ora net policy.keys isChange addressIndex false false k kes with
+          match InternalSpec.WalletPolicy.compileMultiScript ora net policy.keys isChange addressIndex false false k kes with
           | .ok rs => some (spk, some rs, none)
           | .error _ => none
       | .sh (.sortedmulti k kes) =>
-          match Spec.WalletPolicy.compileMultiScript ora net policy.keys isChange addressIndex true false k kes with
+          match InternalSpec.WalletPolicy.compileMultiScript ora net policy.keys isChange addressIndex true false k kes with
           | .ok rs => some (spk, some rs, none)
           | .error _ => none
       | .sh (.wsh inner) =>
-          match Spec.WalletPolicy.compileWshWitnessScript ora net policy.keys isChange addressIndex inner with
+          match InternalSpec.WalletPolicy.compileWshWitnessScript ora net policy.keys isChange addressIndex inner with
           | .ok ws =>
-              let rs := Spec.WalletPolicy.mkP2WSH (ora.sha256 ws)
+              let rs := InternalSpec.WalletPolicy.mkP2WSH (ora.sha256 ws)
               some (spk, some rs, some ws)
           | .error _ => none
 
-/-- Project `Spec.WalletPolicy.WalletPolicy` into `Spec.Psbt.WalletPolicySpec`. -/
+/-- Project `InternalSpec.WalletPolicy.WalletPolicy` into `InternalSpec.Psbt.WalletPolicySpec`. -/
 def toPsbtWalletPolicySpec
-    (profile : Spec.WalletPolicy.PolicyProfile)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (ora : Spec.WalletPolicy.CryptoPolicyOracle)
-    (policy : Spec.WalletPolicy.WalletPolicy) : Spec.Psbt.WalletPolicySpec :=
+    (profile : InternalSpec.WalletPolicy.PolicyProfile)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (ora : InternalSpec.WalletPolicy.CryptoPolicyOracle)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy) : InternalSpec.Psbt.WalletPolicySpec :=
   { isDefault :=
       profile.allowStatelessDefaultPolicies &&
-      Spec.WalletPolicy.isDefaultStatelessPolicy dev profile.network policy
+      InternalSpec.WalletPolicy.isDefaultStatelessPolicy dev profile.network policy
     name := policy.name
     spendClass := descriptorSpendClass policy.template
     internalPlaceholders := extractInternalPlaceholders dev profile.network policy
     deriveScripts := derivePolicyAllScripts profile ora policy }
 
-/-- Project `Spec.WalletPolicy.WalletPolicy` into `WalletPolicySpec`. -/
+/-- Project `InternalSpec.WalletPolicy.WalletPolicy` into `WalletPolicySpec`. -/
 def toAppWalletPolicySpec
-    (profile : Spec.WalletPolicy.PolicyProfile)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
+    (profile : InternalSpec.WalletPolicy.PolicyProfile)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (policy : Spec.WalletPolicy.WalletPolicy) : WalletPolicySpec :=
+    (policy : InternalSpec.WalletPolicy.WalletPolicy) : WalletPolicySpec :=
   let roles := policy.keys.map (classifyKeyInfoUnified dev profile.network)
   let nInternal := (roles.filter (fun r => decide (r = .internal))).length
-  let wfOk := (Spec.WalletPolicy.checkPolicyWellFormed profile policy).isOk
-  let signableOk := (Spec.WalletPolicy.checkRegisteredSignability profile dev policy).isOk
+  let wfOk := (InternalSpec.WalletPolicy.checkPolicyWellFormed profile policy).isOk
+  let signableOk := (InternalSpec.WalletPolicy.checkRegisteredSignability profile dev policy).isOk
   { name := policy.name
     version := policy.format.wireTag
     descriptorTemplate := descriptorTemplate
@@ -1217,7 +1217,7 @@ def toAppWalletPolicySpec
     isDefaultPolicy :=
       wfOk &&
       profile.allowStatelessDefaultPolicies &&
-      Spec.WalletPolicy.isDefaultStatelessPolicy dev profile.network policy
+      InternalSpec.WalletPolicy.isDefaultStatelessPolicy dev profile.network policy
     isSignable := wfOk && signableOk
     walletId := walletId
     keysInfoPayloads := keysInfoPayloads }
@@ -1225,30 +1225,30 @@ def toAppWalletPolicySpec
 /-- Build a verified `PsbtSignRequest` from a concrete `WalletPolicy` and `PsbtTx` by executing:
     1. BIP-388 policy well-formedness (`checkPolicyWellFormed`),
     2. BOLOS Merkleized map sorted-key opening verification (`verifyPsbtMerkleBundle`),
-    3. Full `Spec.Psbt.authorizePsbtSigning` (UTXO commitments, sighashes, fee/change elimination, BIP-322, and Swap checks). -/
+    3. Full `InternalSpec.Psbt.authorizePsbtSigning` (UTXO commitments, sighashes, fee/change elimination, BIP-322, and Swap checks). -/
 def buildVerifiedPsbtSignRequest
     {Affine : Type}
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (swapLockOpt : Option SwapLock)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
     (silentPaymentTx : Option (PsbtSpTx Affine)) :
-    Except VerifiedPsbtSignError (Spec.Psbt.ValidatedPsbt × PsbtSignRequest Affine) :=
+    Except VerifiedPsbtSignError (InternalSpec.Psbt.ValidatedPsbt × PsbtSignRequest Affine) :=
   let polProf := policyProfileOfTarget profile
-  match Spec.WalletPolicy.checkPolicyWellFormed polProf policy with
+  match InternalSpec.WalletPolicy.checkPolicyWellFormed polProf policy with
   | .error pErr => .error (.invalidPolicy pErr)
   | .ok () =>
       let psbtCrypto := mkPsbtCryptoOracles profile net hw hash160
@@ -1260,7 +1260,7 @@ def buildVerifiedPsbtSignRequest
       if !merkleOk then
         .error .merkleVerificationFailed
       else
-        let swapParamsRes : Except VerifiedPsbtSignError (Option Spec.Psbt.SwapParams) :=
+        let swapParamsRes : Except VerifiedPsbtSignError (Option InternalSpec.Psbt.SwapParams) :=
           match swapLockOpt with
           | none => .ok none
           | some lock =>
@@ -1272,15 +1272,15 @@ def buildVerifiedPsbtSignRequest
         | .ok swapParamsOpt =>
             let psbtPolicy := toPsbtWalletPolicySpec polProf dev policyOra policy
             let cfg := signingConfigOfTarget profile allowNonDefaultSighash
-            match Spec.Psbt.authorizePsbtSigning psbtCrypto cfg psbtPolicy psbt swapParamsOpt with
+            match InternalSpec.Psbt.authorizePsbtSigning psbtCrypto cfg psbtPolicy psbt swapParamsOpt with
             | .error psbtErr => .error (.psbtRejected psbtErr)
             | .ok validated =>
                 let appPolicy := toAppWalletPolicySpec polProf dev descriptorTemplate walletId keysInfoPayloads policy
                 let nExt := (validated.validatedInputs.toList.filter (fun (_, isInt, _) => !isInt)).length
                 let inOpen := appListAny (fun (_, isInt, sh) =>
-                  isInt && Spec.Psbt.sighashOpensInputs sh) validated.validatedInputs.toList
+                  isInt && InternalSpec.Psbt.sighashOpensInputs sh) validated.validatedInputs.toList
                 let outOpen := appListAny (fun (_, isInt, sh) =>
-                  isInt && Spec.Psbt.sighashOpensOutputs sh) validated.validatedInputs.toList
+                  isInt && InternalSpec.Psbt.sighashOpensOutputs sh) validated.validatedInputs.toList
                 let extViews : List ExternalOutputView :=
                   validated.displayedOutputs.map fun (_, out) =>
                     let spk := out.scriptPubKey.getD ByteArray.empty
@@ -1310,26 +1310,26 @@ def buildVerifiedPsbtSignRequest
 def stepVerifiedPsbtSign
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (allowNonDefaultSighash : Bool)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
-    (psbt : Spec.Psbt.PsbtTx)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
     (silentPaymentTx : Option (PsbtSpTx Affine))
     (s : AppPersistentState) :
     Except (VerifiedPsbtSignError × AppPersistentState)
-           (Spec.Psbt.ValidatedPsbt × AppResponse × AppPersistentState) :=
+           (InternalSpec.Psbt.ValidatedPsbt × AppResponse × AppPersistentState) :=
   match buildVerifiedPsbtSignRequest profile net hw dev policyOra hash160 allowNonDefaultSighash
           descriptorTemplate walletId keysInfoPayloads por policy psbt merkleOpt s.swapLock
           standardSignTasks musigPlan silentPaymentTx with
@@ -1362,25 +1362,25 @@ def stepVerifiedPsbtSign
 def verifyPsbtSignMessage
     {Affine : Type} [DecidableEq Affine]
     (profile : TargetProfile)
-    (net : Spec.Network)
+    (net : InternalSpec.Network)
     (hw : HardwareOracle Affine)
     (ui : UserApprovalOracle Affine)
-    (dev : Spec.WalletPolicy.DeviceRegistrationOracle)
-    (policyOra : Spec.WalletPolicy.CryptoPolicyOracle)
+    (dev : InternalSpec.WalletPolicy.DeviceRegistrationOracle)
+    (policyOra : InternalSpec.WalletPolicy.CryptoPolicyOracle)
     (hash160 : ByteArray → ByteArray)
     (descriptorTemplate : String)
-    (walletId : Spec.Musig2.Bytes32)
+    (walletId : InternalSpec.Musig2.Bytes32)
     (keysInfoPayloads : List ByteArray)
-    (por : Option Spec.Musig2.Bytes32)
-    (policy : Spec.WalletPolicy.WalletPolicy)
+    (por : Option InternalSpec.Musig2.Bytes32)
+    (policy : InternalSpec.WalletPolicy.WalletPolicy)
     (message : ByteArray)
-    (psbt : Spec.Psbt.PsbtTx)
+    (psbt : InternalSpec.Psbt.PsbtTx)
     (merkleOpt : Option PsbtMerkleOpeningBundle)
     (standardSignTasks : List StandardInputSigRequest)
     (musigPlan : PsbtMusigPlan)
     (s : AppPersistentState) :
     Except (VerifiedPsbtSignError × AppPersistentState)
-           (Spec.Psbt.ValidatedPsbt × AppResponse × AppPersistentState) :=
+           (InternalSpec.Psbt.ValidatedPsbt × AppResponse × AppPersistentState) :=
   if s.swapLock.isSome then
     .error (.psbtRejected .bip322ForbiddenInSwap, s)
   else if !decide (psbt.bip322Message = some message) then

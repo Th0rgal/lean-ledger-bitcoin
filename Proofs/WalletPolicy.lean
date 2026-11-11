@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.WalletPolicy
 
 namespace Proofs.WalletPolicy
@@ -8,9 +8,9 @@ namespace Proofs.WalletPolicy
 
 Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`, `0 omega`) proofs linking
 the executable engine `BitcoinLedger.WalletPolicy` to the normative formal specification
-`Spec.WalletPolicy`:
+`InternalSpec.WalletPolicy`:
 
-1. **Exact Behavioral Equivalence (`BitcoinLedger.WalletPolicy` = `Spec.WalletPolicy`)**:
+1. **Exact Behavioral Equivalence (`BitcoinLedger.WalletPolicy` = `InternalSpec.WalletPolicy`)**:
    - Profiles (`canonicalLedgerProfile`, `bolosAppProfile`, `vanadiumAppProfile`);
    - Byte encoders, lexicographic sorting, xpub & `WalletKeyInfo` validation, wallet name bounds,
      and `<M;N>` derivation spec validation;
@@ -52,66 +52,66 @@ local instance (priority := high) : LawfulBEq UInt32 where
   eq_of_beq h := of_decide_eq_true h
   rfl := decide_eq_true rfl
 
-open Spec.WalletPolicy
+open InternalSpec.WalletPolicy
 
 /-! ## Section 1: Profile, Primitive Encoder, Sorting & Key Validation Equivalence -/
 
 theorem canonicalLedgerProfile_eq (net : Network) :
     BitcoinLedger.WalletPolicy.canonicalLedgerProfile net =
-      Spec.WalletPolicy.canonicalLedgerProfile net := rfl
+      InternalSpec.WalletPolicy.canonicalLedgerProfile net := rfl
 
 theorem bolosAppProfile_eq (net : Network) :
     BitcoinLedger.WalletPolicy.bolosAppProfile net =
-      Spec.WalletPolicy.bolosAppProfile net := rfl
+      InternalSpec.WalletPolicy.bolosAppProfile net := rfl
 
 theorem vanadiumAppProfile_eq (net : Network) :
     BitcoinLedger.WalletPolicy.vanadiumAppProfile net =
-      Spec.WalletPolicy.vanadiumAppProfile net := rfl
+      InternalSpec.WalletPolicy.vanadiumAppProfile net := rfl
 
 theorem isUnhardened_eq (idx : UInt32) :
-    BitcoinLedger.WalletPolicy.isUnhardened idx = Spec.WalletPolicy.isUnhardened idx := rfl
+    BitcoinLedger.WalletPolicy.isUnhardened idx = InternalSpec.WalletPolicy.isUnhardened idx := rfl
 
 theorem hardened_eq (idx : UInt32) :
-    BitcoinLedger.WalletPolicy.hardened idx = Spec.WalletPolicy.hardened idx := rfl
+    BitcoinLedger.WalletPolicy.hardened idx = InternalSpec.WalletPolicy.hardened idx := rfl
 
 theorem encodeU32BE_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.encodeU32BE n = Spec.WalletPolicy.encodeU32BE n := rfl
+    BitcoinLedger.WalletPolicy.encodeU32BE n = InternalSpec.WalletPolicy.encodeU32BE n := rfl
 
 theorem encodeU32LE_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.encodeU32LE n = Spec.WalletPolicy.encodeU32LE n := rfl
+    BitcoinLedger.WalletPolicy.encodeU32LE n = InternalSpec.WalletPolicy.encodeU32LE n := rfl
 
 theorem encodeCompactSize_eq (n : Nat) :
-    BitcoinLedger.WalletPolicy.encodeCompactSize n = Spec.WalletPolicy.encodeCompactSize n := rfl
+    BitcoinLedger.WalletPolicy.encodeCompactSize n = InternalSpec.WalletPolicy.encodeCompactSize n := rfl
 
 theorem byteListLt_eq :
     ∀ (xs ys : List UInt8),
-      BitcoinLedger.WalletPolicy.byteListLt xs ys = Spec.WalletPolicy.byteListLt xs ys
+      BitcoinLedger.WalletPolicy.byteListLt xs ys = InternalSpec.WalletPolicy.byteListLt xs ys
   | [], [] => rfl
   | [], _ :: _ => rfl
   | _ :: _, [] => rfl
   | a :: as, b :: bs => by
-    unfold BitcoinLedger.WalletPolicy.byteListLt Spec.WalletPolicy.byteListLt
+    unfold BitcoinLedger.WalletPolicy.byteListLt InternalSpec.WalletPolicy.byteListLt
     rw [byteListLt_eq as bs]
 
 theorem byteArrayLt_eq (a b : ByteArray) :
-    BitcoinLedger.WalletPolicy.byteArrayLt a b = Spec.WalletPolicy.byteArrayLt a b := by
-  unfold BitcoinLedger.WalletPolicy.byteArrayLt Spec.WalletPolicy.byteArrayLt
+    BitcoinLedger.WalletPolicy.byteArrayLt a b = InternalSpec.WalletPolicy.byteArrayLt a b := by
+  unfold BitcoinLedger.WalletPolicy.byteArrayLt InternalSpec.WalletPolicy.byteArrayLt
   exact byteListLt_eq a.data.toList b.data.toList
 
 theorem insertByteArray_eq (x : ByteArray) :
     ∀ (ys : List ByteArray),
-      BitcoinLedger.WalletPolicy.insertByteArray x ys = Spec.WalletPolicy.insertByteArray x ys
+      BitcoinLedger.WalletPolicy.insertByteArray x ys = InternalSpec.WalletPolicy.insertByteArray x ys
   | [] => rfl
   | y :: ys => by
-    unfold BitcoinLedger.WalletPolicy.insertByteArray Spec.WalletPolicy.insertByteArray
+    unfold BitcoinLedger.WalletPolicy.insertByteArray InternalSpec.WalletPolicy.insertByteArray
     rw [byteArrayLt_eq x y, insertByteArray_eq x ys]
 
 theorem sortByteArrays_eq :
     ∀ (xs : List ByteArray),
-      BitcoinLedger.WalletPolicy.sortByteArrays xs = Spec.WalletPolicy.sortByteArrays xs
+      BitcoinLedger.WalletPolicy.sortByteArrays xs = InternalSpec.WalletPolicy.sortByteArrays xs
   | [] => rfl
   | x :: xs => by
-    unfold BitcoinLedger.WalletPolicy.sortByteArrays Spec.WalletPolicy.sortByteArrays
+    unfold BitcoinLedger.WalletPolicy.sortByteArrays InternalSpec.WalletPolicy.sortByteArrays
     rw [sortByteArrays_eq xs, insertByteArray_eq]
 
 theorem xpubWellFormed_eq (xpub : ExtendedPubKey) :
@@ -143,56 +143,56 @@ theorem validKeyInfo_eq (fmt : PolicyFormat) (net : Network) (ki : KeyInformatio
 /-! ## Section 2: ASCII & Stacked-Wrapper Miniscript Parser Equivalence -/
 
 theorem isAsciiDigit_eq (b : UInt8) :
-    BitcoinLedger.WalletPolicy.isAsciiDigit b = Spec.WalletPolicy.isAsciiDigit b := rfl
+    BitcoinLedger.WalletPolicy.isAsciiDigit b = InternalSpec.WalletPolicy.isAsciiDigit b := rfl
 
 theorem parseDecimalNat_eq (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseDecimalNat input =
-      Spec.WalletPolicy.parseDecimalNat input := rfl
+      InternalSpec.WalletPolicy.parseDecimalNat input := rfl
 
 theorem parseDecimalU32_eq (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseDecimalU32 input =
-      Spec.WalletPolicy.parseDecimalU32 input := rfl
+      InternalSpec.WalletPolicy.parseDecimalU32 input := rfl
 
 theorem stripAsciiPrefix_go_eq :
     ∀ (ps cs : List UInt8),
       BitcoinLedger.WalletPolicy.stripAsciiPrefix.go ps cs =
-        Spec.WalletPolicy.stripAsciiPrefix.go ps cs
+        InternalSpec.WalletPolicy.stripAsciiPrefix.go ps cs
   | [], _ => rfl
   | p :: ps, c :: cs => by
-    unfold BitcoinLedger.WalletPolicy.stripAsciiPrefix.go Spec.WalletPolicy.stripAsciiPrefix.go
+    unfold BitcoinLedger.WalletPolicy.stripAsciiPrefix.go InternalSpec.WalletPolicy.stripAsciiPrefix.go
     rw [stripAsciiPrefix_go_eq ps cs]
   | _ :: _, [] => rfl
 
 theorem stripAsciiPrefix_eq (pfx : String) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.stripAsciiPrefix pfx input =
-      Spec.WalletPolicy.stripAsciiPrefix pfx input := by
-  unfold BitcoinLedger.WalletPolicy.stripAsciiPrefix Spec.WalletPolicy.stripAsciiPrefix
+      InternalSpec.WalletPolicy.stripAsciiPrefix pfx input := by
+  unfold BitcoinLedger.WalletPolicy.stripAsciiPrefix InternalSpec.WalletPolicy.stripAsciiPrefix
   exact stripAsciiPrefix_go_eq pfx.toUTF8.data.toList input
 
 theorem decodeHexNibble_eq (b : UInt8) :
-    BitcoinLedger.WalletPolicy.decodeHexNibble b = Spec.WalletPolicy.decodeHexNibble b := rfl
+    BitcoinLedger.WalletPolicy.decodeHexNibble b = InternalSpec.WalletPolicy.decodeHexNibble b := rfl
 
 theorem parseFixedHex_loop_eq :
     ∀ (k : Nat) (input : List UInt8) (acc : Array UInt8),
       BitcoinLedger.WalletPolicy.parseFixedHex.loop k input acc =
-        Spec.WalletPolicy.parseFixedHex.loop k input acc
+        InternalSpec.WalletPolicy.parseFixedHex.loop k input acc
   | 0, _, _ => rfl
   | k + 1, hi :: lo :: rest, acc => by
-    unfold BitcoinLedger.WalletPolicy.parseFixedHex.loop Spec.WalletPolicy.parseFixedHex.loop
+    unfold BitcoinLedger.WalletPolicy.parseFixedHex.loop InternalSpec.WalletPolicy.parseFixedHex.loop
     rw [decodeHexNibble_eq hi, decodeHexNibble_eq lo]
-    cases Spec.WalletPolicy.decodeHexNibble hi <;> cases Spec.WalletPolicy.decodeHexNibble lo <;>
+    cases InternalSpec.WalletPolicy.decodeHexNibble hi <;> cases InternalSpec.WalletPolicy.decodeHexNibble lo <;>
       simp [parseFixedHex_loop_eq]
   | _ + 1, [], _ => rfl
   | _ + 1, [_], _ => rfl
 
 theorem parseFixedHex_eq (nBytes : Nat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseFixedHex nBytes input =
-      Spec.WalletPolicy.parseFixedHex nBytes input := by
-  unfold BitcoinLedger.WalletPolicy.parseFixedHex Spec.WalletPolicy.parseFixedHex
+      InternalSpec.WalletPolicy.parseFixedHex nBytes input := by
+  unfold BitcoinLedger.WalletPolicy.parseFixedHex InternalSpec.WalletPolicy.parseFixedHex
   exact parseFixedHex_loop_eq nBytes input #[]
 
 theorem parseAtIndex_eq (input : List UInt8) :
-    BitcoinLedger.WalletPolicy.parseAtIndex input = Spec.WalletPolicy.parseAtIndex input := by
+    BitcoinLedger.WalletPolicy.parseAtIndex input = InternalSpec.WalletPolicy.parseAtIndex input := by
   cases input with
   | nil => rfl
   | cons b rest =>
@@ -201,54 +201,54 @@ theorem parseAtIndex_eq (input : List UInt8) :
 theorem parseAtIndexList_eq :
     ∀ (fuel : Nat) (input : List UInt8),
       BitcoinLedger.WalletPolicy.parseAtIndexList fuel input =
-        Spec.WalletPolicy.parseAtIndexList fuel input
+        InternalSpec.WalletPolicy.parseAtIndexList fuel input
   | 0, _ => rfl
   | fuel' + 1, input => by
-    unfold BitcoinLedger.WalletPolicy.parseAtIndexList Spec.WalletPolicy.parseAtIndexList
+    unfold BitcoinLedger.WalletPolicy.parseAtIndexList InternalSpec.WalletPolicy.parseAtIndexList
     simp only [parseAtIndex_eq input, parseAtIndexList_eq fuel']
     rfl
 
 theorem parseDerivationSpec_eq (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseDerivationSpec fmt input =
-      Spec.WalletPolicy.parseDerivationSpec fmt input := by
+      InternalSpec.WalletPolicy.parseDerivationSpec fmt input := by
   cases fmt with
   | v1 => rfl
   | v2 =>
-    unfold BitcoinLedger.WalletPolicy.parseDerivationSpec Spec.WalletPolicy.parseDerivationSpec
+    unfold BitcoinLedger.WalletPolicy.parseDerivationSpec InternalSpec.WalletPolicy.parseDerivationSpec
     simp only [stripAsciiPrefix_eq, parseDecimalU32_eq]
     rfl
 
 theorem parseKeyExpr_eq (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseKeyExpr fmt input =
-      Spec.WalletPolicy.parseKeyExpr fmt input := by
-  unfold BitcoinLedger.WalletPolicy.parseKeyExpr Spec.WalletPolicy.parseKeyExpr
+      InternalSpec.WalletPolicy.parseKeyExpr fmt input := by
+  unfold BitcoinLedger.WalletPolicy.parseKeyExpr InternalSpec.WalletPolicy.parseKeyExpr
   simp only [stripAsciiPrefix_eq, parseAtIndexList_eq, parseDerivationSpec_eq, parseAtIndex_eq]
   rfl
 
 theorem parseKeyExprList_eq :
     ∀ (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8),
       BitcoinLedger.WalletPolicy.parseKeyExprList fuel fmt input =
-        Spec.WalletPolicy.parseKeyExprList fuel fmt input
+        InternalSpec.WalletPolicy.parseKeyExprList fuel fmt input
   | 0, _, _ => rfl
   | fuel' + 1, fmt, input => by
-    unfold BitcoinLedger.WalletPolicy.parseKeyExprList Spec.WalletPolicy.parseKeyExprList
+    unfold BitcoinLedger.WalletPolicy.parseKeyExprList InternalSpec.WalletPolicy.parseKeyExprList
     simp only [parseKeyExpr_eq fmt input, parseKeyExprList_eq fuel' fmt]
     rfl
 
 theorem parseMultisigArgs_eq (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseMultisigArgs fmt input =
-      Spec.WalletPolicy.parseMultisigArgs fmt input := by
-  unfold BitcoinLedger.WalletPolicy.parseMultisigArgs Spec.WalletPolicy.parseMultisigArgs
+      InternalSpec.WalletPolicy.parseMultisigArgs fmt input := by
+  unfold BitcoinLedger.WalletPolicy.parseMultisigArgs InternalSpec.WalletPolicy.parseMultisigArgs
   simp only [parseDecimalNat_eq, parseKeyExprList_eq]
   rfl
 
 theorem decodeWrapperByte_eq (b : UInt8) :
-    BitcoinLedger.WalletPolicy.decodeWrapperByte b = Spec.WalletPolicy.decodeWrapperByte b := rfl
+    BitcoinLedger.WalletPolicy.decodeWrapperByte b = InternalSpec.WalletPolicy.decodeWrapperByte b := rfl
 
 theorem peelWrapperPrefixAux_eq :
     ∀ (input : List UInt8) (acc : List MiniscriptWrapper),
       BitcoinLedger.WalletPolicy.peelWrapperPrefixAux acc input =
-        Spec.WalletPolicy.peelWrapperPrefixAux acc input
+        InternalSpec.WalletPolicy.peelWrapperPrefixAux acc input
   | [], _ => rfl
   | b :: rest, acc => by
     unfold BitcoinLedger.WalletPolicy.peelWrapperPrefixAux
@@ -262,91 +262,91 @@ theorem peelWrapperPrefixAux_eq :
       have hBeq : (b == 0x3A) = false := hColon
       simp only [hBeq, Bool.false_eq_true, ↓reduceIte, decodeWrapperByte_eq]
       have hSpec :
-          Spec.WalletPolicy.peelWrapperPrefixAux acc (b :: rest) =
-            (match Spec.WalletPolicy.decodeWrapperByte b with
-             | some w => Spec.WalletPolicy.peelWrapperPrefixAux (w :: acc) rest
+          InternalSpec.WalletPolicy.peelWrapperPrefixAux acc (b :: rest) =
+            (match InternalSpec.WalletPolicy.decodeWrapperByte b with
+             | some w => InternalSpec.WalletPolicy.peelWrapperPrefixAux (w :: acc) rest
              | none => none) := by
-        rw [Spec.WalletPolicy.peelWrapperPrefixAux.eq_2 _ _ _ (fun h => hne h)]
+        rw [InternalSpec.WalletPolicy.peelWrapperPrefixAux.eq_2 _ _ _ (fun h => hne h)]
         rfl
       rw [hSpec]
-      cases Spec.WalletPolicy.decodeWrapperByte b with
+      cases InternalSpec.WalletPolicy.decodeWrapperByte b with
       | none => rfl
       | some w => exact peelWrapperPrefixAux_eq rest (w :: acc)
 
 theorem peelWrapperPrefix_eq (input : List UInt8) :
     BitcoinLedger.WalletPolicy.peelWrapperPrefix input =
-      Spec.WalletPolicy.peelWrapperPrefix input :=
+      InternalSpec.WalletPolicy.peelWrapperPrefix input :=
   peelWrapperPrefixAux_eq input []
 
 theorem applyMiniscriptWrappers_eq (ws : List MiniscriptWrapper) (base : Miniscript) :
     BitcoinLedger.WalletPolicy.applyMiniscriptWrappers ws base =
-      Spec.WalletPolicy.applyMiniscriptWrappers ws base := rfl
+      InternalSpec.WalletPolicy.applyMiniscriptWrappers ws base := rfl
 
 theorem parseMiniscript_bundle_eq :
     ∀ (fuel : Nat) (fmt : PolicyFormat),
       (∀ input, BitcoinLedger.WalletPolicy.parseMiniscriptBase fuel fmt input =
-                  Spec.WalletPolicy.parseMiniscriptBase fuel fmt input) ∧
+                  InternalSpec.WalletPolicy.parseMiniscriptBase fuel fmt input) ∧
       (∀ input, BitcoinLedger.WalletPolicy.parseMiniscript fuel fmt input =
-                  Spec.WalletPolicy.parseMiniscript fuel fmt input) ∧
+                  InternalSpec.WalletPolicy.parseMiniscript fuel fmt input) ∧
       (∀ ctor input, BitcoinLedger.WalletPolicy.parseBinaryMiniscript fuel fmt ctor input =
-                  Spec.WalletPolicy.parseBinaryMiniscript fuel fmt ctor input) ∧
+                  InternalSpec.WalletPolicy.parseBinaryMiniscript fuel fmt ctor input) ∧
       (∀ input, BitcoinLedger.WalletPolicy.parseMiniscriptList fuel fmt input =
-                  Spec.WalletPolicy.parseMiniscriptList fuel fmt input)
+                  InternalSpec.WalletPolicy.parseMiniscriptList fuel fmt input)
   | 0, _ => ⟨fun _ => rfl, fun _ => rfl, fun _ _ => rfl, fun _ => rfl⟩
   | fuel' + 1, fmt => by
     rcases parseMiniscript_bundle_eq fuel' fmt with ⟨ihBase, ihMs, ihBin, ihList⟩
     refine ⟨?_, ?_, ?_, ?_⟩
     · intro input
-      unfold BitcoinLedger.WalletPolicy.parseMiniscriptBase Spec.WalletPolicy.parseMiniscriptBase
+      unfold BitcoinLedger.WalletPolicy.parseMiniscriptBase InternalSpec.WalletPolicy.parseMiniscriptBase
       simp only [isAsciiDigit_eq, stripAsciiPrefix_eq, parseKeyExpr_eq, parseDecimalU32_eq,
         parseFixedHex_eq, parseDecimalNat_eq, parseMultisigArgs_eq, ihMs, ihBin, ihList]
       rfl
     · intro input
-      unfold BitcoinLedger.WalletPolicy.parseMiniscript Spec.WalletPolicy.parseMiniscript
+      unfold BitcoinLedger.WalletPolicy.parseMiniscript InternalSpec.WalletPolicy.parseMiniscript
       simp only [peelWrapperPrefix_eq, applyMiniscriptWrappers_eq, ihBase]
       rfl
     · intro ctor input
-      unfold BitcoinLedger.WalletPolicy.parseBinaryMiniscript Spec.WalletPolicy.parseBinaryMiniscript
+      unfold BitcoinLedger.WalletPolicy.parseBinaryMiniscript InternalSpec.WalletPolicy.parseBinaryMiniscript
       simp only [ihMs]
       rfl
     · intro input
-      unfold BitcoinLedger.WalletPolicy.parseMiniscriptList Spec.WalletPolicy.parseMiniscriptList
+      unfold BitcoinLedger.WalletPolicy.parseMiniscriptList InternalSpec.WalletPolicy.parseMiniscriptList
       simp only [ihMs, ihList]
       rfl
 
 theorem parseMiniscript_eq (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseMiniscript fuel fmt input =
-      Spec.WalletPolicy.parseMiniscript fuel fmt input :=
+      InternalSpec.WalletPolicy.parseMiniscript fuel fmt input :=
   (parseMiniscript_bundle_eq fuel fmt).2.1 input
 
 theorem parseWshScriptBody_eq (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseWshScriptBody fuel fmt input =
-      Spec.WalletPolicy.parseWshScriptBody fuel fmt input := by
-  unfold BitcoinLedger.WalletPolicy.parseWshScriptBody Spec.WalletPolicy.parseWshScriptBody
+      InternalSpec.WalletPolicy.parseWshScriptBody fuel fmt input := by
+  unfold BitcoinLedger.WalletPolicy.parseWshScriptBody InternalSpec.WalletPolicy.parseWshScriptBody
   simp only [stripAsciiPrefix_eq, parseMultisigArgs_eq, parseMiniscript_eq]
   rfl
 
 theorem parseTapLeafScript_eq (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8) :
     BitcoinLedger.WalletPolicy.parseTapLeafScript fuel fmt input =
-      Spec.WalletPolicy.parseTapLeafScript fuel fmt input := by
-  unfold BitcoinLedger.WalletPolicy.parseTapLeafScript Spec.WalletPolicy.parseTapLeafScript
+      InternalSpec.WalletPolicy.parseTapLeafScript fuel fmt input := by
+  unfold BitcoinLedger.WalletPolicy.parseTapLeafScript InternalSpec.WalletPolicy.parseTapLeafScript
   simp only [stripAsciiPrefix_eq, parseMultisigArgs_eq, parseMiniscript_eq]
   rfl
 
 theorem parseTapTree_eq :
     ∀ (fuel : Nat) (fmt : PolicyFormat) (input : List UInt8),
       BitcoinLedger.WalletPolicy.parseTapTree fuel fmt input =
-        Spec.WalletPolicy.parseTapTree fuel fmt input
+        InternalSpec.WalletPolicy.parseTapTree fuel fmt input
   | 0, _, _ => rfl
   | fuel' + 1, fmt, input => by
-    unfold BitcoinLedger.WalletPolicy.parseTapTree Spec.WalletPolicy.parseTapTree
+    unfold BitcoinLedger.WalletPolicy.parseTapTree InternalSpec.WalletPolicy.parseTapTree
     simp only [parseTapTree_eq fuel' fmt, parseTapLeafScript_eq]
     rfl
 
 theorem parseDescriptorTemplate_eq (fmt : PolicyFormat) (desc : String) :
     BitcoinLedger.WalletPolicy.parseDescriptorTemplate fmt desc =
-      Spec.WalletPolicy.parseDescriptorTemplate fmt desc := by
-  unfold BitcoinLedger.WalletPolicy.parseDescriptorTemplate Spec.WalletPolicy.parseDescriptorTemplate
+      InternalSpec.WalletPolicy.parseDescriptorTemplate fmt desc := by
+  unfold BitcoinLedger.WalletPolicy.parseDescriptorTemplate InternalSpec.WalletPolicy.parseDescriptorTemplate
   simp only [stripAsciiPrefix_eq, parseKeyExpr_eq, parseWshScriptBody_eq, parseMultisigArgs_eq,
     parseTapTree_eq]
   rfl
@@ -354,19 +354,19 @@ theorem parseDescriptorTemplate_eq (fmt : PolicyFormat) (desc : String) :
 theorem parseDescriptorTemplateWithProfile_eq (profile : PolicyProfile) (fmt : PolicyFormat)
     (desc : String) :
     BitcoinLedger.WalletPolicy.parseDescriptorTemplateWithProfile profile fmt desc =
-      Spec.WalletPolicy.parseDescriptorTemplateWithProfile profile fmt desc := by
+      InternalSpec.WalletPolicy.parseDescriptorTemplateWithProfile profile fmt desc := by
   unfold BitcoinLedger.WalletPolicy.parseDescriptorTemplateWithProfile
-    Spec.WalletPolicy.parseDescriptorTemplateWithProfile
+    InternalSpec.WalletPolicy.parseDescriptorTemplateWithProfile
   simp only [parseDescriptorTemplate_eq]
   rfl
 
 theorem validWalletNameBytesWithBounds_eq (allowEmpty : Bool) (maxLenOpt : Option Nat)
     (forbidEdgeSpaces : Bool) (bytes : List UInt8) :
     BitcoinLedger.WalletPolicy.validWalletNameBytesWithBounds allowEmpty maxLenOpt forbidEdgeSpaces bytes =
-      Spec.WalletPolicy.validWalletNameBytesWithBounds allowEmpty maxLenOpt forbidEdgeSpaces bytes := rfl
+      InternalSpec.WalletPolicy.validWalletNameBytesWithBounds allowEmpty maxLenOpt forbidEdgeSpaces bytes := rfl
 
 theorem validWalletName_eq (name : String) :
-    BitcoinLedger.WalletPolicy.validWalletName name = Spec.WalletPolicy.validWalletName name := rfl
+    BitcoinLedger.WalletPolicy.validWalletName name = InternalSpec.WalletPolicy.validWalletName name := rfl
 
 theorem validRegisteredWalletName_eq (profile : PolicyProfile) (name : String) :
     BitcoinLedger.WalletPolicy.validRegisteredWalletName profile name =
@@ -395,70 +395,70 @@ theorem keyExprReferencedIndices_eq (ke : KeyExpr) :
 /-! ## Section 3: BIP-68 / BIP-65 Timelocks & BIP-379 Miniscript Typechecker Equivalence -/
 
 theorem pushScriptNumSize_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.pushScriptNumSize n = Spec.WalletPolicy.pushScriptNumSize n := rfl
+    BitcoinLedger.WalletPolicy.pushScriptNumSize n = InternalSpec.WalletPolicy.pushScriptNumSize n := rfl
 
 theorem optAdd_eq (a b : Option Nat) :
-    BitcoinLedger.WalletPolicy.optAdd a b = Spec.WalletPolicy.optAdd a b := rfl
+    BitcoinLedger.WalletPolicy.optAdd a b = InternalSpec.WalletPolicy.optAdd a b := rfl
 
 theorem optMax_eq (a b : Option Nat) :
-    BitcoinLedger.WalletPolicy.optMax a b = Spec.WalletPolicy.optMax a b := rfl
+    BitcoinLedger.WalletPolicy.optMax a b = InternalSpec.WalletPolicy.optMax a b := rfl
 
 theorem hasTimelockConflict_eq (a b : MiniscriptExtInfo) :
     BitcoinLedger.WalletPolicy.hasTimelockConflict a b =
-      Spec.WalletPolicy.hasTimelockConflict a b := rfl
+      InternalSpec.WalletPolicy.hasTimelockConflict a b := rfl
 
 theorem validOlderArg_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.validOlderArg n = Spec.WalletPolicy.validOlderArg n := rfl
+    BitcoinLedger.WalletPolicy.validOlderArg n = InternalSpec.WalletPolicy.validOlderArg n := rfl
 
 theorem validAfterArg_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.validAfterArg n = Spec.WalletPolicy.validAfterArg n := rfl
+    BitcoinLedger.WalletPolicy.validAfterArg n = InternalSpec.WalletPolicy.validAfterArg n := rfl
 
 theorem listNodup_eq {α : Type} [DecidableEq α] :
-    ∀ (xs : List α), BitcoinLedger.WalletPolicy.listNodup xs = Spec.WalletPolicy.listNodup xs
+    ∀ (xs : List α), BitcoinLedger.WalletPolicy.listNodup xs = InternalSpec.WalletPolicy.listNodup xs
   | [] => rfl
   | x :: xs => by
-    unfold BitcoinLedger.WalletPolicy.listNodup Spec.WalletPolicy.listNodup
+    unfold BitcoinLedger.WalletPolicy.listNodup InternalSpec.WalletPolicy.listNodup
     rw [listNodup_eq xs]
 
 theorem checkKeyExprInContext_eq (fmt : PolicyFormat) (allowMusig : Bool) (maxMusigKeys : Nat)
     (ke : KeyExpr) :
     BitcoinLedger.WalletPolicy.checkKeyExprInContext fmt allowMusig maxMusigKeys ke =
-      Spec.WalletPolicy.checkKeyExprInContext fmt allowMusig maxMusigKeys ke := by
-  unfold BitcoinLedger.WalletPolicy.checkKeyExprInContext Spec.WalletPolicy.checkKeyExprInContext
+      InternalSpec.WalletPolicy.checkKeyExprInContext fmt allowMusig maxMusigKeys ke := by
+  unfold BitcoinLedger.WalletPolicy.checkKeyExprInContext InternalSpec.WalletPolicy.checkKeyExprInContext
   simp only [isUnhardened_eq, listNodup_eq]
   rfl
 
 theorem checkKeyExprList_eq (fmt : PolicyFormat) (allowMusig : Bool) (maxMusigKeys : Nat) :
     ∀ (kes : List KeyExpr),
       BitcoinLedger.WalletPolicy.checkKeyExprList fmt allowMusig maxMusigKeys kes =
-        Spec.WalletPolicy.checkKeyExprList fmt allowMusig maxMusigKeys kes
+        InternalSpec.WalletPolicy.checkKeyExprList fmt allowMusig maxMusigKeys kes
   | [] => rfl
   | ke :: kes => by
-    unfold BitcoinLedger.WalletPolicy.checkKeyExprList Spec.WalletPolicy.checkKeyExprList
+    unfold BitcoinLedger.WalletPolicy.checkKeyExprList InternalSpec.WalletPolicy.checkKeyExprList
     rw [checkKeyExprInContext_eq, checkKeyExprList_eq fmt allowMusig maxMusigKeys kes]
 
 theorem threshDpStep_go_eq (childSat childDsat : Option Nat) :
     ∀ (sats : List (Option Nat)) (prev : Option Nat),
       BitcoinLedger.WalletPolicy.threshDpStep.go childSat childDsat prev sats =
-        Spec.WalletPolicy.threshDpStep.go childSat childDsat prev sats
+        InternalSpec.WalletPolicy.threshDpStep.go childSat childDsat prev sats
   | [], _ => rfl
   | cur :: rest, prev => by
-    unfold BitcoinLedger.WalletPolicy.threshDpStep.go Spec.WalletPolicy.threshDpStep.go
+    unfold BitcoinLedger.WalletPolicy.threshDpStep.go InternalSpec.WalletPolicy.threshDpStep.go
     rw [optAdd_eq, optAdd_eq, optMax_eq, threshDpStep_go_eq childSat childDsat rest cur]
 
 theorem threshDpStep_eq (sats : List (Option Nat)) (childSat childDsat : Option Nat) :
     BitcoinLedger.WalletPolicy.threshDpStep sats childSat childDsat =
-      Spec.WalletPolicy.threshDpStep sats childSat childDsat := by
+      InternalSpec.WalletPolicy.threshDpStep sats childSat childDsat := by
   cases sats with
   | nil => rfl
   | cons s0 rest =>
-    unfold BitcoinLedger.WalletPolicy.threshDpStep Spec.WalletPolicy.threshDpStep
+    unfold BitcoinLedger.WalletPolicy.threshDpStep InternalSpec.WalletPolicy.threshDpStep
     dsimp only
     rw [optAdd_eq, threshDpStep_go_eq childSat childDsat rest s0]
 
 theorem listGetOpt_eq :
     ∀ (xs : List (Option Nat)) (idx : Nat),
-      BitcoinLedger.WalletPolicy.listGetOpt xs idx = Spec.WalletPolicy.listGetOpt xs idx
+      BitcoinLedger.WalletPolicy.listGetOpt xs idx = InternalSpec.WalletPolicy.listGetOpt xs idx
   | [], _ => rfl
   | _ :: _, 0 => rfl
   | _ :: xs, idx + 1 => listGetOpt_eq xs idx
@@ -467,26 +467,26 @@ theorem analyzeMiniscript_eq (fmt : PolicyFormat) (ctx : MiniscriptCtx)
     (maxMultiKeys maxMultiAKeys maxMusigKeys : Nat) :
     ∀ (ms : Miniscript),
       BitcoinLedger.WalletPolicy.analyzeMiniscript fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms =
-        Spec.WalletPolicy.analyzeMiniscript fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms := by
+        InternalSpec.WalletPolicy.analyzeMiniscript fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       ∀ isFirst : Bool,
         BitcoinLedger.WalletPolicy.analyzeMiniscript.analyzeChildren fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys isFirst subs =
-          Spec.WalletPolicy.analyzeMiniscript.analyzeChildren fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys isFirst subs) with
+          InternalSpec.WalletPolicy.analyzeMiniscript.analyzeChildren fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys isFirst subs) with
   | ms0 => rfl
   | ms1 => rfl
   | pk ke =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     rw [checkKeyExprInContext_eq]
   | pkh ke =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     rw [checkKeyExprInContext_eq]
   | pk_k ke =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     rw [checkKeyExprInContext_eq]
   | pk_h ke =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     rw [checkKeyExprInContext_eq]
   | older val => rfl
   | after val => rfl
@@ -495,54 +495,54 @@ theorem analyzeMiniscript_eq (fmt : PolicyFormat) (ctx : MiniscriptCtx)
   | ripemd160 h => rfl
   | hash160 h => rfl
   | andor x y z ihx ihy ihz =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihy, ihz, hasTimelockConflict_eq, optAdd_eq, optMax_eq]
   | and_v x y ihx ihy =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihy, hasTimelockConflict_eq, optAdd_eq]
   | and_b x y ihx ihy =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihy, hasTimelockConflict_eq, optAdd_eq]
   | and_n x y ihx ihy =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihy, hasTimelockConflict_eq, optAdd_eq]
   | or_b x z ihx ihz =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihz, optAdd_eq, optMax_eq]
   | or_c x z ihx ihz =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihz, optAdd_eq, optMax_eq]
   | or_d x z ihx ihz =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihz, optAdd_eq, optMax_eq]
   | or_i x z ihx ihz =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihx, ihz, optAdd_eq, optMax_eq]
   | thresh k subs ihSubs =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ihSubs true, threshDpStep_eq, listGetOpt_eq, pushScriptNumSize_eq]
   | multi k keys =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [checkKeyExprList_eq, pushScriptNumSize_eq]
   | multi_a k keys =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [checkKeyExprList_eq, pushScriptNumSize_eq]
   | wrap w sub ih =>
-    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript Spec.WalletPolicy.analyzeMiniscript
+    unfold BitcoinLedger.WalletPolicy.analyzeMiniscript InternalSpec.WalletPolicy.analyzeMiniscript
     simp only [ih, optAdd_eq, optMax_eq]
     rfl
   | nil =>
     rfl
   | cons m ms ihm ihms =>
     unfold BitcoinLedger.WalletPolicy.analyzeMiniscript.analyzeChildren
-      Spec.WalletPolicy.analyzeMiniscript.analyzeChildren
+      InternalSpec.WalletPolicy.analyzeMiniscript.analyzeChildren
     simp only [ihm, ihms false]
 
 theorem checkMiniscriptSane_eq (fmt : PolicyFormat) (ctx : MiniscriptCtx)
     (maxMultiKeys maxMultiAKeys maxMusigKeys : Nat) (ms : Miniscript) :
     BitcoinLedger.WalletPolicy.checkMiniscriptSane fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms =
-      Spec.WalletPolicy.checkMiniscriptSane fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms := by
-  unfold BitcoinLedger.WalletPolicy.checkMiniscriptSane Spec.WalletPolicy.checkMiniscriptSane
+      InternalSpec.WalletPolicy.checkMiniscriptSane fmt ctx maxMultiKeys maxMultiAKeys maxMusigKeys ms := by
+  unfold BitcoinLedger.WalletPolicy.checkMiniscriptSane InternalSpec.WalletPolicy.checkMiniscriptSane
   rw [analyzeMiniscript_eq]
   rfl
 
@@ -551,48 +551,48 @@ theorem checkMiniscriptSane_eq (fmt : PolicyFormat) (ctx : MiniscriptCtx)
 theorem collectMiniscriptKeyExprs_eq :
     ∀ (ms : Miniscript),
       BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs ms =
-        Spec.WalletPolicy.collectMiniscriptKeyExprs ms := by
+        InternalSpec.WalletPolicy.collectMiniscriptKeyExprs ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs.goList subs =
-        Spec.WalletPolicy.collectMiniscriptKeyExprs.goList subs) with
+        InternalSpec.WalletPolicy.collectMiniscriptKeyExprs.goList subs) with
   | ms0 | ms1 | older _ | after _ | sha256 _ | hash256 _ | ripemd160 _ | hash160 _ => rfl
   | pk _ | pkh _ | pk_k _ | pk_h _ => rfl
   | multi _ _ | multi_a _ _ => rfl
   | andor x y z ihx ihy ihz =>
     unfold BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs
-      Spec.WalletPolicy.collectMiniscriptKeyExprs
+      InternalSpec.WalletPolicy.collectMiniscriptKeyExprs
     rw [ihx, ihy, ihz]
   | and_v x y ihx ihy | and_b x y ihx ihy | and_n x y ihx ihy
   | or_b x y ihx ihy | or_c x y ihx ihy | or_d x y ihx ihy | or_i x y ihx ihy =>
     unfold BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs
-      Spec.WalletPolicy.collectMiniscriptKeyExprs
+      InternalSpec.WalletPolicy.collectMiniscriptKeyExprs
     rw [ihx, ihy]
   | thresh _ subs ihSubs =>
     unfold BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs
-      Spec.WalletPolicy.collectMiniscriptKeyExprs
+      InternalSpec.WalletPolicy.collectMiniscriptKeyExprs
     exact ihSubs
   | wrap _ sub ih =>
     unfold BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs
-      Spec.WalletPolicy.collectMiniscriptKeyExprs
+      InternalSpec.WalletPolicy.collectMiniscriptKeyExprs
     exact ih
   | nil => rfl
   | cons m ms ihm ihms =>
     unfold BitcoinLedger.WalletPolicy.collectMiniscriptKeyExprs.goList
-      Spec.WalletPolicy.collectMiniscriptKeyExprs.goList
+      InternalSpec.WalletPolicy.collectMiniscriptKeyExprs.goList
     rw [ihm, ihms]
 
 theorem collectWshKeyExprs_eq (ws : WshScript) :
     BitcoinLedger.WalletPolicy.collectWshKeyExprs ws =
-      Spec.WalletPolicy.collectWshKeyExprs ws := by
+      InternalSpec.WalletPolicy.collectWshKeyExprs ws := by
   cases ws with
   | sortedmulti _ _ => rfl
   | miniscript ms => exact collectMiniscriptKeyExprs_eq ms
 
 theorem collectTapLeafKeyExprs_eq (ls : TapLeafScript) :
     BitcoinLedger.WalletPolicy.collectTapLeafKeyExprs ls =
-      Spec.WalletPolicy.collectTapLeafKeyExprs ls := by
+      InternalSpec.WalletPolicy.collectTapLeafKeyExprs ls := by
   cases ls with
   | sortedmulti_a _ _ => rfl
   | miniscript ms => exact collectMiniscriptKeyExprs_eq ms
@@ -600,16 +600,16 @@ theorem collectTapLeafKeyExprs_eq (ls : TapLeafScript) :
 theorem collectTapTreeKeyExprs_eq :
     ∀ (t : TapTree),
       BitcoinLedger.WalletPolicy.collectTapTreeKeyExprs t =
-        Spec.WalletPolicy.collectTapTreeKeyExprs t
+        InternalSpec.WalletPolicy.collectTapTreeKeyExprs t
   | .leaf ls => collectTapLeafKeyExprs_eq ls
   | .branch l r => by
     unfold BitcoinLedger.WalletPolicy.collectTapTreeKeyExprs
-      Spec.WalletPolicy.collectTapTreeKeyExprs
+      InternalSpec.WalletPolicy.collectTapTreeKeyExprs
     rw [collectTapTreeKeyExprs_eq l, collectTapTreeKeyExprs_eq r]
 
 theorem collectTemplateKeyExprs_eq (dt : DescriptorTemplate) :
     BitcoinLedger.WalletPolicy.collectTemplateKeyExprs dt =
-      Spec.WalletPolicy.collectTemplateKeyExprs dt := by
+      InternalSpec.WalletPolicy.collectTemplateKeyExprs dt := by
   cases dt with
   | pkh _ | wpkh _ => rfl
   | sh inner =>
@@ -622,7 +622,7 @@ theorem collectTemplateKeyExprs_eq (dt : DescriptorTemplate) :
     | none => rfl
     | some tree =>
       unfold BitcoinLedger.WalletPolicy.collectTemplateKeyExprs
-        Spec.WalletPolicy.collectTemplateKeyExprs
+        InternalSpec.WalletPolicy.collectTemplateKeyExprs
       dsimp only
       rw [collectTapTreeKeyExprs_eq tree]
 
@@ -637,7 +637,7 @@ theorem miniscriptAstDepth_eq :
     ∀ (ms : Miniscript),
       BitcoinLedger.WalletPolicy.miniscriptAstDepth ms = Miniscript.astDepth ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       BitcoinLedger.WalletPolicy.miniscriptAstDepth.maxList subs =
         Miniscript.astDepth.maxList subs) with
@@ -667,7 +667,7 @@ theorem miniscriptThreshNesting_eq :
     ∀ (ms : Miniscript),
       BitcoinLedger.WalletPolicy.miniscriptThreshNesting ms = Miniscript.threshNesting ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       BitcoinLedger.WalletPolicy.miniscriptThreshNesting.maxList subs =
         Miniscript.threshNesting.maxList subs) with
@@ -697,7 +697,7 @@ theorem miniscriptMaxThreshArity_eq :
     ∀ (ms : Miniscript),
       BitcoinLedger.WalletPolicy.miniscriptMaxThreshArity ms = Miniscript.maxThreshArity ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       BitcoinLedger.WalletPolicy.miniscriptMaxThreshArity.maxList subs =
         Miniscript.maxThreshArity.maxList subs) with
@@ -725,63 +725,63 @@ theorem miniscriptMaxThreshArity_eq :
 
 theorem checkMiniscriptResourceBounds_eq (profile : PolicyProfile) (ms : Miniscript) :
     BitcoinLedger.WalletPolicy.checkMiniscriptResourceBounds profile ms =
-      Spec.WalletPolicy.checkMiniscriptResourceBounds profile ms := by
+      InternalSpec.WalletPolicy.checkMiniscriptResourceBounds profile ms := by
   unfold BitcoinLedger.WalletPolicy.checkMiniscriptResourceBounds
-    Spec.WalletPolicy.checkMiniscriptResourceBounds
+    InternalSpec.WalletPolicy.checkMiniscriptResourceBounds
   rw [miniscriptAstDepth_eq, miniscriptThreshNesting_eq, miniscriptMaxThreshArity_eq]
   rfl
 
 theorem dedupFirstAppearance_go_eq :
     ∀ (ys seen : List Nat),
       BitcoinLedger.WalletPolicy.dedupFirstAppearance.go seen ys =
-        Spec.WalletPolicy.dedupFirstAppearance.go seen ys
+        InternalSpec.WalletPolicy.dedupFirstAppearance.go seen ys
   | [], _ => rfl
   | y :: ys, seen => by
     unfold BitcoinLedger.WalletPolicy.dedupFirstAppearance.go
-      Spec.WalletPolicy.dedupFirstAppearance.go
+      InternalSpec.WalletPolicy.dedupFirstAppearance.go
     cases seen.contains y <;> exact dedupFirstAppearance_go_eq ys _
 
 theorem dedupFirstAppearance_eq (xs : List Nat) :
     BitcoinLedger.WalletPolicy.dedupFirstAppearance xs =
-      Spec.WalletPolicy.dedupFirstAppearance xs := by
+      InternalSpec.WalletPolicy.dedupFirstAppearance xs := by
   cases xs with
   | nil => rfl
   | cons x xs => exact dedupFirstAppearance_go_eq xs [x]
 
 theorem insertNat_eq (x : Nat) :
-    ∀ (ys : List Nat), BitcoinLedger.WalletPolicy.insertNat x ys = Spec.WalletPolicy.insertNat x ys
+    ∀ (ys : List Nat), BitcoinLedger.WalletPolicy.insertNat x ys = InternalSpec.WalletPolicy.insertNat x ys
   | [] => rfl
   | y :: ys => by
-    unfold BitcoinLedger.WalletPolicy.insertNat Spec.WalletPolicy.insertNat
+    unfold BitcoinLedger.WalletPolicy.insertNat InternalSpec.WalletPolicy.insertNat
     rw [insertNat_eq x ys]
 
 theorem sortNats_eq :
-    ∀ (xs : List Nat), BitcoinLedger.WalletPolicy.sortNats xs = Spec.WalletPolicy.sortNats xs
+    ∀ (xs : List Nat), BitcoinLedger.WalletPolicy.sortNats xs = InternalSpec.WalletPolicy.sortNats xs
   | [] => rfl
   | x :: xs => by
-    unfold BitcoinLedger.WalletPolicy.sortNats Spec.WalletPolicy.sortNats
+    unfold BitcoinLedger.WalletPolicy.sortNats InternalSpec.WalletPolicy.sortNats
     rw [sortNats_eq xs, insertNat_eq]
 
 theorem sameKeyPlaceholder_eq (kp1 kp2 : KeyExpr) :
     BitcoinLedger.WalletPolicy.sameKeyPlaceholder kp1 kp2 =
-      Spec.WalletPolicy.sameKeyPlaceholder kp1 kp2 := by
+      InternalSpec.WalletPolicy.sameKeyPlaceholder kp1 kp2 := by
   cases kp1 <;> cases kp2 <;> simp only [BitcoinLedger.WalletPolicy.sameKeyPlaceholder,
-    Spec.WalletPolicy.sameKeyPlaceholder, sortNats_eq]
+    InternalSpec.WalletPolicy.sameKeyPlaceholder, sortNats_eq]
 
 theorem disjointDerivations_eq (d1 d2 : DerivationSpec) :
     BitcoinLedger.WalletPolicy.disjointDerivations d1 d2 =
-      Spec.WalletPolicy.disjointDerivations d1 d2 := by
-  unfold BitcoinLedger.WalletPolicy.disjointDerivations Spec.WalletPolicy.disjointDerivations
+      InternalSpec.WalletPolicy.disjointDerivations d1 d2 := by
+  unfold BitcoinLedger.WalletPolicy.disjointDerivations InternalSpec.WalletPolicy.disjointDerivations
   rw [derivationToPair_eq, derivationToPair_eq]
 
 theorem checkPairwiseDisjointMultipaths_eq :
     ∀ (kes : List KeyExpr),
       BitcoinLedger.WalletPolicy.checkPairwiseDisjointMultipaths kes =
-        Spec.WalletPolicy.checkPairwiseDisjointMultipaths kes
+        InternalSpec.WalletPolicy.checkPairwiseDisjointMultipaths kes
   | [] => rfl
   | kp :: rest => by
     unfold BitcoinLedger.WalletPolicy.checkPairwiseDisjointMultipaths
-      Spec.WalletPolicy.checkPairwiseDisjointMultipaths
+      InternalSpec.WalletPolicy.checkPairwiseDisjointMultipaths
     simp only [sameKeyPlaceholder_eq, disjointDerivations_eq, keyExprDeriv_eq,
       checkPairwiseDisjointMultipaths_eq rest]
 
@@ -796,42 +796,42 @@ theorem foldr_referencedIndices_eq :
 theorem checkPlaceholderCoverage_eq (nKeys : Nat) (requireSequential : Bool)
     (keyExprs : List KeyExpr) :
     BitcoinLedger.WalletPolicy.checkPlaceholderCoverage nKeys requireSequential keyExprs =
-      Spec.WalletPolicy.checkPlaceholderCoverage nKeys requireSequential keyExprs := by
+      InternalSpec.WalletPolicy.checkPlaceholderCoverage nKeys requireSequential keyExprs := by
   unfold BitcoinLedger.WalletPolicy.checkPlaceholderCoverage
-    Spec.WalletPolicy.checkPlaceholderCoverage
+    InternalSpec.WalletPolicy.checkPlaceholderCoverage
   simp only [foldr_referencedIndices_eq, dedupFirstAppearance_eq]
 
 theorem checkWshScript_eq (profile : PolicyProfile) (fmt : PolicyFormat) (insideSh : Bool)
     (ws : WshScript) :
     BitcoinLedger.WalletPolicy.checkWshScript profile fmt insideSh ws =
-      Spec.WalletPolicy.checkWshScript profile fmt insideSh ws := by
+      InternalSpec.WalletPolicy.checkWshScript profile fmt insideSh ws := by
   cases ws with
   | sortedmulti k keys =>
-    unfold BitcoinLedger.WalletPolicy.checkWshScript Spec.WalletPolicy.checkWshScript
+    unfold BitcoinLedger.WalletPolicy.checkWshScript InternalSpec.WalletPolicy.checkWshScript
     simp only [checkKeyExprList_eq]
   | miniscript ms =>
-    unfold BitcoinLedger.WalletPolicy.checkWshScript Spec.WalletPolicy.checkWshScript
+    unfold BitcoinLedger.WalletPolicy.checkWshScript InternalSpec.WalletPolicy.checkWshScript
     simp only [checkMiniscriptResourceBounds_eq, checkKeyExprList_eq, checkMiniscriptSane_eq]
     rfl
 
 theorem checkTapTree_eq (profile : PolicyProfile) (fmt : PolicyFormat) :
     ∀ (t : TapTree),
       BitcoinLedger.WalletPolicy.checkTapTree profile fmt t =
-        Spec.WalletPolicy.checkTapTree profile fmt t
+        InternalSpec.WalletPolicy.checkTapTree profile fmt t
   | .leaf (.sortedmulti_a k keys) => by
-    unfold BitcoinLedger.WalletPolicy.checkTapTree Spec.WalletPolicy.checkTapTree
+    unfold BitcoinLedger.WalletPolicy.checkTapTree InternalSpec.WalletPolicy.checkTapTree
     simp only [checkKeyExprList_eq]
   | .leaf (.miniscript ms) => by
-    unfold BitcoinLedger.WalletPolicy.checkTapTree Spec.WalletPolicy.checkTapTree
+    unfold BitcoinLedger.WalletPolicy.checkTapTree InternalSpec.WalletPolicy.checkTapTree
     simp only [checkMiniscriptResourceBounds_eq, checkMiniscriptSane_eq]
   | .branch l r => by
-    unfold BitcoinLedger.WalletPolicy.checkTapTree Spec.WalletPolicy.checkTapTree
+    unfold BitcoinLedger.WalletPolicy.checkTapTree InternalSpec.WalletPolicy.checkTapTree
     rw [checkTapTree_eq profile fmt l, checkTapTree_eq profile fmt r]
 
 theorem checkDescriptorTemplate_eq (profile : PolicyProfile) (fmt : PolicyFormat)
     (dt : DescriptorTemplate) :
     BitcoinLedger.WalletPolicy.checkDescriptorTemplate profile fmt dt =
-      Spec.WalletPolicy.checkDescriptorTemplate profile fmt dt := by
+      InternalSpec.WalletPolicy.checkDescriptorTemplate profile fmt dt := by
   cases dt with
   | pkh ke | wpkh ke => exact checkKeyExprInContext_eq fmt false profile.maxMusigKeys ke
   | sh inner =>
@@ -839,32 +839,32 @@ theorem checkDescriptorTemplate_eq (profile : PolicyProfile) (fmt : PolicyFormat
     | wpkh ke => exact checkKeyExprInContext_eq fmt false profile.maxMusigKeys ke
     | multi k keys | sortedmulti k keys =>
       unfold BitcoinLedger.WalletPolicy.checkDescriptorTemplate
-        Spec.WalletPolicy.checkDescriptorTemplate
+        InternalSpec.WalletPolicy.checkDescriptorTemplate
       simp only [checkKeyExprList_eq]
     | wsh ws =>
       unfold BitcoinLedger.WalletPolicy.checkDescriptorTemplate
-        Spec.WalletPolicy.checkDescriptorTemplate
+        InternalSpec.WalletPolicy.checkDescriptorTemplate
       simp only [checkWshScript_eq]
   | wsh ws => exact checkWshScript_eq profile fmt false ws
   | tr ik treeOpt =>
     cases treeOpt with
     | none =>
       unfold BitcoinLedger.WalletPolicy.checkDescriptorTemplate
-        Spec.WalletPolicy.checkDescriptorTemplate
+        InternalSpec.WalletPolicy.checkDescriptorTemplate
       simp only [checkKeyExprInContext_eq]
     | some tree =>
       unfold BitcoinLedger.WalletPolicy.checkDescriptorTemplate
-        Spec.WalletPolicy.checkDescriptorTemplate
+        InternalSpec.WalletPolicy.checkDescriptorTemplate
       simp only [tapTreeDepth_eq, checkKeyExprInContext_eq, checkTapTree_eq]
 
 theorem checkTemplateByteBounds_eq (profile : PolicyProfile) (policy : WalletPolicy) :
     BitcoinLedger.WalletPolicy.checkTemplateByteBounds profile policy =
-      Spec.WalletPolicy.checkTemplateByteBounds profile policy := rfl
+      InternalSpec.WalletPolicy.checkTemplateByteBounds profile policy := rfl
 
 theorem checkPolicyWellFormed_eq (profile : PolicyProfile) (policy : WalletPolicy) :
     BitcoinLedger.WalletPolicy.checkPolicyWellFormed profile policy =
-      Spec.WalletPolicy.checkPolicyWellFormed profile policy := by
-  unfold BitcoinLedger.WalletPolicy.checkPolicyWellFormed Spec.WalletPolicy.checkPolicyWellFormed
+      InternalSpec.WalletPolicy.checkPolicyWellFormed profile policy := by
+  unfold BitcoinLedger.WalletPolicy.checkPolicyWellFormed InternalSpec.WalletPolicy.checkPolicyWellFormed
   have hKiFn :
       BitcoinLedger.WalletPolicy.validKeyInfoWithBounds profile.maxOriginSteps policy.format profile.network =
         KeyInformation.validForFormatWithBounds profile.maxOriginSteps policy.format profile.network := rfl
@@ -873,61 +873,61 @@ theorem checkPolicyWellFormed_eq (profile : PolicyProfile) (policy : WalletPolic
 
 theorem classifyKeyInfo_eq (dev : DeviceRegistrationOracle) (net : Network) (ki : KeyInformation) :
     BitcoinLedger.WalletPolicy.classifyKeyInfo dev net ki =
-      Spec.WalletPolicy.classifyKeyInfo dev net ki := rfl
+      InternalSpec.WalletPolicy.classifyKeyInfo dev net ki := rfl
 
 theorem isOurKey_eq (dev : DeviceRegistrationOracle) (net : Network) (ki : KeyInformation) :
-    BitcoinLedger.WalletPolicy.isOurKey dev net ki = Spec.WalletPolicy.isOurKey dev net ki := rfl
+    BitcoinLedger.WalletPolicy.isOurKey dev net ki = InternalSpec.WalletPolicy.isOurKey dev net ki := rfl
 
 theorem hasOurKey_eq (dev : DeviceRegistrationOracle) (net : Network) (policy : WalletPolicy) :
     BitcoinLedger.WalletPolicy.hasOurKey dev net policy =
-      Spec.WalletPolicy.hasOurKey dev net policy := rfl
+      InternalSpec.WalletPolicy.hasOurKey dev net policy := rfl
 
 theorem listNthOpt_eq {α : Type} :
     ∀ (xs : List α) (idx : Nat),
-      BitcoinLedger.WalletPolicy.listNthOpt xs idx = Spec.WalletPolicy.listNthOpt xs idx
+      BitcoinLedger.WalletPolicy.listNthOpt xs idx = InternalSpec.WalletPolicy.listNthOpt xs idx
   | [], _ => rfl
   | _ :: _, 0 => rfl
   | _ :: xs, idx + 1 => listNthOpt_eq xs idx
 
 theorem countInternalInKeyExpr_eq (roles : List PolicyKeyRole) (ke : KeyExpr) :
     BitcoinLedger.WalletPolicy.countInternalInKeyExpr roles ke =
-      Spec.WalletPolicy.countInternalInKeyExpr roles ke := by
+      InternalSpec.WalletPolicy.countInternalInKeyExpr roles ke := by
   unfold BitcoinLedger.WalletPolicy.countInternalInKeyExpr
-    Spec.WalletPolicy.countInternalInKeyExpr
+    InternalSpec.WalletPolicy.countInternalInKeyExpr
   simp only [keyExprReferencedIndices_eq, listNthOpt_eq]
 
 theorem checkMusigSingleInternal_eq (roles : List PolicyKeyRole) :
     ∀ (kes : List KeyExpr),
       BitcoinLedger.WalletPolicy.checkMusigSingleInternal roles kes =
-        Spec.WalletPolicy.checkMusigSingleInternal roles kes
+        InternalSpec.WalletPolicy.checkMusigSingleInternal roles kes
   | [] => rfl
   | .single _ _ :: rest => checkMusigSingleInternal_eq roles rest
   | .musig _ _ :: rest => by
     unfold BitcoinLedger.WalletPolicy.checkMusigSingleInternal
-      Spec.WalletPolicy.checkMusigSingleInternal
+      InternalSpec.WalletPolicy.checkMusigSingleInternal
     rw [countInternalInKeyExpr_eq, checkMusigSingleInternal_eq roles rest]
 
 theorem checkRegisteredSignability_eq (profile : PolicyProfile) (dev : DeviceRegistrationOracle)
     (policy : WalletPolicy) :
     BitcoinLedger.WalletPolicy.checkRegisteredSignability profile dev policy =
-      Spec.WalletPolicy.checkRegisteredSignability profile dev policy := by
+      InternalSpec.WalletPolicy.checkRegisteredSignability profile dev policy := by
   unfold BitcoinLedger.WalletPolicy.checkRegisteredSignability
-    Spec.WalletPolicy.checkRegisteredSignability
+    InternalSpec.WalletPolicy.checkRegisteredSignability
   have hClassFn :
       BitcoinLedger.WalletPolicy.classifyKeyInfo dev profile.network =
-        Spec.WalletPolicy.classifyKeyInfo dev profile.network := rfl
+        InternalSpec.WalletPolicy.classifyKeyInfo dev profile.network := rfl
   have hCountFn :
       (fun ke => decide (BitcoinLedger.WalletPolicy.countInternalInKeyExpr
-        (policy.keys.map (Spec.WalletPolicy.classifyKeyInfo dev profile.network)) ke > 0)) =
-      (fun ke => decide (Spec.WalletPolicy.countInternalInKeyExpr
-        (policy.keys.map (Spec.WalletPolicy.classifyKeyInfo dev profile.network)) ke > 0)) := by
+        (policy.keys.map (InternalSpec.WalletPolicy.classifyKeyInfo dev profile.network)) ke > 0)) =
+      (fun ke => decide (InternalSpec.WalletPolicy.countInternalInKeyExpr
+        (policy.keys.map (InternalSpec.WalletPolicy.classifyKeyInfo dev profile.network)) ke > 0)) := by
     funext ke
     rw [countInternalInKeyExpr_eq]
   simp only [hClassFn, collectTemplateKeyExprs_eq, checkMusigSingleInternal_eq, hCountFn]
 
 theorem standardBip44Purpose_eq (dt : DescriptorTemplate) :
     BitcoinLedger.WalletPolicy.standardBip44Purpose dt =
-      Spec.WalletPolicy.standardBip44Purpose dt := by
+      InternalSpec.WalletPolicy.standardBip44Purpose dt := by
   cases dt with
   | pkh ke | wpkh ke =>
     cases ke with
@@ -961,25 +961,25 @@ theorem standardBip44Purpose_eq (dt : DescriptorTemplate) :
 theorem isDefaultStatelessPolicy_eq (dev : DeviceRegistrationOracle) (net : Network)
     (policy : WalletPolicy) :
     BitcoinLedger.WalletPolicy.isDefaultStatelessPolicy dev net policy =
-      Spec.WalletPolicy.isDefaultStatelessPolicy dev net policy := by
+      InternalSpec.WalletPolicy.isDefaultStatelessPolicy dev net policy := by
   unfold BitcoinLedger.WalletPolicy.isDefaultStatelessPolicy
-    Spec.WalletPolicy.isDefaultStatelessPolicy
+    InternalSpec.WalletPolicy.isDefaultStatelessPolicy
   simp only [standardBip44Purpose_eq, isOurKey_eq, hardened_eq, coinTypeOfNetwork_eq]
   rfl
 
 theorem validatePolicyRegistration_eq (profile : PolicyProfile) (dev : DeviceRegistrationOracle)
     (policy : WalletPolicy) (userApproved : Bool) :
     BitcoinLedger.WalletPolicy.validatePolicyRegistration profile dev policy userApproved =
-      Spec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved := by
+      InternalSpec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved := by
   unfold BitcoinLedger.WalletPolicy.validatePolicyRegistration
-    Spec.WalletPolicy.validatePolicyRegistration
+    InternalSpec.WalletPolicy.validatePolicyRegistration
   simp only [validRegisteredWalletName_eq, checkPolicyWellFormed_eq, checkRegisteredSignability_eq]
 
 theorem authorizePolicyUse_eq (profile : PolicyProfile) (dev : DeviceRegistrationOracle)
     (policy : WalletPolicy) (auth : PolicyAuthorization) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.authorizePolicyUse profile dev policy auth addressIndex =
-      Spec.WalletPolicy.authorizePolicyUse profile dev policy auth addressIndex := by
-  unfold BitcoinLedger.WalletPolicy.authorizePolicyUse Spec.WalletPolicy.authorizePolicyUse
+      InternalSpec.WalletPolicy.authorizePolicyUse profile dev policy auth addressIndex := by
+  unfold BitcoinLedger.WalletPolicy.authorizePolicyUse InternalSpec.WalletPolicy.authorizePolicyUse
   simp only [isUnhardened_eq, checkPolicyWellFormed_eq, isDefaultStatelessPolicy_eq,
     validRegisteredWalletName_eq]
   rfl
@@ -987,14 +987,14 @@ theorem authorizePolicyUse_eq (profile : PolicyProfile) (dev : DeviceRegistratio
 /-! ## Section 5: Script Compiler, BIP-341 TapTree/TapTweak & Policy Derivation Equivalence -/
 
 theorem pushScriptU32_eq (n : UInt32) :
-    BitcoinLedger.WalletPolicy.pushScriptU32 n = Spec.WalletPolicy.pushScriptU32 n := rfl
+    BitcoinLedger.WalletPolicy.pushScriptU32 n = InternalSpec.WalletPolicy.pushScriptU32 n := rfl
 
 theorem pushSmallBytes_eq (bs : ByteArray) :
-    BitcoinLedger.WalletPolicy.pushSmallBytes bs = Spec.WalletPolicy.pushSmallBytes bs := rfl
+    BitcoinLedger.WalletPolicy.pushSmallBytes bs = InternalSpec.WalletPolicy.pushSmallBytes bs := rfl
 
 theorem emitOpVerify_eq (verifyFlag : Bool) (op : UInt8) :
     BitcoinLedger.WalletPolicy.emitOpVerify verifyFlag op =
-      Spec.WalletPolicy.emitOpVerify verifyFlag op := rfl
+      InternalSpec.WalletPolicy.emitOpVerify verifyFlag op := rfl
 
 theorem hash160_eq (ora : CryptoPolicyOracle) (data : ByteArray) :
     BitcoinLedger.WalletPolicy.hash160 ora data = ora.hash160 data := rfl
@@ -1022,27 +1022,27 @@ theorem tapTweakHash_eq (ora : CryptoPolicyOracle) (internalXOnly : ByteArray)
 
 theorem lookupKeyXpub_eq (keys : List KeyInformation) (idx : Nat) :
     BitcoinLedger.WalletPolicy.lookupKeyXpub keys idx =
-      Spec.WalletPolicy.lookupKeyXpub keys idx := by
-  unfold BitcoinLedger.WalletPolicy.lookupKeyXpub Spec.WalletPolicy.lookupKeyXpub
+      InternalSpec.WalletPolicy.lookupKeyXpub keys idx := by
+  unfold BitcoinLedger.WalletPolicy.lookupKeyXpub InternalSpec.WalletPolicy.lookupKeyXpub
   rw [listNthOpt_eq]
   rfl
 
 theorem lookupMusigCompressedKeys_eq (keys : List KeyInformation) :
     ∀ (idxs : List Nat),
       BitcoinLedger.WalletPolicy.lookupMusigCompressedKeys keys idxs =
-        Spec.WalletPolicy.lookupMusigCompressedKeys keys idxs
+        InternalSpec.WalletPolicy.lookupMusigCompressedKeys keys idxs
   | [] => rfl
   | idx :: idxs => by
     unfold BitcoinLedger.WalletPolicy.lookupMusigCompressedKeys
-      Spec.WalletPolicy.lookupMusigCompressedKeys
+      InternalSpec.WalletPolicy.lookupMusigCompressedKeys
     rw [lookupKeyXpub_eq, lookupMusigCompressedKeys_eq keys idxs]
 
 theorem deriveKeyExprCompressedPubkey_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32) (ke : KeyExpr) :
     BitcoinLedger.WalletPolicy.deriveKeyExprCompressedPubkey ora net keys isChange addressIndex ke =
-      Spec.WalletPolicy.deriveKeyExprCompressedPubkey ora net keys isChange addressIndex ke := by
+      InternalSpec.WalletPolicy.deriveKeyExprCompressedPubkey ora net keys isChange addressIndex ke := by
   unfold BitcoinLedger.WalletPolicy.deriveKeyExprCompressedPubkey
-    Spec.WalletPolicy.deriveKeyExprCompressedPubkey
+    InternalSpec.WalletPolicy.deriveKeyExprCompressedPubkey
   simp only [isUnhardened_eq, lookupKeyXpub_eq, lookupMusigCompressedKeys_eq, sortByteArrays_eq,
     xpubVersionOfNetwork_eq, derivationStepForBranch_eq, keyExprDeriv_eq]
   rfl
@@ -1051,18 +1051,18 @@ theorem deriveKeyExprList_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32) :
     ∀ (kes : List KeyExpr),
       BitcoinLedger.WalletPolicy.deriveKeyExprList ora net keys isChange addressIndex kes =
-        Spec.WalletPolicy.deriveKeyExprList ora net keys isChange addressIndex kes
+        InternalSpec.WalletPolicy.deriveKeyExprList ora net keys isChange addressIndex kes
   | [] => rfl
   | ke :: kes => by
-    unfold BitcoinLedger.WalletPolicy.deriveKeyExprList Spec.WalletPolicy.deriveKeyExprList
+    unfold BitcoinLedger.WalletPolicy.deriveKeyExprList InternalSpec.WalletPolicy.deriveKeyExprList
     rw [deriveKeyExprCompressedPubkey_eq, deriveKeyExprList_eq ora net keys isChange addressIndex kes]
 
 theorem compileMultiScript_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32)
     (sorted verifyFlag : Bool) (k : Nat) (keyExprs : List KeyExpr) :
     BitcoinLedger.WalletPolicy.compileMultiScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs =
-      Spec.WalletPolicy.compileMultiScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs := by
-  unfold BitcoinLedger.WalletPolicy.compileMultiScript Spec.WalletPolicy.compileMultiScript
+      InternalSpec.WalletPolicy.compileMultiScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs := by
+  unfold BitcoinLedger.WalletPolicy.compileMultiScript InternalSpec.WalletPolicy.compileMultiScript
   simp only [deriveKeyExprList_eq, sortByteArrays_eq, pushSmallBytes_eq, pushScriptU32_eq,
     emitOpVerify_eq]
   rfl
@@ -1071,8 +1071,8 @@ theorem compileMultiAScript_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32)
     (sorted verifyFlag : Bool) (k : Nat) (keyExprs : List KeyExpr) :
     BitcoinLedger.WalletPolicy.compileMultiAScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs =
-      Spec.WalletPolicy.compileMultiAScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs := by
-  unfold BitcoinLedger.WalletPolicy.compileMultiAScript Spec.WalletPolicy.compileMultiAScript
+      InternalSpec.WalletPolicy.compileMultiAScript ora net keys isChange addressIndex sorted verifyFlag k keyExprs := by
+  unfold BitcoinLedger.WalletPolicy.compileMultiAScript InternalSpec.WalletPolicy.compileMultiAScript
   simp only [deriveKeyExprList_eq, sortByteArrays_eq, pushSmallBytes_eq, pushScriptU32_eq,
     emitOpVerify_eq]
   rfl
@@ -1081,103 +1081,103 @@ theorem compileMiniscript_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (ctx : MiniscriptCtx) (isChange : Bool) (addressIndex : UInt32) :
     ∀ (ms : Miniscript) (verifyFlag : Bool),
       BitcoinLedger.WalletPolicy.compileMiniscript ora net keys ctx isChange addressIndex verifyFlag ms =
-        Spec.WalletPolicy.compileMiniscript ora net keys ctx isChange addressIndex verifyFlag ms := by
+        InternalSpec.WalletPolicy.compileMiniscript ora net keys ctx isChange addressIndex verifyFlag ms := by
   intro ms
-  induction ms using Spec.WalletPolicy.Miniscript.rec
+  induction ms using InternalSpec.WalletPolicy.Miniscript.rec
     (motive_2 := fun subs =>
       ∀ isFirst : Bool,
         BitcoinLedger.WalletPolicy.compileMiniscript.compileChildren ora net keys ctx isChange addressIndex isFirst subs =
-          Spec.WalletPolicy.compileMiniscript.compileChildren ora net keys ctx isChange addressIndex isFirst subs) with
+          InternalSpec.WalletPolicy.compileMiniscript.compileChildren ora net keys ctx isChange addressIndex isFirst subs) with
   | ms0 | ms1 => intro _; rfl
   | pk ke =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [deriveKeyExprCompressedPubkey_eq, pushSmallBytes_eq, emitOpVerify_eq]
     rfl
   | pkh ke =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [deriveKeyExprCompressedPubkey_eq, hash160_eq, pushSmallBytes_eq, emitOpVerify_eq]
     rfl
   | pk_k ke =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [deriveKeyExprCompressedPubkey_eq, pushSmallBytes_eq]
     rfl
   | pk_h ke =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [deriveKeyExprCompressedPubkey_eq, hash160_eq, pushSmallBytes_eq]
     rfl
   | older _ | after _ | sha256 _ | hash256 _ | ripemd160 _ | hash160 _ =>
     intro _; rfl
   | andor x y z ihx ihy ihz =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihy false, ihz false, emitOpVerify_eq]
     rfl
   | and_v x y ihx ihy =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihy vFlag]
   | and_b x y ihx ihy =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihy false, emitOpVerify_eq]
     rfl
   | and_n x y ihx ihy =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihy false, emitOpVerify_eq]
     rfl
   | or_b x z ihx ihz =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihz false, emitOpVerify_eq]
     rfl
   | or_c x z ihx ihz =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihz false, emitOpVerify_eq]
     rfl
   | or_d x z ihx ihz =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihz false, emitOpVerify_eq]
     rfl
   | or_i x z ihx ihz =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihx false, ihz false, emitOpVerify_eq]
     rfl
   | thresh k subs ihSubs =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [ihSubs true, pushScriptU32_eq, emitOpVerify_eq]
     rfl
   | multi k kes =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [compileMultiScript_eq]
   | multi_a k kes =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     simp only [compileMultiAScript_eq]
   | wrap w sub ih =>
     intro vFlag
-    unfold BitcoinLedger.WalletPolicy.compileMiniscript Spec.WalletPolicy.compileMiniscript
+    unfold BitcoinLedger.WalletPolicy.compileMiniscript InternalSpec.WalletPolicy.compileMiniscript
     cases w <;> simp only [ih false, ih true, ih vFlag, emitOpVerify_eq] <;> rfl
   | nil => rfl
   | cons m ms ihm ihms =>
     unfold BitcoinLedger.WalletPolicy.compileMiniscript.compileChildren
-      Spec.WalletPolicy.compileMiniscript.compileChildren
+      InternalSpec.WalletPolicy.compileMiniscript.compileChildren
     simp only [ihm false, ihms false]
     rfl
 
 theorem compileWshWitnessScript_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32) (ws : WshScript) :
     BitcoinLedger.WalletPolicy.compileWshWitnessScript ora net keys isChange addressIndex ws =
-      Spec.WalletPolicy.compileWshWitnessScript ora net keys isChange addressIndex ws := by
+      InternalSpec.WalletPolicy.compileWshWitnessScript ora net keys isChange addressIndex ws := by
   cases ws with
   | sortedmulti k kes => exact compileMultiScript_eq ora net keys isChange addressIndex true false k kes
   | miniscript ms => exact compileMiniscript_eq ora net keys .wshCtx isChange addressIndex ms false
@@ -1185,7 +1185,7 @@ theorem compileWshWitnessScript_eq (ora : CryptoPolicyOracle) (net : Network)
 theorem compileTapLeafScript_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32) (ls : TapLeafScript) :
     BitcoinLedger.WalletPolicy.compileTapLeafScript ora net keys isChange addressIndex ls =
-      Spec.WalletPolicy.compileTapLeafScript ora net keys isChange addressIndex ls := by
+      InternalSpec.WalletPolicy.compileTapLeafScript ora net keys isChange addressIndex ls := by
   cases ls with
   | sortedmulti_a k kes =>
     exact compileMultiAScript_eq ora net keys isChange addressIndex true false k kes
@@ -1196,32 +1196,32 @@ theorem computeTapTreeHash_eq (ora : CryptoPolicyOracle) (net : Network)
     (keys : List KeyInformation) (isChange : Bool) (addressIndex : UInt32) :
     ∀ (t : TapTree),
       BitcoinLedger.WalletPolicy.computeTapTreeHash ora net keys isChange addressIndex t =
-        Spec.WalletPolicy.computeTapTreeHash ora net keys isChange addressIndex t
+        InternalSpec.WalletPolicy.computeTapTreeHash ora net keys isChange addressIndex t
   | .leaf ls => by
-    unfold BitcoinLedger.WalletPolicy.computeTapTreeHash Spec.WalletPolicy.computeTapTreeHash
+    unfold BitcoinLedger.WalletPolicy.computeTapTreeHash InternalSpec.WalletPolicy.computeTapTreeHash
     simp only [compileTapLeafScript_eq, tapLeafHash_eq]
   | .branch l r => by
-    unfold BitcoinLedger.WalletPolicy.computeTapTreeHash Spec.WalletPolicy.computeTapTreeHash
+    unfold BitcoinLedger.WalletPolicy.computeTapTreeHash InternalSpec.WalletPolicy.computeTapTreeHash
     simp only [computeTapTreeHash_eq ora net keys isChange addressIndex l,
       computeTapTreeHash_eq ora net keys isChange addressIndex r, tapBranchHash_eq]
 
 theorem mkP2PKH_eq (pkh20 : ByteArray) :
-    BitcoinLedger.WalletPolicy.mkP2PKH pkh20 = Spec.WalletPolicy.mkP2PKH pkh20 := rfl
+    BitcoinLedger.WalletPolicy.mkP2PKH pkh20 = InternalSpec.WalletPolicy.mkP2PKH pkh20 := rfl
 theorem mkP2WPKH_eq (pkh20 : ByteArray) :
-    BitcoinLedger.WalletPolicy.mkP2WPKH pkh20 = Spec.WalletPolicy.mkP2WPKH pkh20 := rfl
+    BitcoinLedger.WalletPolicy.mkP2WPKH pkh20 = InternalSpec.WalletPolicy.mkP2WPKH pkh20 := rfl
 theorem mkP2SH_eq (sh20 : ByteArray) :
-    BitcoinLedger.WalletPolicy.mkP2SH sh20 = Spec.WalletPolicy.mkP2SH sh20 := rfl
+    BitcoinLedger.WalletPolicy.mkP2SH sh20 = InternalSpec.WalletPolicy.mkP2SH sh20 := rfl
 theorem mkP2WSH_eq (wsh32 : ByteArray) :
-    BitcoinLedger.WalletPolicy.mkP2WSH wsh32 = Spec.WalletPolicy.mkP2WSH wsh32 := rfl
+    BitcoinLedger.WalletPolicy.mkP2WSH wsh32 = InternalSpec.WalletPolicy.mkP2WSH wsh32 := rfl
 theorem mkP2TR_eq (xonly32 : ByteArray) :
-    BitcoinLedger.WalletPolicy.mkP2TR xonly32 = Spec.WalletPolicy.mkP2TR xonly32 := rfl
+    BitcoinLedger.WalletPolicy.mkP2TR xonly32 = InternalSpec.WalletPolicy.mkP2TR xonly32 := rfl
 
 theorem deriveWalletScriptPubKeyWithProfile_eq (profile : PolicyProfile) (ora : CryptoPolicyOracle)
     (policy : WalletPolicy) (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex =
-      Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex := by
+      InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile profile ora policy isChange addressIndex := by
   unfold BitcoinLedger.WalletPolicy.deriveWalletScriptPubKeyWithProfile
-    Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
+    InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
   simp only [isUnhardened_eq, checkPolicyWellFormed_eq, deriveKeyExprCompressedPubkey_eq,
     hash160_eq, mkP2PKH_eq, mkP2WPKH_eq, mkP2SH_eq, mkP2WSH_eq, mkP2TR_eq,
     compileMultiScript_eq, compileWshWitnessScript_eq, computeTapTreeHash_eq]
@@ -1232,8 +1232,8 @@ theorem deriveWalletScriptPubKey_canonical_eq (net : Network) (ora : CryptoPolic
     (policy : WalletPolicy) (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletScriptPubKeyWithProfile
         (BitcoinLedger.WalletPolicy.canonicalLedgerProfile net) ora policy isChange addressIndex =
-      Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
-        (Spec.WalletPolicy.canonicalLedgerProfile net) ora policy isChange addressIndex :=
+      InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
+        (InternalSpec.WalletPolicy.canonicalLedgerProfile net) ora policy isChange addressIndex :=
   deriveWalletScriptPubKeyWithProfile_eq _ ora policy isChange addressIndex
 
 /-- Profile Specialization 2: Exact script derivation refinement on `bolosAppProfile`. -/
@@ -1241,8 +1241,8 @@ theorem deriveWalletScriptPubKey_bolos_eq (net : Network) (ora : CryptoPolicyOra
     (policy : WalletPolicy) (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletScriptPubKeyWithProfile
         (BitcoinLedger.WalletPolicy.bolosAppProfile net) ora policy isChange addressIndex =
-      Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
-        (Spec.WalletPolicy.bolosAppProfile net) ora policy isChange addressIndex :=
+      InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
+        (InternalSpec.WalletPolicy.bolosAppProfile net) ora policy isChange addressIndex :=
   deriveWalletScriptPubKeyWithProfile_eq _ ora policy isChange addressIndex
 
 /-- Profile Specialization 3: Exact script derivation refinement on `vanadiumAppProfile`. -/
@@ -1250,23 +1250,23 @@ theorem deriveWalletScriptPubKey_vanadium_eq (net : Network) (ora : CryptoPolicy
     (policy : WalletPolicy) (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletScriptPubKeyWithProfile
         (BitcoinLedger.WalletPolicy.vanadiumAppProfile net) ora policy isChange addressIndex =
-      Spec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
-        (Spec.WalletPolicy.vanadiumAppProfile net) ora policy isChange addressIndex :=
+      InternalSpec.WalletPolicy.deriveWalletScriptPubKeyWithProfile
+        (InternalSpec.WalletPolicy.vanadiumAppProfile net) ora policy isChange addressIndex :=
   deriveWalletScriptPubKeyWithProfile_eq _ ora policy isChange addressIndex
 
 theorem deriveWalletScriptPubKey_eq (ora : CryptoPolicyOracle) (policy : WalletPolicy)
     (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletScriptPubKey ora policy isChange addressIndex =
-      Spec.WalletPolicy.deriveWalletScriptPubKey ora policy isChange addressIndex :=
+      InternalSpec.WalletPolicy.deriveWalletScriptPubKey ora policy isChange addressIndex :=
   deriveWalletScriptPubKeyWithProfile_eq _ ora policy isChange addressIndex
 
 theorem deriveWalletPolicyScript_eq (profile : PolicyProfile) (dev : DeviceRegistrationOracle)
     (ora : CryptoPolicyOracle) (policy : WalletPolicy) (auth : PolicyAuthorization)
     (isChange : Bool) (addressIndex : UInt32) :
     BitcoinLedger.WalletPolicy.deriveWalletPolicyScript profile dev ora policy auth isChange addressIndex =
-      Spec.WalletPolicy.deriveAuthorizedWalletScriptPubKey profile dev ora policy auth isChange addressIndex := by
+      InternalSpec.WalletPolicy.deriveAuthorizedWalletScriptPubKey profile dev ora policy auth isChange addressIndex := by
   unfold BitcoinLedger.WalletPolicy.deriveWalletPolicyScript
-    Spec.WalletPolicy.deriveAuthorizedWalletScriptPubKey
+    InternalSpec.WalletPolicy.deriveAuthorizedWalletScriptPubKey
   rw [authorizePolicyUse_eq, deriveWalletScriptPubKeyWithProfile_eq]
 
 theorem policyFormatWireTag_eq (fmt : PolicyFormat) :
@@ -1276,15 +1276,15 @@ theorem policyFormatWireTag_eq (fmt : PolicyFormat) :
 theorem computeBolosWalletId_eq (ora : CryptoPolicyOracle) (fmt : PolicyFormat) (name : String)
     (descriptorBytes : ByteArray) (nKeys : Nat) (keysMerkleRoot32 : ByteArray) :
     BitcoinLedger.WalletPolicy.computeBolosWalletId ora fmt name descriptorBytes nKeys keysMerkleRoot32 =
-      Spec.WalletPolicy.computeBolosWalletId ora fmt name descriptorBytes nKeys keysMerkleRoot32 := by
-  unfold BitcoinLedger.WalletPolicy.computeBolosWalletId Spec.WalletPolicy.computeBolosWalletId
+      InternalSpec.WalletPolicy.computeBolosWalletId ora fmt name descriptorBytes nKeys keysMerkleRoot32 := by
+  unfold BitcoinLedger.WalletPolicy.computeBolosWalletId InternalSpec.WalletPolicy.computeBolosWalletId
   rw [policyFormatWireTag_eq, encodeCompactSize_eq, encodeCompactSize_eq]
   rfl
 
 theorem computeVanadiumRegistrationId_eq (ora : CryptoPolicyOracle) (name : String)
     (serializedBip388Policy : ByteArray) :
     BitcoinLedger.WalletPolicy.computeVanadiumRegistrationId ora name serializedBip388Policy =
-      Spec.WalletPolicy.computeVanadiumRegistrationId ora name serializedBip388Policy := rfl
+      InternalSpec.WalletPolicy.computeVanadiumRegistrationId ora name serializedBip388Policy := rfl
 
 /-! ## Section 6: Key Info Parser, Registration Handler & BIP-68 Bitmask Soundness -/
 
@@ -1385,7 +1385,7 @@ theorem constantTimeEqBytes32_eq_true_iff (a b : ByteArray) :
 
 /-- End-to-end soundness of `verifyAndRegisterWalletPolicy`:
     If registration succeeds with `(id32, hmac32)`, then:
-    1. `Spec.WalletPolicy.validatePolicyRegistration` succeeds;
+    1. `InternalSpec.WalletPolicy.validatePolicyRegistration` succeeds;
     2. `userApproved = true` and `hasOurKey = true` (`n_internal_keys >= 1`);
     3. `id32.size = 32`, `hmac32.size = 32`, and `hmac32 ≠ zeroBytes32`;
     4. `verifyRegistrationHmac` accepts `hmac32`. -/
@@ -1396,7 +1396,7 @@ theorem verifyAndRegisterWalletPolicy_sound
     (userApproved : Bool) (id32 hmac32 : ByteArray)
     (hOk : BitcoinLedger.WalletPolicy.verifyAndRegisterWalletPolicy
       profile dev ora computeHmac32 policy commitment userApproved = .ok (id32, hmac32)) :
-    Spec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved = .ok () ∧
+    InternalSpec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved = .ok () ∧
     userApproved = true ∧
     BitcoinLedger.WalletPolicy.hasOurKey dev profile.network policy = true ∧
     id32 = BitcoinLedger.WalletPolicy.computeRegistrationCommitmentId ora policy commitment ∧
@@ -1406,7 +1406,7 @@ theorem verifyAndRegisterWalletPolicy_sound
     BitcoinLedger.WalletPolicy.verifyRegistrationHmac ora computeHmac32 policy commitment hmac32 = true := by
   unfold BitcoinLedger.WalletPolicy.verifyAndRegisterWalletPolicy at hOk
   rw [validatePolicyRegistration_eq] at hOk
-  cases hVal : Spec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved with
+  cases hVal : InternalSpec.WalletPolicy.validatePolicyRegistration profile dev policy userApproved with
   | error e =>
     rw [hVal] at hOk
     cases hOk
@@ -1417,7 +1417,7 @@ theorem verifyAndRegisterWalletPolicy_sound
       cases userApproved with
       | true => rfl
       | false =>
-        unfold Spec.WalletPolicy.validatePolicyRegistration at hVal
+        unfold InternalSpec.WalletPolicy.validatePolicyRegistration at hVal
         cases hN : (!profile.validRegisteredWalletName policy.name) with
         | true =>
           simp only [hN, ↓reduceIte, Bind.bind, Except.bind] at hVal
@@ -1439,10 +1439,10 @@ theorem verifyAndRegisterWalletPolicy_sound
               cases hVal
     have hOur : BitcoinLedger.WalletPolicy.hasOurKey dev profile.network policy = true := by
       rw [hasOurKey_eq]
-      cases hHas : Spec.WalletPolicy.hasOurKey dev profile.network policy with
+      cases hHas : InternalSpec.WalletPolicy.hasOurKey dev profile.network policy with
       | true => rfl
       | false =>
-        obtain ⟨err, hErr⟩ := Spec.WalletPolicy.registration_requires_our_key
+        obtain ⟨err, hErr⟩ := InternalSpec.WalletPolicy.registration_requires_our_key
           profile dev policy userApproved hHas
         rw [hVal] at hErr
         cases hErr
@@ -1656,11 +1656,11 @@ theorem equal_multipath_rejected
       auth isChange addrIdx = .error err) := by
   rw [validDerivationSpec_eq, checkKeyExprInContext_eq, deriveWalletScriptPubKeyWithProfile_eq,
       deriveWalletPolicyScript_eq]
-  have hKe := Spec.WalletPolicy.equal_multipath_keyexpr_rejected fmt allowMusig maxMusigKeys keyIdx m
-  have hPol := Spec.WalletPolicy.equal_multipath_policy_rejected profile ora fmt name keys keyIdx m isChange addrIdx
+  have hKe := InternalSpec.WalletPolicy.equal_multipath_keyexpr_rejected fmt allowMusig maxMusigKeys keyIdx m
+  have hPol := InternalSpec.WalletPolicy.equal_multipath_policy_rejected profile ora fmt name keys keyIdx m isChange addrIdx
   refine ⟨hKe.1, hKe.2, hPol, ?_⟩
-  unfold Spec.WalletPolicy.deriveAuthorizedWalletScriptPubKey
-  cases hAuth : Spec.WalletPolicy.authorizePolicyUse profile dev
+  unfold InternalSpec.WalletPolicy.deriveAuthorizedWalletScriptPubKey
+  cases hAuth : InternalSpec.WalletPolicy.authorizePolicyUse profile dev
       { format := fmt, name := name, template := .wpkh (.single keyIdx (.multipath m m)), keys := keys }
       auth addrIdx with
   | error e => exact ⟨e, rfl⟩
@@ -1675,7 +1675,7 @@ theorem impl_receive_change_derivation_non_collision
       (BitcoinLedger.WalletPolicy.derivationStepForBranch d true, chgIndex) := by
   rw [validDerivationSpec_eq] at hValid
   rw [derivationStepForBranch_eq, derivationStepForBranch_eq]
-  exact Spec.WalletPolicy.receive_change_derivation_non_collision fmt d rxIndex chgIndex hValid
+  exact InternalSpec.WalletPolicy.receive_change_derivation_non_collision fmt d rxIndex chgIndex hValid
 
 /-- Any hardened `<M;N>/*` step (`!isUnhardened m` or `!isUnhardened n`) is universally rejected
     with `.invalidDerivationSuffix` by `checkKeyExprInContext`. -/
@@ -1725,10 +1725,10 @@ theorem out_of_range_and_nonsequential_placeholder_rejected
   rw [collectTemplateKeyExprs_eq] at hKe ⊢
   rw [keyExprReferencedIndices_eq] at hK
   rw [checkPlaceholderCoverage_eq, checkPolicyWellFormed_eq, deriveWalletScriptPubKeyWithProfile_eq]
-  have hCov := Spec.WalletPolicy.out_of_range_placeholder_coverage_rejected
+  have hCov := InternalSpec.WalletPolicy.out_of_range_placeholder_coverage_rejected
     policy.keys.length profile.requireSequentialPlaceholders
-    (Spec.WalletPolicy.collectTemplateKeyExprs policy.template) ke k hKe hK hOut
-  have hPol := Spec.WalletPolicy.out_of_range_placeholder_policy_rejected
+    (InternalSpec.WalletPolicy.collectTemplateKeyExprs policy.template) ke k hKe hK hOut
+  have hPol := InternalSpec.WalletPolicy.out_of_range_placeholder_policy_rejected
     profile ora policy ke k isChange addrIdx hKe hK hOut
   exact ⟨hCov, hPol.1, hPol.2, rfl⟩
 
@@ -1744,7 +1744,7 @@ theorem missing_our_key_registration_rejected
     (∃ err, BitcoinLedger.WalletPolicy.verifyAndRegisterWalletPolicy profile dev ora computeHmac32
       policy commitment userApproved = .error err) := by
   rw [hasOurKey_eq] at hNoOur
-  have hVal := Spec.WalletPolicy.registration_requires_our_key profile dev policy userApproved hNoOur
+  have hVal := InternalSpec.WalletPolicy.registration_requires_our_key profile dev policy userApproved hNoOur
   refine ⟨by rw [validatePolicyRegistration_eq]; exact hVal, ?_⟩
   unfold BitcoinLedger.WalletPolicy.verifyAndRegisterWalletPolicy
   rw [validatePolicyRegistration_eq]
@@ -1777,7 +1777,7 @@ theorem forged_hmac_and_high_default_index_rejected
       BitcoinLedger.WalletPolicy.verifyRegistrationHmac ora computeHmac32 policy commitment candidate = false) := by
   rw [isDefaultStatelessPolicy_eq] at hNonDefault
   rw [authorizePolicyUse_eq, deriveWalletPolicyScript_eq]
-  have hSpec := Spec.WalletPolicy.registered_wallet_without_valid_hmac_rejected
+  have hSpec := InternalSpec.WalletPolicy.registered_wallet_without_valid_hmac_rejected
     profile dev ora policy auth isChange addrIdx hNonDefault hNoValidProof
   refine ⟨hSpec.1, hSpec.2, ?_⟩
   intro candidate expected hComp hNe
@@ -1916,7 +1916,7 @@ theorem multi_a_in_wsh_and_multi_in_tapscript_rejected
   rw [checkMiniscriptSane_eq, compileMiniscript_eq, checkMiniscriptSane_eq,
       compileMiniscript_eq, checkDescriptorTemplate_eq, checkDescriptorTemplate_eq,
       keyExprDeriv_eq, keyExprReferencedIndices_eq]
-  exact Spec.WalletPolicy.multi_tapscript_and_multi_a_wsh_rejected
+  exact InternalSpec.WalletPolicy.multi_tapscript_and_multi_a_wsh_rejected
     profile ora fmt k kes ik keys isChange addrIdx vFlag hDepth
 
 /-- `v1` `tr(...)` is universally rejected across `parseDescriptorTemplate`,
@@ -1937,7 +1937,7 @@ theorem v1_tr_and_bip388_rawtr_rejected
     BitcoinLedger.WalletPolicy.checkExtendedDescriptorTemplateForBip388 profile .v2 (.rawtr ik) =
       .error .invalidScriptContext := by
   rw [parseDescriptorTemplate_eq, checkDescriptorTemplate_eq, checkPolicyWellFormed_eq]
-  have hV1 := Spec.WalletPolicy.v1_tr_rejected profile ik treeOpt name keys
+  have hV1 := InternalSpec.WalletPolicy.v1_tr_rejected profile ik treeOpt name keys
   exact ⟨hV1.1, hV1.2.1, hV1.2.2, rfl, rfl, rfl⟩
 
 /-- Uppercase hex digits `'A'..'F'` are rejected in `decodeHexNibble`, Miniscript hash digests,
@@ -2119,7 +2119,7 @@ theorem impl_nonvacuous_bip84_wpkh :
         (BitcoinLedger.WalletPolicy.bolosAppProfile .mainnet)
         witnessDeviceOracle witnessCryptoOracle
         witnessBip84Policy .statelessDefault false 0 = .ok addr ∧
-      (Spec.decodeSegwitAddr? "bc" addr).isSome = true := by
+      (InternalSpec.decodeSegwitAddr? "bc" addr).isSome = true := by
   exact ⟨rfl, rfl, _, _, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 set_option maxRecDepth 32768 in
@@ -2141,7 +2141,7 @@ theorem impl_nonvacuous_bip86_tr :
         (BitcoinLedger.WalletPolicy.bolosAppProfile .mainnet)
         witnessDeviceOracle witnessCryptoOracle
         witnessBip86Policy .statelessDefault false 0 = .ok addr ∧
-      (Spec.decodeSegwitAddr? "bc" addr).isSome = true := by
+      (InternalSpec.decodeSegwitAddr? "bc" addr).isSome = true := by
   exact ⟨rfl, rfl, _, _, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 /-- Concrete oracle distinguishing receive vs change scripts via child pubkey & digest bytes. -/
@@ -2233,7 +2233,7 @@ theorem impl_nonvacuous_tapscript_tr_tree :
         (BitcoinLedger.WalletPolicy.vanadiumAppProfile .mainnet)
         witnessDeviceOracle witnessCryptoOracle
         witnessTapscriptPolicy (.proofOfRegistration witnessValidHmac) true 5 = .ok addr ∧
-      (Spec.decodeSegwitAddr? "bc" addr).isSome = true := by
+      (InternalSpec.decodeSegwitAddr? "bc" addr).isSome = true := by
   exact ⟨rfl, rfl, rfl, _, _, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 set_option maxRecDepth 32768 in

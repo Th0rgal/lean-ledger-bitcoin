@@ -10,9 +10,9 @@ Executable differential test suite and formal upstream-bug regression suite for
 1. **Pure Executable Reference Crypto Engine**:
    - FIPS 180-4 SHA-256 & SHA-512, RFC 2104 HMAC-SHA256 & HMAC-SHA512, RIPEMD-160, HASH160,
      BIP-340 tagged hashes, and affine secp256k1 EC arithmetic (`p = 2^256 - 2^32 - 977`),
-     instantiating `Spec.CryptoDerivationOracle`, `Spec.WalletPolicy.CryptoPolicyOracle`,
-     `Spec.Psbt.CryptoOracles`, `Spec.Musig2.MusigCrypto`, `Spec.SilentPayments.SpCrypto`,
-     and `Spec.AppStateMachine.HardwareOracle` with zero external FFI dependencies.
+     instantiating `InternalSpec.CryptoDerivationOracle`, `InternalSpec.WalletPolicy.CryptoPolicyOracle`,
+     `InternalSpec.Psbt.CryptoOracles`, `InternalSpec.Musig2.MusigCrypto`, `InternalSpec.SilentPayments.SpCrypto`,
+     and `InternalSpec.AppStateMachine.HardwareOracle` with zero external FFI dependencies.
 
 2. **Part A — Official Vanadium `apps/bitcoin` Differential Test Vectors**:
    - BIP-32 `GET_EXTENDED_PUBKEY` (`KeyTree::Standard` & `KeyTree::Resident`), Base58Check
@@ -79,30 +79,30 @@ local instance {ε α : Type} [DecidableEq ε] [DecidableEq α] : DecidableEq (E
   | .ok _, .error _ => isFalse (by intro hEq; cases hEq)
   | .error _, .ok _ => isFalse (by intro hEq; cases hEq)
 
-local instance : BEq Spec.Psbt.TxOut := ⟨BitcoinLedger.Psbt.eqTxOut⟩
+local instance : BEq InternalSpec.Psbt.TxOut := ⟨BitcoinLedger.Psbt.eqTxOut⟩
 
-def isPsbtErr {α : Type} (res : Except Spec.Psbt.PsbtError α) (expected : Spec.Psbt.PsbtError) : Bool :=
+def isPsbtErr {α : Type} (res : Except InternalSpec.Psbt.PsbtError α) (expected : InternalSpec.Psbt.PsbtError) : Bool :=
   match res with
   | .error e => e == expected
   | .ok _ => false
 
-def mkSizedBytes! (n : Nat) (bs : ByteArray) : Spec.Musig2.SizedBytes n :=
+def mkSizedBytes! (n : Nat) (bs : ByteArray) : InternalSpec.Musig2.SizedBytes n :=
   if h : bs.size = n then
     ⟨bs, h⟩
   else
-    Spec.Musig2.SizedBytes.zeros n
+    InternalSpec.Musig2.SizedBytes.zeros n
 
-def mkSpSizedBytes! (n : Nat) (bs : ByteArray) : Spec.SilentPayments.SizedBytes n :=
+def mkSpSizedBytes! (n : Nat) (bs : ByteArray) : InternalSpec.SilentPayments.SizedBytes n :=
   if h : bs.size = n then
     ⟨bs, h⟩
   else
-    Spec.SilentPayments.SizedBytes.zeros n
+    InternalSpec.SilentPayments.SizedBytes.zeros n
 
-def mkPsbtBytes32! (bs : ByteArray) : Spec.Psbt.Bytes32 :=
+def mkPsbtBytes32! (bs : ByteArray) : InternalSpec.Psbt.Bytes32 :=
   if h : bs.size = 32 then
     ⟨bs, h⟩
   else
-    Spec.Psbt.zeroBytes32
+    InternalSpec.Psbt.zeroBytes32
 
 /-! ### Pure FIPS 180-4 SHA-256 & RFC 2104 HMAC-SHA256 -/
 
@@ -430,7 +430,7 @@ def secpOnCurve (pt : SecpAffine) : Bool :=
   pt.x < secpP && pt.y < secpP &&
   ((pt.y * pt.y) % secpP == ((pt.x * pt.x) % secpP * pt.x + 7) % secpP)
 
-def secpDouble (p : SecpAffine) : Spec.Musig2.CurvePoint SecpAffine :=
+def secpDouble (p : SecpAffine) : InternalSpec.Musig2.CurvePoint SecpAffine :=
   if p.y == 0 then
     .infinity
   else
@@ -441,8 +441,8 @@ def secpDouble (p : SecpAffine) : Spec.Musig2.CurvePoint SecpAffine :=
     let y3 := fpSub ((lam * fpSub p.x x3) % secpP) p.y
     .affine { x := x3, y := y3 }
 
-def secpAdd : Spec.Musig2.CurvePoint SecpAffine → Spec.Musig2.CurvePoint SecpAffine →
-    Spec.Musig2.CurvePoint SecpAffine
+def secpAdd : InternalSpec.Musig2.CurvePoint SecpAffine → InternalSpec.Musig2.CurvePoint SecpAffine →
+    InternalSpec.Musig2.CurvePoint SecpAffine
   | .infinity, q => q
   | p, .infinity => p
   | .affine p, .affine q =>
@@ -454,15 +454,15 @@ def secpAdd : Spec.Musig2.CurvePoint SecpAffine → Spec.Musig2.CurvePoint SecpA
         let y3 := fpSub ((lam * fpSub p.x x3) % secpP) p.y
         .affine { x := x3, y := y3 }
 
-def secpMulLoop (cur : Spec.Musig2.CurvePoint SecpAffine) :
-    Nat → Nat → Spec.Musig2.CurvePoint SecpAffine → Spec.Musig2.CurvePoint SecpAffine
+def secpMulLoop (cur : InternalSpec.Musig2.CurvePoint SecpAffine) :
+    Nat → Nat → InternalSpec.Musig2.CurvePoint SecpAffine → InternalSpec.Musig2.CurvePoint SecpAffine
   | 0, _, acc => acc
   | _ + 1, 0, acc => acc
   | fuel + 1, k, acc =>
       let acc' := if k % 2 == 1 then secpAdd acc cur else acc
       secpMulLoop (secpAdd cur cur) fuel (k / 2) acc'
 
-def secpMul (k : Nat) (pt : Spec.Musig2.CurvePoint SecpAffine) : Spec.Musig2.CurvePoint SecpAffine :=
+def secpMul (k : Nat) (pt : InternalSpec.Musig2.CurvePoint SecpAffine) : InternalSpec.Musig2.CurvePoint SecpAffine :=
   let kMod := k % secpN
   if kMod == 0 then .infinity
   else secpMulLoop pt 260 kMod .infinity
@@ -617,7 +617,7 @@ def residentRootPrivAndCc? : Option (Nat × ByteArray) :=
         none
 
 /-- Real `MusigCrypto SecpAffine` instance backed by SHA-256, HMAC-SHA512, and affine secp256k1. -/
-def realMusigCrypto : Spec.Musig2.MusigCrypto SecpAffine where
+def realMusigCrypto : InternalSpec.Musig2.MusigCrypto SecpAffine where
   sha256 bs := mkSizedBytes! 32 (sha256Bytes bs)
   taggedHash tag msg := mkSizedBytes! 32 (bip340TaggedHashBytes tag msg)
   generator := secpG
@@ -636,18 +636,18 @@ def realMusigCrypto : Spec.Musig2.MusigCrypto SecpAffine where
     | none => none
 
 /-- Real `SpCrypto SecpAffine` instance backed by SHA-256 and affine secp256k1. -/
-def realSpCrypto : Spec.SilentPayments.SpCrypto SecpAffine where
+def realSpCrypto : InternalSpec.SilentPayments.SpCrypto SecpAffine where
   taggedHash tag msg := mkSpSizedBytes! 32 (bip340TaggedHashBytes tag msg)
   generator := secpG
   pointAdd a b :=
-    let toM : Spec.SilentPayments.SpPoint SecpAffine → Spec.Musig2.CurvePoint SecpAffine
+    let toM : InternalSpec.SilentPayments.SpPoint SecpAffine → InternalSpec.Musig2.CurvePoint SecpAffine
       | .infinity => .infinity
       | .affine p => .affine p
     match secpAdd (toM a) (toM b) with
     | .infinity => .infinity
     | .affine p => .affine p
   pointMul k pt :=
-    let toM : Spec.SilentPayments.SpPoint SecpAffine → Spec.Musig2.CurvePoint SecpAffine
+    let toM : InternalSpec.SilentPayments.SpPoint SecpAffine → InternalSpec.Musig2.CurvePoint SecpAffine
       | .infinity => .infinity
       | .affine p => .affine p
     match secpMul k (toM pt) with
@@ -663,7 +663,7 @@ def realSpCrypto : Spec.SilentPayments.SpCrypto SecpAffine where
   hasEvenY pt := pt.y % 2 == 0
 
 /-- Real `CryptoDerivationOracle` modelling Vanadium's Speculos seed (`Standard`) and test `Resident` root. -/
-def vanadiumDerivationOracle : Spec.CryptoDerivationOracle where
+def vanadiumDerivationOracle : InternalSpec.CryptoDerivationOracle where
   hash160 := hash160Bytes
   doubleSha256 := doubleSha256Bytes
   deriveChildPub parentPub cc idx :=
@@ -748,7 +748,7 @@ def computeVanadiumPorHmacBytes (id32 : ByteArray) : ByteArray :=
 def vanadiumDeviceOracle : BitcoinLedger.WalletPolicy.DeviceRegistrationOracle where
   masterFingerprint := 0xf5acc2fd
   deriveAtOrigin net originPath :=
-    let specNet : Spec.Network := match net with | .mainnet => .mainnet | .testnet => .testnet
+    let specNet : InternalSpec.Network := match net with | .mainnet => .mainnet | .testnet => .testnet
     match BitcoinLedger.Bip32.deriveExtendedPubKeyWithOracle
             vanadiumDerivationOracle specNet .standard originPath.toArray with
     | none => none
@@ -773,10 +773,10 @@ def vanadiumDeviceOracle : BitcoinLedger.WalletPolicy.DeviceRegistrationOracle w
       policy (.vanadium serPol) hmac
 
 /-- Real `Psbt.CryptoOracles` for Vanadium Testnet. -/
-def vanadiumTestnetPsbtOracles : Spec.Psbt.CryptoOracles where
+def vanadiumTestnetPsbtOracles : InternalSpec.Psbt.CryptoOracles where
   sha256 bs := mkPsbtBytes32! (sha256Bytes bs)
   hash160 := hash160Bytes
-  formatAddress spk := Spec.scriptToAddress? .vanadium doubleSha256Bytes .testnet spk
+  formatAddress spk := InternalSpec.scriptToAddress? .vanadium doubleSha256Bytes .testnet spk
 
 /-! ============================================================================================
     PART A: OFFICIAL VANADIUM (`apps/bitcoin`) DIFFERENTIAL TEST VECTORS
@@ -797,7 +797,7 @@ def h4 : UInt32 := BitcoinLedger.Bip32.harden 4
 def h10 : UInt32 := BitcoinLedger.Bip32.harden 10
 
 /-- Derive & Base58Check-encode a `tpub` on `tree` via `BitcoinLedger.Bip32`. -/
-def evalVanadiumTpub? (tree : Spec.KeyTree) (path : Array UInt32) : Option String := do
+def evalVanadiumTpub? (tree : InternalSpec.KeyTree) (path : Array UInt32) : Option String := do
   let xpub ← (BitcoinLedger.Bip32.evalGetExtendedPubkey
     vanadiumDerivationOracle BitcoinLedger.Bip32.vanadiumExpubPolicyConfig
     .testnet tree path false true).toOption
@@ -982,10 +982,10 @@ def checkVanadiumTaprootPsbtVector : Bool :=
       let in0IntKey := hex! "e9c69b095ed04b562afc8d41691936ba573eb6f689bc236600be4fa3926f6412"
       let chg0Pub33 := hex! "029081ece5616aa1cb99319fc4874efee47f08ceba5f6004636c8c43409a5f0a"
       let prevTxid := mkPsbtBytes32! (hex! "e16861c0d29749f52cd2edde10cbcc4f591210710f640e5d8e1440ce85d96dc6")
-      let utxo0 : Spec.Psbt.TxOut := { amount := 10_009_567, scriptPubKey := in0Spk }
-      let rawOut0 : Spec.Psbt.TxOut := { amount := 9_909_389, scriptPubKey := chg0Spk }
-      let rawOut1 : Spec.Psbt.TxOut := { amount := 100_000, scriptPubKey := ext1Spk }
-      let psbtV0 : Spec.Psbt.PsbtV0 := {
+      let utxo0 : InternalSpec.Psbt.TxOut := { amount := 10_009_567, scriptPubKey := in0Spk }
+      let rawOut0 : InternalSpec.Psbt.TxOut := { amount := 9_909_389, scriptPubKey := chg0Spk }
+      let rawOut1 : InternalSpec.Psbt.TxOut := { amount := 100_000, scriptPubKey := ext1Spk }
+      let psbtV0 : InternalSpec.Psbt.PsbtV0 := {
         version := some 0
         unsignedTx := {
           version := 2
@@ -1029,7 +1029,7 @@ def checkVanadiumTaprootPsbtVector : Bool :=
                 vanadiumTestnetPsbtOracles.sha256 [(inp0, utxo0)] [rawOut0, rawOut1]
               let tapSighash := BitcoinLedger.Psbt.computeSighashTaproot
                 vanadiumTestnetPsbtOracles.sha256 psbtV2.txVersion val.locktime
-                hashes inp0 utxo0 #[rawOut0, rawOut1] 0 none Spec.Psbt.SIGHASH_DEFAULT
+                hashes inp0 utxo0 #[rawOut0, rawOut1] 0 none InternalSpec.Psbt.SIGHASH_DEFAULT
               let expectedSighash := hex! "75c96fb06a12db4cd011d8c95a5995db758a4f2837a22f30f0f579619a4466f3"
               derivedIn0Ok &&
               derivedChg0Ok &&
@@ -1067,7 +1067,7 @@ def checkMusig2EndToEndVector : Bool :=
               let sid := BitcoinLedger.Musig2.computeVanadiumPsbtSessionId realMusigCrypto walletId txId
               let randRoot0 := realMusigCrypto.sha256 "Device CSPRNG root 0".toUTF8
               let randPeer1 := realMusigCrypto.sha256 "Peer 1 nonce root".toUTF8
-              let task0 : Spec.Musig2.MusigSignTask := {
+              let task0 : InternalSpec.Musig2.MusigSignTask := {
                 inputIndex := 0
                 placeholderIndex := 0
                 internalPk := pk0
@@ -1084,7 +1084,7 @@ def checkMusig2EndToEndVector : Bool :=
                   let msg32 := realMusigCrypto.sha256 "TapSighash for MuSig2 input 0".toUTF8
                   let orderedNonces :=
                     if sorted[0]? == some pk0 then [r1Out.pubnonce, pubPeer1] else [pubPeer1, r1Out.pubnonce]
-                  let r2In : Spec.Musig2.MusigRound2TaskInput := {
+                  let r2In : InternalSpec.Musig2.MusigRound2TaskInput := {
                     task := task0
                     secretKey := BitcoinLedger.Musig2.scalarToBytes32 sk0
                     sighash := msg32
@@ -1094,7 +1094,7 @@ def checkMusig2EndToEndVector : Bool :=
                   match BitcoinLedger.Musig2.executeRound2Pass realMusigCrypto .tweakedVanadium store1 sid [r2In] true,
                         BitcoinLedger.Musig2.nonceAgg realMusigCrypto orderedNonces with
                   | .ok ([r2Out], store2), .ok aggnonce =>
-                      let ctx : Spec.Musig2.SessionContext := {
+                      let ctx : InternalSpec.Musig2.SessionContext := {
                         aggnonce := aggnonce
                         pubkeys := sorted
                         tweaks := [tapTw]
@@ -1134,7 +1134,7 @@ def checkSilentPaymentsAndMessageSigning : Bool :=
         -- Now run full BIP-375 `finalizePsbtSilentPayments` sending to `code` + verify BIP-374 DLEQ proof!
         let inPriv : Nat := 0x3333333333333333333333333333333333333333333333333333333333333333
         let outpointTxid := mkSpSizedBytes! 32 (sha256Bytes "sp-input-prevout".toUTF8)
-        let spInput : Spec.SilentPayments.PsbtSpInput := {
+        let spInput : InternalSpec.SilentPayments.PsbtSpInput := {
           outpoint := { txid := outpointTxid, vout := 0 }
           scriptKind := .wpkh
           prevoutWitnessVersion := some 0
@@ -1143,13 +1143,13 @@ def checkSilentPaymentsAndMessageSigning : Bool :=
           hasInputSpEcdhShare := false
           hasInputSpDleq := false
         }
-        let spOut : Spec.SilentPayments.PsbtSpOutput := {
+        let spOut : InternalSpec.SilentPayments.PsbtSpOutput := {
           amount := 50_000
           script := none
           spV0Info := some (BitcoinLedger.SilentPayments.serializeSpCode realSpCrypto code)
           spV0Label := none
         }
-        let spTx : Spec.SilentPayments.PsbtSpTx SecpAffine := {
+        let spTx : InternalSpec.SilentPayments.PsbtSpTx SecpAffine := {
           txModifiable := some 0
           inputs := [spInput]
           outputs := [spOut]
@@ -1202,7 +1202,7 @@ def checkSilentPaymentsAndMessageSigning : Bool :=
   let challengeSpk := BitcoinLedger.Script.mkP2WPKH (hash160Bytes (secpCompressBytes secpG))
   let toSpendTx := BitcoinLedger.Psbt.buildBip322ToSpendTx vanadiumTestnetPsbtOracles.sha256 msg challengeSpk
   let toSpendTxid := BitcoinLedger.Psbt.computeBip322ToSpendTxid vanadiumTestnetPsbtOracles.sha256 msg challengeSpk
-  let bip322Psbt : Spec.Psbt.PsbtTx := {
+  let bip322Psbt : InternalSpec.Psbt.PsbtTx := {
     txVersion := 0
     fallbackLocktime := some 0
     inputs := #[{
@@ -1218,7 +1218,7 @@ def checkSilentPaymentsAndMessageSigning : Bool :=
     outputs := #[{ amount := 0, scriptPubKey := some (ByteArray.mk #[0x6a]) }]
     bip322Message := some msg
   }
-  let mockBip322Pol : Spec.Psbt.WalletPolicySpec := {
+  let mockBip322Pol : InternalSpec.Psbt.WalletPolicySpec := {
     isDefault := true
     name := ""
     spendClass := .segwitV0
@@ -1319,7 +1319,7 @@ theorem vnd_bug_002_i64_min_and_u64_max_rejected :
 def checkVndBug002 : Bool :=
   let spk0 := BitcoinLedger.Script.mkP2WPKH (ByteArray.mk (Array.replicate 20 0x11))
   let spkOut := BitcoinLedger.Script.mkP2WPKH (ByteArray.mk (Array.replicate 20 0x22))
-  let pol : Spec.Psbt.WalletPolicySpec := {
+  let pol : InternalSpec.Psbt.WalletPolicySpec := {
     isDefault := true
     name := ""
     spendClass := .segwitV0
@@ -1332,27 +1332,27 @@ def checkVndBug002 : Bool :=
     }]
     deriveScripts := fun isChg idx => if !isChg && idx == 0 then some (spk0, none, none) else none
   }
-  let mkInp (amt : Nat) (vout : UInt32) : Spec.Psbt.PsbtInput := {
-    prevout := { txid := Spec.Psbt.zeroBytes32, vout := vout }
+  let mkInp (amt : Nat) (vout : UInt32) : InternalSpec.Psbt.PsbtInput := {
+    prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := vout }
     witnessUtxo := some { amount := amt, scriptPubKey := spk0 }
     derivations := [{ pubkey := ByteArray.mk (Array.replicate 33 0x02),
                       origin := { fingerprint := 0xf5acc2fd, path := [h84, h1, h0, 0, 0] } }]
   }
   let cfg := BitcoinLedger.AppStateMachine.signingConfigOfTarget (.vanadium 1) false
   -- Subcase 1: `2^63` (`i64::MIN` cast sign-flip vector) on input UTXO -> `.amountExceedsMaxSupply`
-  let psbtSignFlip : Spec.Psbt.PsbtTx := {
+  let psbtSignFlip : InternalSpec.Psbt.PsbtTx := {
     txVersion := 2
     inputs := #[mkInp 0x8000000000000000 0]
     outputs := #[{ amount := 1000, scriptPubKey := some spkOut }]
   }
   -- Subcase 2: Two individually valid inputs (`<= MAX_MONEY`) whose sum exceeds `MAX_MONEY`
-  let psbtSumOverflow : Spec.Psbt.PsbtTx := {
+  let psbtSumOverflow : InternalSpec.Psbt.PsbtTx := {
     txVersion := 2
     inputs := #[mkInp 1_500_000_000_000_000 0, mkInp 700_000_000_000_000 1]
     outputs := #[{ amount := 1000, scriptPubKey := some spkOut }]
   }
   -- Subcase 3: Output sum exceeds input sum -> `.negativeFeeOutputsExceedInputs`
-  let psbtNegFee : Spec.Psbt.PsbtTx := {
+  let psbtNegFee : InternalSpec.Psbt.PsbtTx := {
     txVersion := 2
     inputs := #[mkInp 10_000 0]
     outputs := #[{ amount := 10_001, scriptPubKey := some spkOut }]
@@ -1369,10 +1369,10 @@ def checkVndBug002 : Bool :=
     `missing_nonwitnessutxo`) without checking `non_witness_utxo.output[vout] == witness_utxo`! -/
 
 theorem vnd_bug_003_dual_utxo_mismatch_always_rejected
-    (sha256 : ByteArray → Spec.Psbt.Bytes32)
-    (rawTx : Spec.Psbt.RawTx)
-    (wUtxo : Spec.Psbt.TxOut)
-    (inp : Spec.Psbt.PsbtInput)
+    (sha256 : ByteArray → InternalSpec.Psbt.Bytes32)
+    (rawTx : InternalSpec.Psbt.RawTx)
+    (wUtxo : InternalSpec.Psbt.TxOut)
+    (inp : InternalSpec.Psbt.PsbtInput)
     (hNonWit : inp.nonWitnessUtxo = some rawTx)
     (hWit : inp.witnessUtxo = some wUtxo)
     (hTxid : BitcoinLedger.Psbt.eqBytes32 (BitcoinLedger.Psbt.computeTxid sha256 rawTx) inp.prevout.txid = true)
@@ -1385,10 +1385,10 @@ theorem vnd_bug_003_dual_utxo_mismatch_always_rejected
 def checkVndBug003 : Bool :=
   let spk0 := BitcoinLedger.Script.mkP2WPKH (ByteArray.mk (Array.replicate 20 0x33))
   let spkSpoof := BitcoinLedger.Script.mkP2WPKH (ByteArray.mk (Array.replicate 20 0x44))
-  let realPrevTx : Spec.Psbt.RawTx := {
+  let realPrevTx : InternalSpec.Psbt.RawTx := {
     version := 2
     vin := #[{
-      prevout := { txid := Spec.Psbt.zeroBytes32, vout := 0 }
+      prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := 0 }
       scriptSig := ByteArray.empty
       sequence := 0xFFFFFFFF
     }]
@@ -1396,7 +1396,7 @@ def checkVndBug003 : Bool :=
     locktime := 0
   }
   let realPrevTxid := BitcoinLedger.Psbt.computeTxid vanadiumTestnetPsbtOracles.sha256 realPrevTx
-  let baseInp : Spec.Psbt.PsbtInput := {
+  let baseInp : InternalSpec.Psbt.PsbtInput := {
     prevout := { txid := realPrevTxid, vout := 0 }
     nonWitnessUtxo := some realPrevTx
     witnessUtxo := some { amount := 100_000, scriptPubKey := spk0 }
@@ -1423,8 +1423,8 @@ def checkVndBug003 : Bool :=
     2. Failed to reject `requiredHeightLocktime == 0`;
     3. Computed `fallback.max(h)`, letting `fallback >= 500_000_000` switch height `h` to UNIX timestamp! -/
 
-def vndBug004BaseInp : Spec.Psbt.PsbtInput :=
-  { prevout := { txid := Spec.Psbt.zeroBytes32, vout := 0 } }
+def vndBug004BaseInp : InternalSpec.Psbt.PsbtInput :=
+  { prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := 0 } }
 
 theorem vnd_bug_004_bip370_locktime_regressions :
     -- (1) Single input with BOTH height & time locktimes succeeds and selects height (`800_000`)
@@ -1586,7 +1586,7 @@ theorem vnd_bug_007_depth_256_rejected_without_u8_wraparound :
 
 set_option maxRecDepth 4096 in
 theorem vnd_bug_007_derive_and_eval_reject_depth_256
-    (ora : Spec.CryptoDerivationOracle) (net : Spec.Network) (display approved : Bool) :
+    (ora : InternalSpec.CryptoDerivationOracle) (net : InternalSpec.Network) (display approved : Bool) :
     BitcoinLedger.Bip32.deriveExtendedPubKeyWithOracle ora net .resident vndBug007Path256 = none ∧
     BitcoinLedger.Bip32.evalGetExtendedPubkey
       ora BitcoinLedger.Bip32.vanadiumExpubPolicyConfig net .resident vndBug007Path256 display approved =
@@ -1631,12 +1631,12 @@ def checkVndBug007 : Bool :=
     it without verifying `_pubnonce == _my_pubnonce` from `PSBT_IN_MUSIG2_PUB_NONCE`. -/
 
 theorem vnd_bug_008_corrupted_self_pubnonce_rejected
-    {Affine : Type} (c : Spec.Musig2.MusigCrypto Affine)
-    (mode : Spec.Musig2.NonceAggPkMode)
-    (randRoot : Spec.Musig2.RandRoot)
-    (inp : Spec.Musig2.MusigRound2TaskInput)
-    (myPubnonce recomputedPubnonce aggnonce : Spec.Musig2.PubNonce)
-    (secnonce : Spec.Musig2.SecNonce)
+    {Affine : Type} (c : InternalSpec.Musig2.MusigCrypto Affine)
+    (mode : InternalSpec.Musig2.NonceAggPkMode)
+    (randRoot : InternalSpec.Musig2.RandRoot)
+    (inp : InternalSpec.Musig2.MusigRound2TaskInput)
+    (myPubnonce recomputedPubnonce aggnonce : InternalSpec.Musig2.PubNonce)
+    (secnonce : InternalSpec.Musig2.SecNonce)
     (hNonEmpty : inp.task.sortedPubkeys.isEmpty = false)
     (hBound : decide (inp.task.sortedPubkeys.length > BitcoinLedger.Musig2.maxPubkeysPerMusig) = false)
     (hMyPn : inp.psbtMyPubnonce = some myPubnonce)
@@ -1668,7 +1668,7 @@ def checkVndBug008 : Bool :=
           let randRoot := realMusigCrypto.sha256 "bug008-randroot".toUTF8
           let bogusRand := realMusigCrypto.sha256 "corrupted-host-nonce".toUTF8
           let peerRand := realMusigCrypto.sha256 "peer-nonce".toUTF8
-          let task0 : Spec.Musig2.MusigSignTask := {
+          let task0 : InternalSpec.Musig2.MusigSignTask := {
             inputIndex := 0
             placeholderIndex := 0
             internalPk := pk0
@@ -1683,14 +1683,14 @@ def checkVndBug008 : Bool :=
                 BitcoinLedger.Musig2.nonceGen realMusigCrypto bogusRand pk0 (BitcoinLedger.Musig2.xOnlyOfCompressed untweakedPk),
                 BitcoinLedger.Musig2.nonceGen realMusigCrypto peerRand pk1 (BitcoinLedger.Musig2.xOnlyOfCompressed untweakedPk) with
           | .ok ([r1Out], store1), .ok (_, tamperedMyPubnonce), .ok (_, peerPubnonce) =>
-              let tamperedInput : Spec.Musig2.MusigRound2TaskInput := {
+              let tamperedInput : InternalSpec.Musig2.MusigRound2TaskInput := {
                 task := task0
                 secretKey := BitcoinLedger.Musig2.scalarToBytes32 sk0
                 sighash := realMusigCrypto.sha256 "bug008-msg".toUTF8
                 psbtMyPubnonce := some tamperedMyPubnonce
                 cosignerPubnonces := [tamperedMyPubnonce, peerPubnonce]
               }
-              let validInput : Spec.Musig2.MusigRound2TaskInput := {
+              let validInput : InternalSpec.Musig2.MusigRound2TaskInput := {
                 tamperedInput with
                 psbtMyPubnonce := some r1Out.pubnonce
                 cosignerPubnonces := [r1Out.pubnonce, peerPubnonce]
@@ -1716,9 +1716,9 @@ def checkVndBug008 : Bool :=
 theorem vnd_bug_009_get_version_total_and_state_preserving
     {Affine : Type} [DecidableEq Affine]
     (ct : UInt32)
-    (hw : Spec.AppStateMachine.HardwareOracle Affine)
-    (ui : Spec.AppStateMachine.UserApprovalOracle Affine)
-    (s : Spec.AppStateMachine.AppPersistentState)
+    (hw : InternalSpec.AppStateMachine.HardwareOracle Affine)
+    (ui : InternalSpec.AppStateMachine.UserApprovalOracle Affine)
+    (s : InternalSpec.AppStateMachine.AppPersistentState)
     (hNoSwap : s.swapLock = none) :
     BitcoinLedger.AppStateMachine.stepAppCommand (.vanadium ct) hw ui .getVersion s =
       .error (.notSupported, s) ∧
@@ -1753,7 +1753,7 @@ def checkVndBug009 : Bool :=
     !BitcoinLedger.Script.isValidOpReturnScript nonMinimalOpRet &&
     !BitcoinLedger.Script.isValidOpReturnScript oversizedOpRet
   let spk0 := BitcoinLedger.Script.mkP2WPKH (ByteArray.mk (Array.replicate 20 0x55))
-  let pol : Spec.Psbt.WalletPolicySpec := {
+  let pol : InternalSpec.Psbt.WalletPolicySpec := {
     isDefault := true
     name := ""
     spendClass := .segwitV0
@@ -1767,10 +1767,10 @@ def checkVndBug009 : Bool :=
     deriveScripts := fun isChg idx => if !isChg && idx == 0 then some (spk0, none, none) else none
   }
   let baseCfg := { BitcoinLedger.AppStateMachine.signingConfigOfTarget (.bolos 1) false with allowOpReturnOutputs := true }
-  let mkOpRetPsbt (opScript : ByteArray) : Spec.Psbt.PsbtTx := {
+  let mkOpRetPsbt (opScript : ByteArray) : InternalSpec.Psbt.PsbtTx := {
     txVersion := 2
     inputs := #[{
-      prevout := { txid := Spec.Psbt.zeroBytes32, vout := 0 }
+      prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := 0 }
       witnessUtxo := some { amount := 50_000, scriptPubKey := spk0 }
       derivations := [{ pubkey := ByteArray.mk (Array.replicate 33 0x02),
                         origin := { fingerprint := 0xf5acc2fd, path := [h84, h1, h0, 0, 0] } }]
@@ -1791,10 +1791,10 @@ def checkVndBug009 : Bool :=
 
   -- 2. Witness UTXO with `scriptPubKey.size == 300` (`>= 253`, breaking Vanadium's `wutxo[8] <= 0xfc` check!)
   let largeSpk300 := ByteArray.mk (Array.replicate 300 0x51)
-  let largeWutxo : Spec.Psbt.TxOut := { amount := 75_000, scriptPubKey := largeSpk300 }
+  let largeWutxo : InternalSpec.Psbt.TxOut := { amount := 75_000, scriptPubKey := largeSpk300 }
   let encodedLargeTxOut := BitcoinLedger.Psbt.encodeTxOut largeWutxo
-  let largeInp : Spec.Psbt.PsbtInput := {
-    prevout := { txid := Spec.Psbt.zeroBytes32, vout := 0 }
+  let largeInp : InternalSpec.Psbt.PsbtInput := {
+    prevout := { txid := InternalSpec.Psbt.zeroBytes32, vout := 0 }
     witnessUtxo := some largeWutxo
   }
   let largeWutxoOk :=

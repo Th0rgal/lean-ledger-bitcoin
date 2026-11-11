@@ -1,11 +1,11 @@
-import Spec
+import InternalSpec
 
 namespace BitcoinLedger.Basic
 
 /-!
 # `BitcoinLedger.Basic` — Executable Foundational Bitcoin & Ledger Primitives
 
-Pure, constructive, overflow-safe Lean 4 implementation refining `Spec.Basic`:
+Pure, constructive, overflow-safe Lean 4 implementation refining `InternalSpec.Basic`:
 1. Fixed-width `UInt64` satoshi arithmetic (`SATS_PER_BTC`, `MAX_MONEY`, `isValidAmount`,
    `checkedAddSats?`, `checkedSubSats?`, `checkedSumSats?`) avoiding unbounded runtime `Nat`
    addition/wraparound via subtraction-bounded `UInt64` checks (`b ≤ MAX_MONEY - a`).
@@ -316,8 +316,8 @@ def decodeVarIntCanonicalPrefix? (bs : ByteArray) : Option (UInt64 × ByteArray)
 
 /-! ## 5. Bitcoin Network Parameters -/
 
-abbrev Network := Spec.Network
-abbrev NetworkParams := Spec.NetworkParams
+abbrev Network := InternalSpec.Network
+abbrev NetworkParams := InternalSpec.NetworkParams
 
 def Mainnet : Network := .mainnet
 def Testnet : Network := .testnet
@@ -364,12 +364,12 @@ def networkParams : Network → NetworkParams
 
 /-! ## 6. Canonical Ledger Error Mappings (`SpecError` ↔ BOLOS `SW` & Vanadium `AppError`) -/
 
-abbrev BolosStatusWord := Spec.BolosStatusWord
-abbrev BolosErrorDomain := Spec.BolosErrorDomain
-abbrev BolosErrorCode := Spec.BolosErrorCode
-abbrev BolosErrorResponse := Spec.BolosErrorResponse
-abbrev AppError := Spec.AppError
-abbrev SpecError := Spec.SpecError
+abbrev BolosStatusWord := InternalSpec.BolosStatusWord
+abbrev BolosErrorDomain := InternalSpec.BolosErrorDomain
+abbrev BolosErrorCode := InternalSpec.BolosErrorCode
+abbrev BolosErrorResponse := InternalSpec.BolosErrorResponse
+abbrev AppError := InternalSpec.AppError
+abbrev SpecError := InternalSpec.SpecError
 
 /-- Encode a `BolosStatusWord` into its 16-bit ISO-7816 / Ledger APDU status word. -/
 def bolosStatusWordToU16 : BolosStatusWord → UInt16

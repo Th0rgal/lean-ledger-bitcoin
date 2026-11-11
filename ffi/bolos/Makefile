@@ -79,11 +79,13 @@ $(BUILD_DIR)/v8m_clang_%.o: %.c llb_bolos_shim.h $(V8M_DIR)/$(LIB_NAME).a | $(BU
 $(BUILD_DIR)/v6m_gcc_%.o: %.c llb_bolos_shim.h $(V6M_DIR)/$(LIB_NAME).a | $(BUILD_DIR)
 	$(ARM_GCC) -mcpu=cortex-m0 -mthumb $(CROSS_CFLAGS) -I$(V6M_DIR) -c $< -o $@
 
+CLANG_LD_FLAG ?= $(shell command -v ld.lld >/dev/null 2>&1 && echo "-fuse-ld=lld")
+
 $(V6M_CLANG_ELF): $(V6M_CLANG_OBJS) $(V6M_DIR)/$(LIB_NAME).a
-	$(CLANG) --target=thumbv6m-none-eabi -nostdlib -Wl,-e,main -o $@ $(V6M_CLANG_OBJS) $(V6M_DIR)/$(LIB_NAME).a
+	$(CLANG) --target=thumbv6m-none-eabi $(CLANG_LD_FLAG) -nostdlib -Wl,-e,main -o $@ $(V6M_CLANG_OBJS) $(V6M_DIR)/$(LIB_NAME).a
 
 $(V8M_CLANG_ELF): $(V8M_CLANG_OBJS) $(V8M_DIR)/$(LIB_NAME).a
-	$(CLANG) --target=thumbv8m.main-none-eabi -nostdlib -Wl,-e,main -o $@ $(V8M_CLANG_OBJS) $(V8M_DIR)/$(LIB_NAME).a
+	$(CLANG) --target=thumbv8m.main-none-eabi $(CLANG_LD_FLAG) -nostdlib -Wl,-e,main -o $@ $(V8M_CLANG_OBJS) $(V8M_DIR)/$(LIB_NAME).a
 
 $(V6M_GCC_ELF): $(V6M_GCC_OBJS) $(V6M_DIR)/$(LIB_NAME).a
 	$(ARM_GCC) -mcpu=cortex-m0 -mthumb -ffreestanding -nostdlib -Wl,-e,main -o $@ $(V6M_GCC_OBJS) $(V6M_DIR)/$(LIB_NAME).a

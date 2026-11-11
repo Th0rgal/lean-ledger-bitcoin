@@ -1,4 +1,5 @@
 import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 import BitcoinLedger.Bip32
 import BitcoinLedger.Script

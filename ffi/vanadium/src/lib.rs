@@ -76,18 +76,21 @@ mod sys {
 ///
 /// Return value must always equal [`VERSION_PACKED_EXPECTED`]; use
 /// [`check_kernel_version`] for the checked form.
+#[inline]
 pub fn version_packed() -> u32 {
     // SAFETY: pure freestanding function with no preconditions.
     unsafe { sys::llb_version_packed() }
 }
 
 /// Consensus satoshi range check (`0 <= sats <= MAX_MONEY`).
+#[inline]
 pub fn valid_amount(sats: u64) -> bool {
     // SAFETY: pure freestanding scalar function with no preconditions.
     unsafe { sys::llb_valid_amount(sats) != 0 }
 }
 
 /// Overflow-free satoshi addition in `[0, MAX_MONEY]`.
+#[inline]
 pub fn checked_add_sats(a: u64, b: u64) -> Option<u64> {
     // SAFETY: pure freestanding scalar functions with no preconditions.
     unsafe {
@@ -100,6 +103,7 @@ pub fn checked_add_sats(a: u64, b: u64) -> Option<u64> {
 }
 
 /// Underflow-free satoshi subtraction in `[0, MAX_MONEY]`.
+#[inline]
 pub fn checked_sub_sats(a: u64, b: u64) -> Option<u64> {
     // SAFETY: pure freestanding scalar functions with no preconditions.
     unsafe {
@@ -112,82 +116,98 @@ pub fn checked_sub_sats(a: u64, b: u64) -> Option<u64> {
 }
 
 /// Canonical CompactSize / VarInt encoded byte length (`1`, `3`, `5`, or `9`).
+#[inline]
 pub fn varint_encoded_len(n: u64) -> u8 {
     unsafe { sys::llb_varint_encoded_len(n) }
 }
 
 /// Check whether a CompactSize prefix `tag` and `decoded_val` form a minimal encoding.
+#[inline]
 pub fn varint_prefix_is_canonical(tag: u8, decoded_val: u64) -> bool {
     unsafe { sys::llb_varint_prefix_is_canonical(tag, decoded_val) != 0 }
 }
 
 /// Check whether BIP-32 child index `idx` has the hardened bit (`0x8000_0000`) set.
+#[inline]
 pub fn bip32_is_hardened(idx: u32) -> bool {
     unsafe { sys::llb_bip32_is_hardened(idx) != 0 }
 }
 
 /// Set the BIP-32 hardened bit (`n | 0x8000_0000`).
+#[inline]
 pub fn bip32_harden(n: u32) -> u32 {
     unsafe { sys::llb_bip32_harden(n) }
 }
 
 /// Clear the BIP-32 hardened bit (`idx & 0x7FFF_FFFF`).
+#[inline]
 pub fn bip32_unharden(idx: u32) -> u32 {
     unsafe { sys::llb_bip32_unharden(idx) }
 }
 
 /// BOLOS standard BIP-32 path depth gate (`depth <= 10`).
+#[inline]
 pub fn bip32_bolos_depth_ok(depth: u8) -> bool {
     unsafe { sys::llb_bip32_bolos_depth_ok(depth) != 0 }
 }
 
 /// Vanadium `KeyTree::Standard` BIP-32 path depth gate (`depth <= 16`).
+#[inline]
 pub fn bip32_vanadium_depth_ok(depth: u8) -> bool {
     unsafe { sys::llb_bip32_vanadium_depth_ok(depth) != 0 }
 }
 
-/// Hardened standard 3-step BIP purpose check (`44'`, `49'`, `84'`, `86'`, `87'`, `45'`).
+/// Hardened standard 3-step BIP purpose check (`44'`, `49'`, `84'`, `87'`, `45'`).
+#[inline]
 pub fn bip32_standard_purpose_ok(purpose_step: u32) -> bool {
     unsafe { sys::llb_bip32_standard_purpose_ok(purpose_step) != 0 }
 }
 
 /// Decode a Bitcoin Script witness-version opcode (`OP_0` -> `Some(0)`, `OP_1..OP_16` -> `Some(1..=16)`).
+#[inline]
 pub fn witness_opcode_to_version(op: u8) -> Option<u8> {
     let v = unsafe { sys::llb_witness_opcode_to_version(op) };
     if v == 0xFF { None } else { Some(v) }
 }
 
 /// Validate SegWit witness version & program length (`v0`: `20|32`, `v1..=16`: `2..=40`).
+#[inline]
 pub fn segwit_program_valid(witver: u8, prog_len: u8) -> bool {
     unsafe { sys::llb_segwit_program_valid(witver, prog_len) != 0 }
 }
 
 /// Single GF(32) generator-polynomial step for Bech32 / Bech32m `polymod`.
+#[inline]
 pub fn bech32_polymod_step(pre: u32, val: u8) -> u32 {
     unsafe { sys::llb_bech32_polymod_step(pre, val) }
 }
 
 /// Validate BIP-62 `MINIMALDATA` canonicality for `(op, first_byte, push_len)`.
+#[inline]
 pub fn minimal_push_opcode_ok(op: u8, first_byte: u8, push_len: u32) -> bool {
     unsafe { sys::llb_minimal_push_opcode_ok(op, first_byte, push_len) != 0 }
 }
 
 /// Validate a 32-bit non-Taproot sighash type (`0x01..=0x03`, `0x81..=0x83`).
+#[inline]
 pub fn sighash_type_valid(sighash_u32: u32) -> bool {
     unsafe { sys::llb_sighash_type_valid(sighash_u32) != 0 }
 }
 
 /// Validate a 1-byte BIP-341 Taproot sighash type (`0x00`, `0x01..=0x03`, `0x81..=0x83`).
+#[inline]
 pub fn taproot_sighash_valid(sighash_byte: u8) -> bool {
     unsafe { sys::llb_taproot_sighash_valid(sighash_byte) != 0 }
 }
 
 /// Validate Merkle inclusion-proof header bounds (`0 < tree_size`, `index < tree_size`, `depth <= 32`).
+#[inline]
 pub fn merkle_depth_index_ok(tree_size: u32, index: u32, depth: u8) -> bool {
     unsafe { sys::llb_merkle_depth_index_ok(tree_size, index, depth) != 0 }
 }
 
 /// Map compact `SpecError` discriminant tag (`0..=18`) to BOLOS 16-bit APDU status word.
+#[inline]
 pub fn bolos_sw_for_error(err_tag: u8) -> u16 {
     unsafe { sys::llb_bolos_sw_for_error(err_tag) }
 }

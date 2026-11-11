@@ -7,7 +7,7 @@
   - BIP-32, BIP-44/49/84/86, BIP-68/112, BIP-327/328, BIP-340/341/342, BIP-379/380..388
 -/
 
-namespace Spec.WalletPolicy
+namespace InternalSpec.WalletPolicy
 
 /-! ### Constructive `BEq` Instances for `UInt8` / `UInt32`
     In Lean 4.35, the default `BEq UInt8` / `BEq UInt32` instances lower through a `BitVec`
@@ -3238,4 +3238,4 @@ theorem bolos_and_vanadium_profile_bounds_and_depth_guard :
 #print axioms v1_tr_rejected
 #print axioms bolos_and_vanadium_profile_bounds_and_depth_guard
 
-end Spec.WalletPolicy
+end InternalSpec.WalletPolicy

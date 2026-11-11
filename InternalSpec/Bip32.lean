@@ -1,9 +1,9 @@
-import Spec.Basic
+import InternalSpec.Basic
 
-namespace Spec
+namespace InternalSpec
 
 /-!
-# `Spec.Bip32` — BIP-32 Hierarchical Deterministic Derivation & Export Policy
+# `InternalSpec.Bip32` — BIP-32 Hierarchical Deterministic Derivation & Export Policy
 
 Implementation-independent plain Lean 4 specifications for:
 1. `Bip32Path` (`Array UInt32`), hardened index predicate (`idx ≥ 0x80000000`), and depth limits
@@ -1047,4 +1047,4 @@ theorem bolos_bip48_script_type_policy :
     classifyExpubPath bolosExpubPolicyConfig .mainnet #[harden 48, harden 0, harden 0, harden 3] = .warnUnusual := by
   decide
 
-end Spec
+end InternalSpec

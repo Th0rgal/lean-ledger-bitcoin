@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 import BitcoinLedger.Script
 import Proofs.Basic
@@ -9,12 +9,12 @@ namespace Proofs.Script
 # `Proofs.Script` — Refinement, Roundtrip & Segregation Proofs for `BitcoinLedger.Script`
 
 Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`) refinement theorems connecting
-`BitcoinLedger.Script` to `Spec.Script`:
+`BitcoinLedger.Script` to `InternalSpec.Script`:
 1. Witness version opcode codec & standard script constructors/classifier equivalence & roundtrips
    (`P2PKH`, `P2SH`, `P2WPKH`, `P2WSH`, `P2TR`, `UnknownWitness` `v0..v16`, `OpReturn`)
 2. `MINIMALDATA` pushdata encoder/decoder equivalence, canonicality soundness (`isMinimalPush`),
    streaming prefix roundtrip (`decodeMinimalPushPrefix? (enc ++ tail)`), and `OP_RETURN` canonicality
-3. Base58 & Base58Check equivalence with `Spec.Script`
+3. Base58 & Base58Check equivalence with `InternalSpec.Script`
 4. BIP-173 / BIP-350 Bech32 vs Bech32m polymod & raw codec equivalence, **universal 8↔5 bit conversion
    roundtrip** (`convertBits5to8? (convertBits8to5 bs) = some bs` for ALL `ByteArray`), SegWit
    witness-version segregation (`v0 ↔ Bech32` 20/32B; `v1..v16 ↔ Bech32m` 2..40B), target-aware
@@ -26,9 +26,9 @@ open BitcoinLedger.Script
 /-! ## 1. Witness Version Opcodes & Standard Script Constructors / Classifier -/
 
 theorem encodeWitnessVersionOpcode?_eq (ver : UInt8) :
-    BitcoinLedger.Script.encodeWitnessVersionOpcode? ver = Spec.encodeWitnessVersionOpcode? ver := by
-  unfold BitcoinLedger.Script.encodeWitnessVersionOpcode? Spec.encodeWitnessVersionOpcode?
-  unfold OP_0 Spec.OP_0
+    BitcoinLedger.Script.encodeWitnessVersionOpcode? ver = InternalSpec.encodeWitnessVersionOpcode? ver := by
+  unfold BitcoinLedger.Script.encodeWitnessVersionOpcode? InternalSpec.encodeWitnessVersionOpcode?
+  unfold OP_0 InternalSpec.OP_0
   cases h0 : decide (ver = 0)
   · have hn0 := of_decide_eq_false h0
     simp only [Bool.false_eq_true, hn0, ↓reduceIte]
@@ -41,9 +41,9 @@ theorem encodeWitnessVersionOpcode?_eq (ver : UInt8) :
     simp [hy0]
 
 theorem decodeWitnessVersionOpcode?_eq (op : UInt8) :
-    BitcoinLedger.Script.decodeWitnessVersionOpcode? op = Spec.decodeWitnessVersionOpcode? op := by
-  unfold BitcoinLedger.Script.decodeWitnessVersionOpcode? Spec.decodeWitnessVersionOpcode?
-  unfold OP_0 Spec.OP_0 OP_1 Spec.OP_1 OP_16 Spec.OP_16
+    BitcoinLedger.Script.decodeWitnessVersionOpcode? op = InternalSpec.decodeWitnessVersionOpcode? op := by
+  unfold BitcoinLedger.Script.decodeWitnessVersionOpcode? InternalSpec.decodeWitnessVersionOpcode?
+  unfold OP_0 InternalSpec.OP_0 OP_1 InternalSpec.OP_1 OP_16 InternalSpec.OP_16
   cases h0 : decide (op = 0)
   · have hn0 := of_decide_eq_false h0
     simp [hn0]
@@ -106,18 +106,18 @@ theorem decode_encodeWitnessVersionOpcode {ver op : UInt8}
     subst h
     rfl
 
-theorem mkP2PKH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2PKH h = Spec.mkP2PKH h := rfl
-theorem mkP2SH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2SH h = Spec.mkP2SH h := rfl
-theorem mkP2WPKH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2WPKH h = Spec.mkP2WPKH h := rfl
-theorem mkP2WSH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2WSH h = Spec.mkP2WSH h := rfl
-theorem mkP2TR_eq (k : ByteArray) : BitcoinLedger.Script.mkP2TR k = Spec.mkP2TR k := rfl
+theorem mkP2PKH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2PKH h = InternalSpec.mkP2PKH h := rfl
+theorem mkP2SH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2SH h = InternalSpec.mkP2SH h := rfl
+theorem mkP2WPKH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2WPKH h = InternalSpec.mkP2WPKH h := rfl
+theorem mkP2WSH_eq (h : ByteArray) : BitcoinLedger.Script.mkP2WSH h = InternalSpec.mkP2WSH h := rfl
+theorem mkP2TR_eq (k : ByteArray) : BitcoinLedger.Script.mkP2TR k = InternalSpec.mkP2TR k := rfl
 
 theorem standardScriptToPubKey_eq (sc : StandardScript) :
     standardScriptToPubKey sc = sc.toScriptPubKey := by
   cases sc with
   | p2pkh _ | p2sh _ | p2wpkh _ | p2wsh _ | p2tr _ | opReturn _ => rfl
   | unknownWitness v prog =>
-      unfold standardScriptToPubKey Spec.StandardScript.toScriptPubKey OP_0 Spec.OP_0
+      unfold standardScriptToPubKey InternalSpec.StandardScript.toScriptPubKey OP_0 InternalSpec.OP_0
       cases hv0 : decide (v = 0)
       · have hn0 := of_decide_eq_false hv0
         simp [hn0]
@@ -127,12 +127,12 @@ theorem standardScriptToPubKey_eq (sc : StandardScript) :
 private theorem classifyP2PKHRest_eq (rest : List UInt8) :
     (if decide (rest.length = 22) = true then
        if BitcoinLedger.Basic.eqByteList (rest.drop 20) [0x88, 0xAC] = true then
-         some (Spec.StandardScript.p2pkh (ByteArray.mk (rest.take 20).toArray))
+         some (InternalSpec.StandardScript.p2pkh (ByteArray.mk (rest.take 20).toArray))
        else none
      else none) =
     (if rest.length = 22 then
        if rest.drop 20 = [0x88, 0xAC] then
-         some (Spec.StandardScript.p2pkh (ByteArray.mk (rest.take 20).toArray))
+         some (InternalSpec.StandardScript.p2pkh (ByteArray.mk (rest.take 20).toArray))
        else none
      else none) := by
   cases hl : decide (rest.length = 22)
@@ -151,12 +151,12 @@ private theorem classifyP2PKHRest_eq (rest : List UInt8) :
 private theorem classifyP2SHRest_eq (rest : List UInt8) :
     (if decide (rest.length = 21) = true then
        if BitcoinLedger.Basic.eqByteList (rest.drop 20) [0x87] = true then
-         some (Spec.StandardScript.p2sh (ByteArray.mk (rest.take 20).toArray))
+         some (InternalSpec.StandardScript.p2sh (ByteArray.mk (rest.take 20).toArray))
        else none
      else none) =
     (if rest.length = 21 then
        if rest.drop 20 = [0x87] then
-         some (Spec.StandardScript.p2sh (ByteArray.mk (rest.take 20).toArray))
+         some (InternalSpec.StandardScript.p2sh (ByteArray.mk (rest.take 20).toArray))
        else none
      else none) := by
   cases hl : decide (rest.length = 21)
@@ -178,23 +178,23 @@ private theorem classifyWitnessArm_eq (op pushLen : UInt8) (prog : List UInt8) :
      | some ver =>
          if (decide (pushLen.toNat = prog.length) && decide (2 ≤ prog.length) && decide (prog.length ≤ 40)) = true then
            let progBytes := ByteArray.mk prog.toArray
-           if (decide (ver = 0) && decide (prog.length = 20)) = true then some (Spec.StandardScript.p2wpkh progBytes)
-           else if (decide (ver = 0) && decide (prog.length = 32)) = true then some (Spec.StandardScript.p2wsh progBytes)
-           else if (decide (ver = 1) && decide (prog.length = 32)) = true then some (Spec.StandardScript.p2tr progBytes)
-           else some (Spec.StandardScript.unknownWitness ver progBytes)
+           if (decide (ver = 0) && decide (prog.length = 20)) = true then some (InternalSpec.StandardScript.p2wpkh progBytes)
+           else if (decide (ver = 0) && decide (prog.length = 32)) = true then some (InternalSpec.StandardScript.p2wsh progBytes)
+           else if (decide (ver = 1) && decide (prog.length = 32)) = true then some (InternalSpec.StandardScript.p2tr progBytes)
+           else some (InternalSpec.StandardScript.unknownWitness ver progBytes)
          else none) =
-    (match Spec.decodeWitnessVersionOpcode? op with
+    (match InternalSpec.decodeWitnessVersionOpcode? op with
      | none => none
      | some ver =>
          if pushLen.toNat = prog.length ∧ 2 ≤ prog.length ∧ prog.length ≤ 40 then
            let progBytes := ByteArray.mk prog.toArray
-           if ver = 0 ∧ prog.length = 20 then some (Spec.StandardScript.p2wpkh progBytes)
-           else if ver = 0 ∧ prog.length = 32 then some (Spec.StandardScript.p2wsh progBytes)
-           else if ver = 1 ∧ prog.length = 32 then some (Spec.StandardScript.p2tr progBytes)
-           else some (Spec.StandardScript.unknownWitness ver progBytes)
+           if ver = 0 ∧ prog.length = 20 then some (InternalSpec.StandardScript.p2wpkh progBytes)
+           else if ver = 0 ∧ prog.length = 32 then some (InternalSpec.StandardScript.p2wsh progBytes)
+           else if ver = 1 ∧ prog.length = 32 then some (InternalSpec.StandardScript.p2tr progBytes)
+           else some (InternalSpec.StandardScript.unknownWitness ver progBytes)
          else none) := by
   rw [decodeWitnessVersionOpcode?_eq]
-  cases Spec.decodeWitnessVersionOpcode? op with
+  cases InternalSpec.decodeWitnessVersionOpcode? op with
   | none => rfl
   | some ver =>
       dsimp only
@@ -236,10 +236,10 @@ private theorem classifyWitnessArm_eq (op pushLen : UInt8) (prog : List UInt8) :
               · have yl20 := of_decide_eq_true l20
                 simp [yl20]
 
-/-- Executable `classifyScript?` refines `Spec.classifyScript?` for all `ByteArray` inputs. -/
+/-- Executable `classifyScript?` refines `InternalSpec.classifyScript?` for all `ByteArray` inputs. -/
 theorem classifyScript?_eq (script : ByteArray) :
-    BitcoinLedger.Script.classifyScript? script = Spec.classifyScript? script := by
-  unfold BitcoinLedger.Script.classifyScript? Spec.classifyScript?
+    BitcoinLedger.Script.classifyScript? script = InternalSpec.classifyScript? script := by
+  unfold BitcoinLedger.Script.classifyScript? InternalSpec.classifyScript?
   cases hlist : script.data.toList with
   | nil => rfl
   | cons b0 tail0 =>
@@ -288,39 +288,39 @@ theorem classifyScript?_eq (script : ByteArray) :
 
 theorem classifyScript?_mkP2PKH {h : ByteArray} (h20 : BitcoinLedger.Basic.isBytes20 h = true) :
     BitcoinLedger.Script.classifyScript? (BitcoinLedger.Script.mkP2PKH h) =
-      some (Spec.StandardScript.p2pkh h) := by
+      some (InternalSpec.StandardScript.p2pkh h) := by
   rw [classifyScript?_eq, mkP2PKH_eq]
-  exact Spec.classifyScript?_mkP2PKH ((Proofs.Basic.isBytes20_iff h).mp h20)
+  exact InternalSpec.classifyScript?_mkP2PKH ((Proofs.Basic.isBytes20_iff h).mp h20)
 
 theorem classifyScript?_mkP2SH {h : ByteArray} (h20 : BitcoinLedger.Basic.isBytes20 h = true) :
     BitcoinLedger.Script.classifyScript? (BitcoinLedger.Script.mkP2SH h) =
-      some (Spec.StandardScript.p2sh h) := by
+      some (InternalSpec.StandardScript.p2sh h) := by
   rw [classifyScript?_eq, mkP2SH_eq]
-  exact Spec.classifyScript?_mkP2SH ((Proofs.Basic.isBytes20_iff h).mp h20)
+  exact InternalSpec.classifyScript?_mkP2SH ((Proofs.Basic.isBytes20_iff h).mp h20)
 
 theorem classifyScript?_mkP2WPKH {h : ByteArray} (h20 : BitcoinLedger.Basic.isBytes20 h = true) :
     BitcoinLedger.Script.classifyScript? (BitcoinLedger.Script.mkP2WPKH h) =
-      some (Spec.StandardScript.p2wpkh h) := by
+      some (InternalSpec.StandardScript.p2wpkh h) := by
   rw [classifyScript?_eq, mkP2WPKH_eq]
-  exact Spec.classifyScript?_mkP2WPKH ((Proofs.Basic.isBytes20_iff h).mp h20)
+  exact InternalSpec.classifyScript?_mkP2WPKH ((Proofs.Basic.isBytes20_iff h).mp h20)
 
 theorem classifyScript?_mkP2WSH {h : ByteArray} (h32 : BitcoinLedger.Basic.isBytes32 h = true) :
     BitcoinLedger.Script.classifyScript? (BitcoinLedger.Script.mkP2WSH h) =
-      some (Spec.StandardScript.p2wsh h) := by
+      some (InternalSpec.StandardScript.p2wsh h) := by
   rw [classifyScript?_eq, mkP2WSH_eq]
-  exact Spec.classifyScript?_mkP2WSH ((Proofs.Basic.isBytes32_iff h).mp h32)
+  exact InternalSpec.classifyScript?_mkP2WSH ((Proofs.Basic.isBytes32_iff h).mp h32)
 
 theorem classifyScript?_mkP2TR {k : ByteArray} (h32 : BitcoinLedger.Basic.isBytes32 k = true) :
     BitcoinLedger.Script.classifyScript? (BitcoinLedger.Script.mkP2TR k) =
-      some (Spec.StandardScript.p2tr k) := by
+      some (InternalSpec.StandardScript.p2tr k) := by
   rw [classifyScript?_eq, mkP2TR_eq]
-  exact Spec.classifyScript?_mkP2TR ((Proofs.Basic.isBytes32_iff k).mp h32)
+  exact InternalSpec.classifyScript?_mkP2TR ((Proofs.Basic.isBytes32_iff k).mp h32)
 
 /-! ## 2. `MINIMALDATA` Pushdata Soundness, Roundtrip & `OP_RETURN` Canonicality -/
 
 theorem minimalScriptNumPushSize_eq (n : UInt32) :
-    BitcoinLedger.Script.minimalScriptNumPushSize n = Spec.minimalScriptNumPushSize n := by
-  unfold BitcoinLedger.Script.minimalScriptNumPushSize Spec.minimalScriptNumPushSize
+    BitcoinLedger.Script.minimalScriptNumPushSize n = InternalSpec.minimalScriptNumPushSize n := by
+  unfold BitcoinLedger.Script.minimalScriptNumPushSize InternalSpec.minimalScriptNumPushSize
   cases h1 : decide (n ≤ 16)
   · simp only [Bool.false_eq_true, of_decide_eq_false h1, ↓reduceIte]
     cases h2 : decide (n < 0x80)
@@ -338,10 +338,10 @@ theorem minimalScriptNumPushSize_eq (n : UInt32) :
   · simp [of_decide_eq_true h1]
 
 theorem encodeMinimalPush?_eq (payload : ByteArray) :
-    BitcoinLedger.Script.encodeMinimalPush? payload = Spec.encodeMinimalPush? payload := by
-  unfold BitcoinLedger.Script.encodeMinimalPush? Spec.encodeMinimalPush?
-  unfold OP_0 Spec.OP_0 OP_1NEGATE Spec.OP_1NEGATE
-  unfold OP_PUSHDATA1 Spec.OP_PUSHDATA1 OP_PUSHDATA2 Spec.OP_PUSHDATA2 OP_PUSHDATA4 Spec.OP_PUSHDATA4
+    BitcoinLedger.Script.encodeMinimalPush? payload = InternalSpec.encodeMinimalPush? payload := by
+  unfold BitcoinLedger.Script.encodeMinimalPush? InternalSpec.encodeMinimalPush?
+  unfold OP_0 InternalSpec.OP_0 OP_1NEGATE InternalSpec.OP_1NEGATE
+  unfold OP_PUSHDATA1 InternalSpec.OP_PUSHDATA1 OP_PUSHDATA2 InternalSpec.OP_PUSHDATA2 OP_PUSHDATA4 InternalSpec.OP_PUSHDATA4
   match payload.data.toList with
   | [] => rfl
   | [b] =>
@@ -366,10 +366,10 @@ theorem encodeMinimalPush?_eq (payload : ByteArray) :
       · simp [of_decide_eq_true c1]
 
 theorem decodeMinimalPushPrefix?_eq (script : ByteArray) :
-    BitcoinLedger.Script.decodeMinimalPushPrefix? script = Spec.decodeMinimalPushPrefix? script := by
-  unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.decodeMinimalPushPrefix?
-  unfold OP_0 Spec.OP_0 OP_1NEGATE Spec.OP_1NEGATE OP_1 Spec.OP_1 OP_16 Spec.OP_16
-  unfold OP_PUSHDATA1 Spec.OP_PUSHDATA1 OP_PUSHDATA2 Spec.OP_PUSHDATA2 OP_PUSHDATA4 Spec.OP_PUSHDATA4
+    BitcoinLedger.Script.decodeMinimalPushPrefix? script = InternalSpec.decodeMinimalPushPrefix? script := by
+  unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.decodeMinimalPushPrefix?
+  unfold OP_0 InternalSpec.OP_0 OP_1NEGATE InternalSpec.OP_1NEGATE OP_1 InternalSpec.OP_1 OP_16 InternalSpec.OP_16
+  unfold OP_PUSHDATA1 InternalSpec.OP_PUSHDATA1 OP_PUSHDATA2 InternalSpec.OP_PUSHDATA2 OP_PUSHDATA4 InternalSpec.OP_PUSHDATA4
   match script.data.toList with
   | [] => rfl
   | op :: rest =>
@@ -416,7 +416,7 @@ theorem decodeMinimalPushPrefix?_eq (script : ByteArray) :
 
 theorem checkMinimalPushesBounded_eq (budget : Nat) (bytes : List UInt8) :
     BitcoinLedger.Script.checkMinimalPushesBounded budget bytes =
-      Spec.checkMinimalPushesBounded budget bytes := by
+      InternalSpec.checkMinimalPushesBounded budget bytes := by
   induction budget generalizing bytes with
   | zero =>
       cases bytes <;> rfl
@@ -424,17 +424,17 @@ theorem checkMinimalPushesBounded_eq (budget : Nat) (bytes : List UInt8) :
       cases bytes with
       | nil => rfl
       | cons x xs =>
-          unfold BitcoinLedger.Script.checkMinimalPushesBounded Spec.checkMinimalPushesBounded
+          unfold BitcoinLedger.Script.checkMinimalPushesBounded InternalSpec.checkMinimalPushesBounded
           rw [decodeMinimalPushPrefix?_eq]
-          cases Spec.decodeMinimalPushPrefix? (ByteArray.mk (x :: xs).toArray) with
+          cases InternalSpec.decodeMinimalPushPrefix? (ByteArray.mk (x :: xs).toArray) with
           | none => rfl
           | some pair => exact ih pair.2.data.toList
 
 theorem isValidOpReturnScript_eq (script : ByteArray) :
-    BitcoinLedger.Script.isValidOpReturnScript script = Spec.isValidOpReturnScript script := by
-  unfold BitcoinLedger.Script.isValidOpReturnScript Spec.isValidOpReturnScript
-  unfold MAX_STANDARD_OP_RETURN_LEN Spec.MAX_STANDARD_OP_RETURN_LEN
-  unfold MAX_STANDARD_OP_RETURN_PUSHES Spec.MAX_STANDARD_OP_RETURN_PUSHES
+    BitcoinLedger.Script.isValidOpReturnScript script = InternalSpec.isValidOpReturnScript script := by
+  unfold BitcoinLedger.Script.isValidOpReturnScript InternalSpec.isValidOpReturnScript
+  unfold MAX_STANDARD_OP_RETURN_LEN InternalSpec.MAX_STANDARD_OP_RETURN_LEN
+  unfold MAX_STANDARD_OP_RETURN_PUSHES InternalSpec.MAX_STANDARD_OP_RETURN_PUSHES
   cases script.data.toList with
   | nil => simp
   | cons b0 tail =>
@@ -446,10 +446,10 @@ theorem isValidOpReturnScript_eq (script : ByteArray) :
         simp [checkMinimalPushesBounded_eq]
 
 /-- Soundness of `encodeMinimalPush?`: whenever `encodeMinimalPush? payload = some enc`,
-    `Spec.isMinimalPush payload enc` holds! -/
+    `InternalSpec.isMinimalPush payload enc` holds! -/
 theorem encodeMinimalPush?_sound {payload enc : ByteArray}
     (h : BitcoinLedger.Script.encodeMinimalPush? payload = some enc) :
-    Spec.isMinimalPush payload enc := by
+    InternalSpec.isMinimalPush payload enc := by
   unfold BitcoinLedger.Script.encodeMinimalPush? at h
   cases payload with
   | mk arr =>
@@ -582,7 +582,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
           apply Array.ext'
           exact List.eq_nil_of_length_eq_zero hsz
     subst hempty
-    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.OP_0 OP_0
+    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.OP_0 OP_0
     rw [byteArray_toList_append]
     simp only [List.cons_append, List.nil_append]
     change (if decide ((0 : UInt8) = 0) = true then
@@ -632,7 +632,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
       rw [hd0, hd1n, hdge1, hdle16, hsub, htailMk]
       rfl
     · rcases hb81 with ⟨rfl, rfl⟩
-      unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.OP_1NEGATE
+      unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.OP_1NEGATE
       rw [byteArray_toList_append]
       simp only [List.cons_append, List.nil_append]
       change (match (0x4F : UInt8) :: tail.data.toList with | [] => none | op' :: rest => _) = _
@@ -696,7 +696,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
     simp only [Bool.false_eq_true, ↓reduceIte]
     rw [hopNat, htk, hdr, hpayMk, htailMk]
   · rcases h255 with ⟨hge76, hle255, rfl⟩
-    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.OP_PUSHDATA1
+    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.OP_PUSHDATA1
     unfold OP_0 OP_1NEGATE OP_1 OP_16 OP_PUSHDATA1 OP_PUSHDATA2 OP_PUSHDATA4
     rw [ByteArray.append_assoc, byteArray_toList_append, byteArray_toList_append]
     simp only [List.cons_append, List.nil_append]
@@ -741,7 +741,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
     rw [hlbNat, htk, hdr, hpayMk, htailMk]
     rfl
   · rcases h65k with ⟨hge256, hle65k, rfl⟩
-    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.OP_PUSHDATA2
+    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.OP_PUSHDATA2
     unfold OP_0 OP_1NEGATE OP_1 OP_16 OP_PUSHDATA1 OP_PUSHDATA2 OP_PUSHDATA4
     rw [← Proofs.Basic.encodeU16LE_eq]
     let v16 := UInt16.ofNat payload.size
@@ -750,7 +750,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
       exact Nat.mod_eq_of_lt (Nat.lt_succ_of_le hle65k)
     have hdec16 := Proofs.Basic.decodeU16LE?_roundtrip v16
     rw [Proofs.Basic.decodeU16LE?_eq, Proofs.Basic.encodeU16LE_eq] at hdec16
-    unfold Spec.encodeU16LEBytes Spec.decodeU16LE? at hdec16
+    unfold InternalSpec.encodeU16LEBytes InternalSpec.decodeU16LE? at hdec16
     dsimp only at hdec16
     let b0 := UInt8.ofNat (v16.toNat % 256)
     let b1 := UInt8.ofNat ((v16.toNat / 256) % 256)
@@ -780,7 +780,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
     simp only [Bool.or_self, Bool.false_eq_true, ↓reduceIte, htk, hdr, hpayMk, htailMk]
     rfl
   · rcases h4g with ⟨hge65k, hle4g, rfl⟩
-    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? Spec.OP_PUSHDATA4
+    unfold BitcoinLedger.Script.decodeMinimalPushPrefix? InternalSpec.OP_PUSHDATA4
     unfold OP_0 OP_1NEGATE OP_1 OP_16 OP_PUSHDATA1 OP_PUSHDATA2 OP_PUSHDATA4
     rw [← Proofs.Basic.encodeU32LE_eq]
     let v32 := UInt32.ofNat payload.size
@@ -789,7 +789,7 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
       exact Nat.mod_eq_of_lt (Nat.lt_succ_of_le hle4g)
     have hdec32 := Proofs.Basic.decodeU32LE?_roundtrip v32
     rw [Proofs.Basic.decodeU32LE?_eq, Proofs.Basic.encodeU32LE_eq] at hdec32
-    unfold Spec.encodeU32LEBytes Spec.decodeU32LE? at hdec32
+    unfold InternalSpec.encodeU32LEBytes InternalSpec.decodeU32LE? at hdec32
     dsimp only at hdec32
     let b0 := UInt8.ofNat (v32.toNat % 256)
     let b1 := UInt8.ofNat ((v32.toNat / 256) % 256)
@@ -829,30 +829,30 @@ theorem decodeMinimalPushPrefix?_encodeMinimalPush? {payload enc : ByteArray} (t
 /-! ## 3. Base58 & Base58Check Equivalence -/
 
 theorem asciiCharsOfString?_eq (s : String) :
-    BitcoinLedger.Script.asciiCharsOfString? s = Spec.asciiCharsOfString? s := rfl
+    BitcoinLedger.Script.asciiCharsOfString? s = InternalSpec.asciiCharsOfString? s := rfl
 
 theorem encodeBase58?_eq (raw : ByteArray) :
-    BitcoinLedger.Script.encodeBase58? raw = Spec.encodeBase58? raw := rfl
+    BitcoinLedger.Script.encodeBase58? raw = InternalSpec.encodeBase58? raw := rfl
 
 theorem encodeBase58Check?_eq
     (doubleSha256 : ByteArray → ByteArray) (version payload : ByteArray) :
     BitcoinLedger.Script.encodeBase58Check? doubleSha256 version payload =
-      Spec.encodeBase58Check? doubleSha256 version payload := by
-  unfold BitcoinLedger.Script.encodeBase58Check? Spec.encodeBase58Check?
+      InternalSpec.encodeBase58Check? doubleSha256 version payload := by
+  unfold BitcoinLedger.Script.encodeBase58Check? InternalSpec.encodeBase58Check?
   dsimp only
   cases c : decide ((doubleSha256 (version ++ payload)).size < 4)
   · simp [of_decide_eq_false c, encodeBase58?_eq]
   · simp [of_decide_eq_true c]
 
 theorem decodeBase58?_eq (encoded : String) :
-    BitcoinLedger.Script.decodeBase58? encoded = Spec.decodeBase58? encoded := rfl
+    BitcoinLedger.Script.decodeBase58? encoded = InternalSpec.decodeBase58? encoded := rfl
 
 theorem decodeBase58Check?_eq (doubleSha256 : ByteArray → ByteArray) (addr : String) :
     BitcoinLedger.Script.decodeBase58Check? doubleSha256 addr =
-      Spec.decodeBase58Check? doubleSha256 addr := by
-  unfold BitcoinLedger.Script.decodeBase58Check? Spec.decodeBase58Check?
+      InternalSpec.decodeBase58Check? doubleSha256 addr := by
+  unfold BitcoinLedger.Script.decodeBase58Check? InternalSpec.decodeBase58Check?
   rw [decodeBase58?_eq]
-  cases Spec.decodeBase58? addr with
+  cases InternalSpec.decodeBase58? addr with
   | none => rfl
   | some raw =>
       dsimp only
@@ -877,7 +877,7 @@ theorem decodeBase58Check?_eq (doubleSha256 : ByteArray → ByteArray) (addr : S
 /-! ## 4. Bech32 / Bech32m Polymod & Raw Codec Equivalence -/
 
 theorem bech32FinalConstant_eq (enc : Bech32Encoding) :
-    BitcoinLedger.Script.bech32FinalConstant enc = Spec.bech32FinalConstant enc := by
+    BitcoinLedger.Script.bech32FinalConstant enc = InternalSpec.bech32FinalConstant enc := by
   cases enc <;> rfl
 
 private theorem if_not_decide_eq_zero_eq (x : UInt32) (k : UInt32) :
@@ -887,8 +887,8 @@ private theorem if_not_decide_eq_zero_eq (x : UInt32) (k : UInt32) :
   · simp [of_decide_eq_true c]
 
 theorem bech32PolymodStep_eq (pre : UInt32) (val : UInt8) :
-    BitcoinLedger.Script.bech32PolymodStep pre val = Spec.bech32PolymodStep pre val := by
-  unfold BitcoinLedger.Script.bech32PolymodStep Spec.bech32PolymodStep
+    BitcoinLedger.Script.bech32PolymodStep pre val = InternalSpec.bech32PolymodStep pre val := by
+  unfold BitcoinLedger.Script.bech32PolymodStep InternalSpec.bech32PolymodStep
   dsimp only
   have hv : val.toUInt32 = UInt32.ofNat val.toNat := by
     apply UInt32.toNat_inj.mp
@@ -902,26 +902,26 @@ theorem bech32PolymodStep_eq (pre : UInt32) (val : UInt8) :
       if_not_decide_eq_zero_eq ((pre >>> 25) &&& 16)]
 
 theorem bech32Polymod_eq (values : List UInt8) :
-    BitcoinLedger.Script.bech32Polymod values = Spec.bech32Polymod values := by
-  unfold BitcoinLedger.Script.bech32Polymod Spec.bech32Polymod
-  have hstep : BitcoinLedger.Script.bech32PolymodStep = Spec.bech32PolymodStep := by
+    BitcoinLedger.Script.bech32Polymod values = InternalSpec.bech32Polymod values := by
+  unfold BitcoinLedger.Script.bech32Polymod InternalSpec.bech32Polymod
+  have hstep : BitcoinLedger.Script.bech32PolymodStep = InternalSpec.bech32PolymodStep := by
     funext pre val
     exact bech32PolymodStep_eq pre val
   rw [hstep]
 
 theorem bech32HrpExpand_eq (hrpLower : List Char) :
-    BitcoinLedger.Script.bech32HrpExpand hrpLower = Spec.bech32HrpExpand hrpLower := rfl
+    BitcoinLedger.Script.bech32HrpExpand hrpLower = InternalSpec.bech32HrpExpand hrpLower := rfl
 
 theorem bech32CreateChecksum_eq (enc : Bech32Encoding) (hrpLower : List Char) (data5 : List UInt8) :
     BitcoinLedger.Script.bech32CreateChecksum enc hrpLower data5 =
-      Spec.bech32CreateChecksum enc hrpLower data5 := by
-  unfold BitcoinLedger.Script.bech32CreateChecksum Spec.bech32CreateChecksum
+      InternalSpec.bech32CreateChecksum enc hrpLower data5 := by
+  unfold BitcoinLedger.Script.bech32CreateChecksum InternalSpec.bech32CreateChecksum
   rw [bech32Polymod_eq, bech32HrpExpand_eq, bech32FinalConstant_eq]
 
 theorem bech32VerifyChecksum?_eq (hrpLower : List Char) (dataAndChecksum5 : List UInt8) :
     BitcoinLedger.Script.bech32VerifyChecksum? hrpLower dataAndChecksum5 =
-      Spec.bech32VerifyChecksum? hrpLower dataAndChecksum5 := by
-  unfold BitcoinLedger.Script.bech32VerifyChecksum? Spec.bech32VerifyChecksum?
+      InternalSpec.bech32VerifyChecksum? hrpLower dataAndChecksum5 := by
+  unfold BitcoinLedger.Script.bech32VerifyChecksum? InternalSpec.bech32VerifyChecksum?
   have hall : (dataAndChecksum5.all (fun v => decide (v < 32))) =
       (dataAndChecksum5.all (fun v => v < 32)) := rfl
   rw [hall, bech32Polymod_eq, bech32HrpExpand_eq, bech32FinalConstant_eq, bech32FinalConstant_eq]
@@ -930,22 +930,22 @@ theorem bech32VerifyChecksum?_eq (hrpLower : List Char) (dataAndChecksum5 : List
     cases c2 : dataAndChecksum5.all (fun v => v < 32)
     · rfl
     · simp only [Bool.not_true, Bool.false_eq_true, ↓reduceIte]
-      cases cb : decide (Spec.bech32Polymod (Spec.bech32HrpExpand hrpLower ++ dataAndChecksum5) =
-          Spec.bech32FinalConstant .bech32)
+      cases cb : decide (InternalSpec.bech32Polymod (InternalSpec.bech32HrpExpand hrpLower ++ dataAndChecksum5) =
+          InternalSpec.bech32FinalConstant .bech32)
       · simp only [Bool.false_eq_true, of_decide_eq_false cb, ↓reduceIte]
-        cases cbm : decide (Spec.bech32Polymod (Spec.bech32HrpExpand hrpLower ++ dataAndChecksum5) =
-            Spec.bech32FinalConstant .bech32m)
+        cases cbm : decide (InternalSpec.bech32Polymod (InternalSpec.bech32HrpExpand hrpLower ++ dataAndChecksum5) =
+            InternalSpec.bech32FinalConstant .bech32m)
         · simp [of_decide_eq_false cbm]
         · simp [of_decide_eq_true cbm]
       · simp [of_decide_eq_true cb]
   · simp [of_decide_eq_true c1]
 
 theorem decodeBech32Raw?_eq (maxLen : Nat) (input : String) :
-    BitcoinLedger.Script.decodeBech32Raw? maxLen input = Spec.decodeBech32Raw? maxLen input := rfl
+    BitcoinLedger.Script.decodeBech32Raw? maxLen input = InternalSpec.decodeBech32Raw? maxLen input := rfl
 
 theorem encodeBech32Raw?_eq (maxLen : Nat) (enc : Bech32Encoding) (hrp : String) (data5 : List UInt8) :
     BitcoinLedger.Script.encodeBech32Raw? maxLen enc hrp data5 =
-      Spec.encodeBech32Raw? maxLen enc hrp data5 := rfl
+      InternalSpec.encodeBech32Raw? maxLen enc hrp data5 := rfl
 
 /-! ## 5. Universal 8↔5 Bit Conversion Roundtrip (`0 Classical.choice`) -/
 
@@ -1216,8 +1216,8 @@ theorem convertBits5to8?_convertBits8to5 (bs : ByteArray) :
 /-! ## 6. SegWit Witness-Version Segregation & Concrete Witnesses (`0 Classical.choice`) -/
 
 theorem requiredSegwitEncoding?_eq (witver : UInt8) :
-    BitcoinLedger.Script.requiredSegwitEncoding? witver = Spec.requiredSegwitEncoding? witver := by
-  unfold BitcoinLedger.Script.requiredSegwitEncoding? Spec.requiredSegwitEncoding?
+    BitcoinLedger.Script.requiredSegwitEncoding? witver = InternalSpec.requiredSegwitEncoding? witver := by
+  unfold BitcoinLedger.Script.requiredSegwitEncoding? InternalSpec.requiredSegwitEncoding?
   cases h0 : decide (witver = 0)
   · have hne0 : ¬ (witver = 0) := of_decide_eq_false h0
     simp only [Bool.false_eq_true, ↓reduceIte, hne0]
@@ -1231,8 +1231,8 @@ theorem requiredSegwitEncoding?_eq (witver : UInt8) :
 
 theorem isValidSegwitProgram_eq (witver : UInt8) (witprog : ByteArray) :
     BitcoinLedger.Script.isValidSegwitProgram witver witprog =
-      Spec.isValidSegwitProgram witver witprog := by
-  unfold BitcoinLedger.Script.isValidSegwitProgram Spec.isValidSegwitProgram
+      InternalSpec.isValidSegwitProgram witver witprog := by
+  unfold BitcoinLedger.Script.isValidSegwitProgram InternalSpec.isValidSegwitProgram
   cases h0 : decide (witver = 0)
   · have hne0 : ¬ (witver = 0) := of_decide_eq_false h0
     simp only [Bool.false_eq_true, ↓reduceIte, hne0]
@@ -1404,12 +1404,12 @@ theorem encodeSegwitAddr?_rejects_v0_bad_length
 
 theorem standardScriptToAddress?_bolos_rejects_unknownWitness
     (dsha : ByteArray → ByteArray)
-    (net : BitcoinLedger.Basic.Network) (snet : Spec.Network)
+    (net : BitcoinLedger.Basic.Network) (snet : InternalSpec.Network)
     (ver : UInt8) (prog : ByteArray) :
     BitcoinLedger.Script.standardScriptToAddress? .bolos dsha net (.unknownWitness ver prog) = none ∧
-    Spec.standardScriptToAddress? .bolos dsha snet (.unknownWitness ver prog) = none := by
+    InternalSpec.standardScriptToAddress? .bolos dsha snet (.unknownWitness ver prog) = none := by
   refine ⟨rfl, ?_⟩
-  unfold Spec.standardScriptToAddress?
+  unfold InternalSpec.standardScriptToAddress?
   cases h2 : decide (2 ≤ ver.toNat)
   · simp [of_decide_eq_false h2]
   · simp [of_decide_eq_true h2]

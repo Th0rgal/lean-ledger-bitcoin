@@ -1,4 +1,4 @@
-import Spec
+import InternalSpec
 import BitcoinLedger.Basic
 
 namespace BitcoinLedger.Bip32
@@ -6,13 +6,13 @@ namespace BitcoinLedger.Bip32
 /-!
 # `BitcoinLedger.Bip32` — Executable BIP-32 Derivation, Wire Codecs & Export Policy
 
-Executable implementation refining `Spec.Bip32`:
+Executable implementation refining `InternalSpec.Bip32`:
 1. Bitwise hardened/unhardened index operations (`HARDENED_BIT = 0x80000000`, `isHardened`, `harden`, `unharden`)
    and BOLOS / BIP-388 / Vanadium / BIP-32 depth gates (`MAX_BIP32_PATH_STEPS = 10`,
    `MAX_BIP388_XPUB_DERIVATION_STEPS = 8`, `MAX_BIP32_PATH_LEN = 16`, `MAX_BIP32_BYTE_DEPTH = 255`)
 2. Executable serialized BIP-32 path wire parser & serializer (`[len : UInt8] || u32be[0] || ...`)
 3. 78-byte `ExtendedPubKey` (`xpub`/`tpub`) binary serializer & parser plus Base58Check framing
-4. Executable `ExtendedPubKey` public child (`CKDpub`) and seed derivation over `Spec.CryptoDerivationOracle`
+4. Executable `ExtendedPubKey` public child (`CKDpub`) and seed derivation over `InternalSpec.CryptoDerivationOracle`
 5. Ledger `GET_EXTENDED_PUBKEY` security policy classifier (standard BIP-44/49/84/86/87/48/45/352 & Electrum
    hardened prefixes allowed silently vs unusual-path UI warning vs rejected unhardened/over-depth/OS-locked paths)
 -/
@@ -26,7 +26,7 @@ local instance (priority := 2000) : BEq UInt32 := ⟨fun a b => decide (a = b)�
 /-! ## 1. BIP-32 Indices, Bitwise Hardening, and Depth Gates -/
 
 /-- A BIP-32 derivation path from master `m` (`#[]` = root `m`). -/
-abbrev Bip32Path := Spec.Bip32Path
+abbrev Bip32Path := InternalSpec.Bip32Path
 
 /-- Bitmask marking a hardened BIP-32 child index (`2^31 = 0x80000000`). -/
 def HARDENED_BIT : UInt32 := 0x80000000
@@ -126,8 +126,8 @@ def parseBip32PathBounded? (maxSteps : Nat) (bs : ByteArray) : Option Bip32Path 
 
 /-! ## 3. 78-Byte `ExtendedPubKey` Binary & Base58Check Codecs -/
 
-abbrev KeyTree := Spec.KeyTree
-abbrev ExtendedPubKey := Spec.ExtendedPubKey
+abbrev KeyTree := InternalSpec.KeyTree
+abbrev ExtendedPubKey := InternalSpec.ExtendedPubKey
 
 /-- All-zero 4-byte parent fingerprint required by BIP-32 for depth-0 master keys. -/
 def zeroFingerprint4 : ByteArray :=
@@ -140,7 +140,7 @@ def isValidCompressedPubKey (bs : ByteArray) : Bool :=
     | pfx :: _ => decide (pfx = 0x02 ∨ pfx = 0x03)
     | [] => false
 
-/-- Executable check for `Spec.ExtendedPubKey.WellFormed`. -/
+/-- Executable check for `InternalSpec.ExtendedPubKey.WellFormed`. -/
 def isWellFormedExtendedPubKey (xpub : ExtendedPubKey) : Bool :=
   isBytes4 xpub.parentFingerprint &&
   isBytes32 xpub.chainCode &&
@@ -209,14 +209,14 @@ def encodeExtendedPubKeyBase58Check?
       none
     else
       let checksum4 := ByteArray.mk (digest.data.toList.take 4).toArray
-      Spec.encodeBase58? (body ++ checksum4)
+      InternalSpec.encodeBase58? (body ++ checksum4)
 
 /-- Decode and verify a Base58Check `xpub`/`tpub` string into a validated `ExtendedPubKey`,
     checking the 4-byte `doubleSha256` checksum and all 78-byte BIP-32 structural invariants. -/
 def decodeExtendedPubKeyBase58Check?
     (doubleSha256 : ByteArray → ByteArray)
     (encoded : String) : Option ExtendedPubKey :=
-  match Spec.decodeBase58? encoded with
+  match InternalSpec.decodeBase58? encoded with
   | none => none
   | some raw =>
       if decide (raw.size < 4) then
@@ -237,7 +237,7 @@ def decodeExtendedPubKeyBase58Check?
 
 /-! ## 5. Executable HD Key Derivation (`CKDpub` & Seed Derivation) -/
 
-abbrev CryptoDerivationOracle := Spec.CryptoDerivationOracle
+abbrev CryptoDerivationOracle := InternalSpec.CryptoDerivationOracle
 
 /-- Public child derivation on an `ExtendedPubKey` (`CKDpub`), rejecting hardened child indices
     and saturated depth (`depth == 255`). -/
@@ -395,13 +395,13 @@ def isStandardBip352Path (net : Network) (path : Bip32Path) : Bool :=
       allUnhardened tail
   | _ => false
 
-abbrev ExpubPolicyConfig := Spec.ExpubPolicyConfig
-abbrev ExpubPolicyDecision := Spec.ExpubPolicyDecision
+abbrev ExpubPolicyConfig := InternalSpec.ExpubPolicyConfig
+abbrev ExpubPolicyDecision := InternalSpec.ExpubPolicyDecision
 
-def bolosExpubPolicyConfig : ExpubPolicyConfig := Spec.bolosExpubPolicyConfig
-def bolosRecoveryExpubPolicyConfig : ExpubPolicyConfig := Spec.bolosRecoveryExpubPolicyConfig
-def vanadiumExpubPolicyConfig : ExpubPolicyConfig := Spec.vanadiumExpubPolicyConfig
-def vanadiumHardenedExpubPolicyConfig : ExpubPolicyConfig := Spec.vanadiumHardenedExpubPolicyConfig
+def bolosExpubPolicyConfig : ExpubPolicyConfig := InternalSpec.bolosExpubPolicyConfig
+def bolosRecoveryExpubPolicyConfig : ExpubPolicyConfig := InternalSpec.bolosRecoveryExpubPolicyConfig
+def vanadiumExpubPolicyConfig : ExpubPolicyConfig := InternalSpec.vanadiumExpubPolicyConfig
+def vanadiumHardenedExpubPolicyConfig : ExpubPolicyConfig := InternalSpec.vanadiumHardenedExpubPolicyConfig
 
 /-- Executable `GET_EXTENDED_PUBKEY` path classifier on `KeyTree`. -/
 def classifyExpubPathWithTree

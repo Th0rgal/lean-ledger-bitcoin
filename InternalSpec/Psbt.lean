@@ -11,7 +11,7 @@
   - BIP-143, BIP-174, BIP-322, BIP-340, BIP-341, BIP-342, BIP-370, BIP-375, BIP-388.
 -/
 
-namespace Spec.Psbt
+namespace InternalSpec.Psbt
 
 /-! ## 1. Self-Contained Primitive Domain Types & Encoding Helpers -/
 
@@ -359,7 +359,7 @@ structure InternalKeyPlaceholder where
   musigAggregateFingerprint : Option UInt32 := none
   deriving Repr, DecidableEq, Inhabited
 
-/-- Abstract BIP-388 wallet policy contract (to be unified with `Spec.WalletPolicy` in Wave 1.5). -/
+/-- Abstract BIP-388 wallet policy contract (to be unified with `InternalSpec.WalletPolicy` in Wave 1.5). -/
 structure WalletPolicySpec where
   /-- Whether this is a standard single-key default policy (requiring no registration HMAC). -/
   isDefault : Bool
@@ -3229,4 +3229,4 @@ theorem invalid_musig2_session_id_rejected
   rw [hOptFalse]
   rfl
 
-end Spec.Psbt
+end InternalSpec.Psbt
