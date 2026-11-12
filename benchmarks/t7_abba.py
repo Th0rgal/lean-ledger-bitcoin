@@ -24,10 +24,27 @@ def emit(path, value):
         os.fsync(stream.fileno())
 
 
-def processes():
+def descendants(parent, proc_root):
+    excluded = {parent}
+    pending = [parent]
+    while pending:
+        pid = pending.pop()
+        try:
+            for task in (proc_root / str(pid) / 'task').iterdir():
+                for child in map(int, (task / 'children').read_text().split()):
+                    if child not in excluded:
+                        excluded.add(child)
+                        pending.append(child)
+        except (OSError, ValueError):
+            pass
+    return excluded
+
+
+def processes(proc_root=Path('/proc')):
     rows = []
-    for entry in Path('/proc').iterdir():
-        if not entry.name.isdigit():
+    excluded = descendants(os.getpid(), proc_root)
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit() or int(entry.name) in excluded:
             continue
         try:
             name = (entry / 'comm').read_text().strip()
@@ -191,7 +208,10 @@ def prepare(args):
                 'python': {'path': sys.executable, 'sha256': digest(sys.executable)},
                 'limitations': ['Build profile is operator-declared, not independently reconstructed.',
                                'Shared-host timing is experimental; no zero-regression claim.',
-                               'Wall time only; no executed-instruction, heap or stack inference.']}
+                                'Wall time only; no executed-instruction, heap or stack inference.',
+                                'Port probe releases the socket before launch; a bind race remains possible.',
+                                'Before/after process snapshots cannot exclude transient mid-launch contention.'],
+                'runtime_api_observed': False}
     path = output / 'manifest.json'
     path.write_text(json.dumps(manifest, indent=2) + '\n')
     path.chmod(0o444)
@@ -220,7 +240,7 @@ def run(args):
         if tree_hashes(Path(m['client_root']) / 'bitcoin_client') != m['client_python']:
             raise RuntimeError('Frozen client python tree changed')
         cores = list(map(int, args.cores.split(',')))
-        if len(set(cores)) != 2 or 0 in cores or not set(cores) <= set(os.sched_getaffinity(0)):
+        if len(cores) != 2 or len(set(cores)) != 2 or 0 in cores or not set(cores) <= set(os.sched_getaffinity(0)):
             raise RuntimeError('Select two distinct available nonzero CPUs')
         os.sched_setaffinity(0, cores)
         emit(output / 'run.jsonl', {'affinity': cores, 'exclusive_reservation': False,
