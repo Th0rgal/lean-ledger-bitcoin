@@ -28,7 +28,7 @@ REF_APP="${REF_APP:-${W4_ROOT}/app-bitcoin-ref}"
 LEAN_APP="${LEAN_APP:-${W4_ROOT}/app-bitcoin-lean}"
 REF_ART="${REF_ART:-${W4_ROOT}/ref-artifacts}"
 LEAN_ART="${LEAN_ART:-${W4_ROOT}/lean-artifacts}"
-OUT_JSON="${REPO_ROOT}/benchmarks/bolos_results.json"
+OUT_JSON="${OUT_JSON:-${REPO_ROOT}/benchmarks/bolos_results.json}"
 
 NSP_SDK="${HUB}/dev-tools-rootfs/opt/nanosplus-secure-sdk"
 NX_SDK="${HUB}/dev-tools-rootfs/opt/nanox-secure-sdk"
@@ -113,7 +113,7 @@ fi
 echo "[bolos-bench] 4/5 Collecting storage, RAM, stack, ARM instruction counts & host C suite timings..."
 echo "[bolos-bench] 5/5 Measuring interleaved Speculos APDU wall-clock latencies on Nano S+ & Nano X..."
 
-export REPO_ROOT REF_APP LEAN_APP REF_ART LEAN_ART OUT_JSON HOTSPOT_JSON
+export REPO_ROOT REF_APP LEAN_APP REF_ART LEAN_ART REF_UNIT_ART LEAN_UNIT_ART OUT_JSON HOTSPOT_JSON
 python3 - << 'PY'
 import hashlib, hmac, json, os, re, statistics, subprocess, sys, time
 
@@ -345,8 +345,8 @@ UNIT_BINS = [
 ]
 
 host_unit_suites = {}
-ref_ut_dir = os.path.join(REF_ART, "unit-tests-build")
-lean_ut_dir = os.path.join(LEAN_ART, "unit-tests-build")
+ref_ut_dir = os.environ.get("REF_UNIT_ART", os.path.join(REF_ART, "unit-tests-build"))
+lean_ut_dir = os.environ.get("LEAN_UNIT_ART", os.path.join(LEAN_ART, "unit-tests-build"))
 if os.path.isdir(ref_ut_dir) and os.path.isdir(lean_ut_dir):
     for b in UNIT_BINS:
         rb = os.path.join(ref_ut_dir, b)

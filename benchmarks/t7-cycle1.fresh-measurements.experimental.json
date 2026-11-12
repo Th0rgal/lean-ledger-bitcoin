@@ -1,0 +1,935 @@
+{
+  "status": "experimental_nonvalidated",
+  "caveats": ["Pinned CPU0 fresh host workloads use current candidate host IR, but prebuilt firmware in HUB/w4-bolos/lean-artifacts is BASELINE (93791/94559 Flash), NOT cycle1 firmware. Mixed provenance: do not interpret APDU or storage numbers as cycle1. Exact final artifact promotion pending.", "Latency regression remains possible, particularly NanoX; no no-regression claim.", "Benchmark target metadata says NanoX API22 but Speculos detected API27; resolve before promotion.", "Fresh full turbo CI, Lean audits/differentials, freestanding checks, FFI, serial Vanadium and integrated C suite passed; not all final integration gates completed."],
+  "metadata": {
+    "upstream_repo": "LedgerHQ/app-bitcoin",
+    "upstream_commit": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "turbo_lean_branch": "feat/freestanding-flat-ptr-loops",
+    "turbo_lean_commit": "b9524d8059476935730c16afab0e18501ff80b49",
+    "measurement_host": {
+      "environment": "unspecified",
+      "same_host_reference_and_lean": true
+    },
+    "targets": {
+      "nanosp": "thumbv8m.main-none-eabi (cortex-m35p+nodsp, API_LEVEL 27)",
+      "nanox": "thumbv6m-none-eabi (cortex-m3, API_LEVEL 22)"
+    },
+    "compiler": "Debian clang 21.1.8 + ld.lld 21.1.8 + arm-none-eabi-gcc sysroot"
+  },
+  "storage_ram_stack": {
+    "nanosp_mainnet": {
+      "reference": {
+        "load_flash_bytes": 91231,
+        "text_code_bytes": 83206,
+        "rodata_bytes": 5082,
+        "map_input_code_bytes": 83138,
+        "map_input_rodata_bytes": 7108,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6376,
+        "total_static_ram_bytes": 6376,
+        "elf_unstripped_bytes": 247136,
+        "elf_stripped_bytes": 158004,
+        "apdu_bytes": 190165,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30364,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 9224,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 222
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 93791,
+        "text_code_bytes": 85686,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 85608,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 246984,
+        "elf_stripped_bytes": 160564,
+        "apdu_bytes": 195489,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31169,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 140,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      },
+      "lean_sameflags": {
+        "load_flash_bytes": 94303,
+        "text_code_bytes": 86638,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 86560,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 247172,
+        "elf_stripped_bytes": 161076,
+        "apdu_bytes": 196564,
+        "has_qsort": false,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31507,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 140,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanox_mainnet": {
+      "reference": {
+        "load_flash_bytes": 91231,
+        "text_code_bytes": 83582,
+        "rodata_bytes": 5082,
+        "map_input_code_bytes": 83512,
+        "map_input_rodata_bytes": 7108,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4212,
+        "total_static_ram_bytes": 4212,
+        "elf_unstripped_bytes": 247456,
+        "elf_stripped_bytes": 158000,
+        "apdu_bytes": 190165,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30460,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8712,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 220
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 94559,
+        "text_code_bytes": 86954,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 86876,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247416,
+        "elf_stripped_bytes": 161328,
+        "apdu_bytes": 197093,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31574,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      },
+      "lean_sameflags": {
+        "load_flash_bytes": 95327,
+        "text_code_bytes": 87906,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 87828,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247600,
+        "elf_stripped_bytes": 162096,
+        "apdu_bytes": 198697,
+        "has_qsort": false,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31912,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanosp_testnet": {
+      "reference": {
+        "load_flash_bytes": 91236,
+        "text_code_bytes": 83182,
+        "rodata_bytes": 5090,
+        "map_input_code_bytes": 83114,
+        "map_input_rodata_bytes": 7118,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6376,
+        "total_static_ram_bytes": 6376,
+        "elf_unstripped_bytes": 247144,
+        "elf_stripped_bytes": 158016,
+        "apdu_bytes": 190185,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30364,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 9224,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 223
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 93796,
+        "text_code_bytes": 85662,
+        "rodata_bytes": 4966,
+        "map_input_code_bytes": 85584,
+        "map_input_rodata_bytes": 6993,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 246992,
+        "elf_stripped_bytes": 160576,
+        "apdu_bytes": 195509,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31169,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 140,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanox_testnet": {
+      "reference": {
+        "load_flash_bytes": 91236,
+        "text_code_bytes": 83558,
+        "rodata_bytes": 5090,
+        "map_input_code_bytes": 83488,
+        "map_input_rodata_bytes": 7118,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4212,
+        "total_static_ram_bytes": 4212,
+        "elf_unstripped_bytes": 247464,
+        "elf_stripped_bytes": 158012,
+        "apdu_bytes": 190185,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30460,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8712,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 221
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 94308,
+        "text_code_bytes": 86930,
+        "rodata_bytes": 4966,
+        "map_input_code_bytes": 86852,
+        "map_input_rodata_bytes": 6993,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247424,
+        "elf_stripped_bytes": 161084,
+        "apdu_bytes": 196584,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 31574,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 355
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    }
+  },
+  "x86_64_rdtscp_hotspots": {
+    "sink": 2572458000,
+    "format_sats_amount": {
+      "ops": 200000,
+      "ref_cycles": 97451416,
+      "lean_cycles": 20764660,
+      "ref_ns": 27070599,
+      "lean_ns": 5768111,
+      "speedup_cycles": 4.693
+    },
+    "merkle_get_ith_direction_256": {
+      "ops": 409600,
+      "ref_cycles": 21358822,
+      "lean_cycles": 31243054,
+      "ref_ns": 5933661,
+      "lean_ns": 8679053,
+      "speedup_cycles": 0.684
+    },
+    "bip32_pubkey_export_check": {
+      "ops": 800000,
+      "ref_cycles": 13051112,
+      "lean_cycles": 11505648,
+      "ref_ns": 3625604,
+      "lean_ns": 3196435,
+      "speedup_cycles": 1.134
+    },
+    "musig2_keysort_5pks": {
+      "ops": 200000,
+      "ref_cycles": 77549090,
+      "lean_cycles": 151709746,
+      "ref_ns": 21542106,
+      "lean_ns": 42142572,
+      "speedup_cycles": 0.511
+    },
+    "segwit_program_check": {
+      "ops": 800000,
+      "ref_cycles": 6841386,
+      "lean_cycles": 11484044,
+      "ref_ns": 1900544,
+      "lean_ns": 3190125,
+      "speedup_cycles": 0.596
+    },
+    "aggregate_hotspot_suite": {
+      "ref_cycles": 216251826,
+      "lean_cycles": 226707152,
+      "speedup_cycles": 0.954
+    }
+  },
+  "host_unit_test_workloads": {
+    "test_display_utils": {
+      "ref_min_ms": 1.338,
+      "lean_min_ms": 1.282,
+      "ref_median_ms": 1.414,
+      "lean_median_ms": 1.335,
+      "speedup_median": 1.059
+    },
+    "test_get_merkle_leaf_index": {
+      "ref_min_ms": 28.37,
+      "lean_min_ms": 18.725,
+      "ref_median_ms": 29.611,
+      "lean_median_ms": 19.597,
+      "speedup_median": 1.511
+    },
+    "test_musig": {
+      "ref_min_ms": 67.282,
+      "lean_min_ms": 65.762,
+      "ref_median_ms": 68.489,
+      "lean_median_ms": 69.182,
+      "speedup_median": 0.99
+    },
+    "test_wallet": {
+      "ref_min_ms": 3.642,
+      "lean_min_ms": 2.599,
+      "ref_median_ms": 3.994,
+      "lean_median_ms": 2.797,
+      "speedup_median": 1.428
+    },
+    "test_register_wallet": {
+      "ref_min_ms": 79.429,
+      "lean_min_ms": 64.456,
+      "ref_median_ms": 81.491,
+      "lean_median_ms": 66.28,
+      "speedup_median": 1.229
+    },
+    "test_get_wallet_address": {
+      "ref_min_ms": 73.554,
+      "lean_min_ms": 62.085,
+      "ref_median_ms": 75.081,
+      "lean_median_ms": 63.972,
+      "speedup_median": 1.174
+    },
+    "test_get_extended_pubkey": {
+      "ref_min_ms": 150.499,
+      "lean_min_ms": 140.543,
+      "ref_median_ms": 158.306,
+      "lean_median_ms": 150.537,
+      "speedup_median": 1.052
+    },
+    "test_psbt_fields": {
+      "ref_min_ms": 48.083,
+      "lean_min_ms": 38.622,
+      "ref_median_ms": 50.997,
+      "lean_median_ms": 40.843,
+      "speedup_median": 1.249
+    }
+  },
+  "speculos_apdu_latency_ms": {
+    "nanosp": {
+      "GET_VERSION": {
+        "rounds": 26,
+        "ref_min_ms": 2.048,
+        "lean_min_ms": 2.254,
+        "delta_min_ms": 0.206,
+        "speedup_min": 0.9086,
+        "ref_median_ms": 2.465,
+        "lean_median_ms": 2.422,
+        "delta_median_ms": -0.043,
+        "speedup_median": 1.0178
+      },
+      "GET_MASTER_FINGERPRINT": {
+        "rounds": 22,
+        "ref_min_ms": 32.276,
+        "lean_min_ms": 31.926,
+        "delta_min_ms": -0.35,
+        "speedup_min": 1.011,
+        "ref_median_ms": 33.225,
+        "lean_median_ms": 33.726,
+        "delta_median_ms": 0.501,
+        "speedup_median": 0.9851
+      },
+      "GET_EXTENDED_PUBKEY": {
+        "rounds": 18,
+        "ref_min_ms": 62.53,
+        "lean_min_ms": 61.637,
+        "delta_min_ms": -0.893,
+        "speedup_min": 1.0145,
+        "ref_median_ms": 64.252,
+        "lean_median_ms": 63.867,
+        "delta_median_ms": -0.385,
+        "speedup_median": 1.006
+      },
+      "GET_WALLET_ADDRESS": {
+        "rounds": 14,
+        "ref_min_ms": 216.192,
+        "lean_min_ms": 215.091,
+        "delta_min_ms": -1.101,
+        "speedup_min": 1.0051,
+        "ref_median_ms": 219.523,
+        "lean_median_ms": 221.536,
+        "delta_median_ms": 2.013,
+        "speedup_median": 0.9909
+      },
+      "REGISTER_WALLET": {
+        "rounds": 10,
+        "ref_min_ms": 1404.587,
+        "lean_min_ms": 1394.867,
+        "delta_min_ms": -9.72,
+        "speedup_min": 1.007,
+        "ref_median_ms": 1421.616,
+        "lean_median_ms": 1426.561,
+        "delta_median_ms": 4.945,
+        "speedup_median": 0.9965
+      },
+      "SIGN_PSBT_TR_3IN": {
+        "rounds": 8,
+        "ref_min_ms": 2566.265,
+        "lean_min_ms": 2509.402,
+        "delta_min_ms": -56.863,
+        "speedup_min": 1.0227,
+        "ref_median_ms": 2661.765,
+        "lean_median_ms": 2708.461,
+        "delta_median_ms": 46.696,
+        "speedup_median": 0.9828
+      },
+      "SIGN_PSBT_WSH3OF5_3IN": {
+        "rounds": 6,
+        "ref_min_ms": 7349.694,
+        "lean_min_ms": 7464.441,
+        "delta_min_ms": 114.747,
+        "speedup_min": 0.9846,
+        "ref_median_ms": 8191.336,
+        "lean_median_ms": 8253.718,
+        "delta_median_ms": 62.382,
+        "speedup_median": 0.9924
+      }
+    },
+    "nanox": {
+      "GET_VERSION": {
+        "rounds": 26,
+        "ref_min_ms": 1.877,
+        "lean_min_ms": 2.094,
+        "delta_min_ms": 0.217,
+        "speedup_min": 0.8964,
+        "ref_median_ms": 2.111,
+        "lean_median_ms": 2.239,
+        "delta_median_ms": 0.128,
+        "speedup_median": 0.9428
+      },
+      "GET_MASTER_FINGERPRINT": {
+        "rounds": 22,
+        "ref_min_ms": 30.787,
+        "lean_min_ms": 31.873,
+        "delta_min_ms": 1.086,
+        "speedup_min": 0.9659,
+        "ref_median_ms": 32.156,
+        "lean_median_ms": 32.736,
+        "delta_median_ms": 0.58,
+        "speedup_median": 0.9823
+      },
+      "GET_EXTENDED_PUBKEY": {
+        "rounds": 18,
+        "ref_min_ms": 60.504,
+        "lean_min_ms": 61.917,
+        "delta_min_ms": 1.413,
+        "speedup_min": 0.9772,
+        "ref_median_ms": 62.396,
+        "lean_median_ms": 66.121,
+        "delta_median_ms": 3.725,
+        "speedup_median": 0.9437
+      },
+      "GET_WALLET_ADDRESS": {
+        "rounds": 14,
+        "ref_min_ms": 210.182,
+        "lean_min_ms": 213.239,
+        "delta_min_ms": 3.057,
+        "speedup_min": 0.9857,
+        "ref_median_ms": 215.41,
+        "lean_median_ms": 223.087,
+        "delta_median_ms": 7.677,
+        "speedup_median": 0.9656
+      },
+      "REGISTER_WALLET": {
+        "rounds": 10,
+        "ref_min_ms": 1340.613,
+        "lean_min_ms": 1375.695,
+        "delta_min_ms": 35.082,
+        "speedup_min": 0.9745,
+        "ref_median_ms": 1363.994,
+        "lean_median_ms": 1506.833,
+        "delta_median_ms": 142.839,
+        "speedup_median": 0.9052
+      },
+      "SIGN_PSBT_TR_3IN": {
+        "rounds": 8,
+        "ref_min_ms": 2303.087,
+        "lean_min_ms": 2399.855,
+        "delta_min_ms": 96.768,
+        "speedup_min": 0.9597,
+        "ref_median_ms": 2459.538,
+        "lean_median_ms": 2740.657,
+        "delta_median_ms": 281.119,
+        "speedup_median": 0.8974
+      },
+      "SIGN_PSBT_WSH3OF5_3IN": {
+        "rounds": 6,
+        "ref_min_ms": 6577.972,
+        "lean_min_ms": 6716.369,
+        "delta_min_ms": 138.397,
+        "speedup_min": 0.9794,
+        "ref_median_ms": 7230.135,
+        "lean_median_ms": 7705.635,
+        "delta_median_ms": 475.5,
+        "speedup_median": 0.9383
+      }
+    }
+  }
+}

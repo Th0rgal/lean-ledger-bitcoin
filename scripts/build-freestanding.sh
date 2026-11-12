@@ -172,7 +172,7 @@ for line in text.splitlines():
         ret_ty, fn, rest = m.groups()
         if fn.startswith("llb_"):
             extra = " alwaysinline" if (fn in INLINE_SCALARS or tag == "host") else ""
-            opt_attr = "" if tag == "host" else " optsize"
+            opt_attr = "" if tag == "host" else " minsize optsize"
             line = f"define hidden {ret_ty} @{fn}({rest}"
             if line.endswith("{"):
                 line = line[:-1] + f"{opt_attr}{extra} {{"
@@ -180,9 +180,8 @@ for line in text.splitlines():
             line = f"define internal {ret_ty} @{fn}({rest}"
     elif line.startswith("attributes #"):
         line = re.sub(r'\s*"(?:target-cpu|target-features|tune-cpu|frame-pointer|stack-protector-buffer-size)"="[^"]*"', '', line)
-        line = line.replace(" minsize ", " ")
         if tag == "host":
-            line = line.replace(" optsize ", " ")
+            line = line.replace(" minsize ", " ").replace(" optsize ", " ")
     out.append(line)
 
 open(dst, "w").write("\n".join(out) + "\n")
@@ -199,9 +198,8 @@ s = open(p).read()
 def clean_attr(l: str) -> str:
     if l.startswith("attributes #"):
         l = re.sub(r'\s*"(?:target-cpu|target-features|tune-cpu|frame-pointer|stack-protector-buffer-size)"="[^"]*"', '', l)
-    l = l.replace(" minsize ", " ")
     if tag == "host":
-        l = l.replace(" optsize ", " ")
+        l = l.replace(" minsize ", " ").replace(" optsize ", " ")
     return l
 open(p, "w").write("\n".join(
     clean_attr(l)
