@@ -622,12 +622,17 @@ summary_deltas = {
 
 doc = {
     "benchmark_suite": "vanadium-bitcoin-vapp-wave4",
+    "measurement_host": {
+        "environment": os.environ.get("BENCHMARK_HOST_CLASS", "unspecified"),
+        "same_host_reference_and_lean": True,
+    },
     "upstream_reference_commit": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
     "target_isa": "riscv32imac-unknown-none-elf",
     "device_model": "Ledger Flex (Speculos --model flex, 480x600 E-Ink)",
     "lean_freestanding_kernels": {
         "version_packed": "0x00020401",
-        "exported_symbols": len(su_frames),
+        "exported_symbols": sum(1 for line in subprocess.check_output(["llvm-nm", "--defined-only", "--extern-only", os.path.join(repo_root, "ffi/vanadium/build/riscv32imac/liblean_ledger_bitcoin.a")], text=True).splitlines() if line.split() and line.split()[-1].startswith("llb_")),
+        "stack_frame_count": len(su_frames),
         "max_stack_frame_bytes": max((x["stack_frame_bytes"] for x in su_frames), default=0),
         "frames": su_frames,
     },
