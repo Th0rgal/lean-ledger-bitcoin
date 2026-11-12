@@ -1,5 +1,5 @@
 {
-  "status": "validated_cycle1_complete",
+  "status": "experimental_nonvalidated",
   "caveats": [
     "Complete cycle1 firmware + fresh verified host unit-tests-build measured under CPU0 pinning.",
     "All proof/audit/unit/FFI/Speculos E2E gates passed (turbo-lean ./scripts/ci_verify.sh, lean-ledger-bitcoin Spec/InternalSpec/BitcoinLedger/Proofs/Tests + AxiomAudit + BolosDifferential + VanadiumDifferential + build-freestanding.sh + ffi/bolos + ffi/vanadium, app-bitcoin ctest 31/31, vanadium app 90/90 + common 49/49 + client 5/5 + Speculos integration_test 4/4).",
