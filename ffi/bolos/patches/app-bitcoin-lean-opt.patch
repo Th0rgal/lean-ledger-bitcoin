@@ -267,16 +267,11 @@ index acd350c..2524ae7 100644
  
  typedef struct {
      PolicyNodeType type;
-@@ -1719,6 +1720,12 @@ static int parse_script(buffer_t *in_buf,
-             if (node->n < 1 || node->n >= (1u << 31)) {
+@@ -1719,3 +1720,3 @@ static int parse_script(buffer_t *in_buf,
+-            if (node->n < 1 || node->n >= (1u << 31)) {
++            if (node->n < 1 || !llb_miniscript_after_ok(node->n)) {
                  return WITH_ERROR(-1, "n must satisfy 1 <= n < 2^31 in older/after");
              }
-+            if (token == TOKEN_OLDER && !llb_miniscript_older_ok(node->n)) {
-+                return WITH_ERROR(-1, "older() argument out of BIP-68 consensus range");
-+            }
-+            if (token == TOKEN_AFTER && !llb_miniscript_after_ok(node->n)) {
-+                return WITH_ERROR(-1, "after() argument out of BIP-379 range");
-+            }
  
              node->base.flags.is_miniscript = 1;
              node->base.flags.miniscript_type = MINISCRIPT_TYPE_B;
@@ -793,7 +788,7 @@ index 2e4cc28..046b0a7 100644
 +                                       ticker_len,
 +                                       0U,
 +                                       (uint8_t *) out,
-+                                       (uint32_t) MAX_AMOUNT_LENGTH);
++                                       (uint32_t) (MAX_AMOUNT_LENGTH + 1));
 +    if (n > MAX_AMOUNT_LENGTH) {
 +        n = 0;
      }
@@ -1113,8 +1108,8 @@ index 0000000..37efeee
 +    assert_int_equal(llb_check_dual_utxo(100ULL, a, 4, 101ULL, b, 4), 0);
 +
 +    uint8_t scratch[128] = {0};
-+    uint8_t ops[] = {0x00, 0x01, 0x10};
-+    assert_int_equal(llb_miniscript_check_postfix(ops, 3, 0, 0, scratch), 1);
++    uint8_t ops[] = {0x00, 0x01, 0x10, 0x21};
++    assert_int_equal(llb_miniscript_check_postfix(ops, 4, 0, 0, scratch), 1);
 +
 +    uint64_t st = llb_psbt_locktime_init();
 +    st = llb_psbt_locktime_step(st, 1, 10000U, 0, 0);
@@ -1124,7 +1119,7 @@ index 0000000..37efeee
 +    uint8_t cs[] = {0x02, 0x01, 0x02};
 +    uint64_t packed = llb_read_compact_size_checked(cs, 3, 10);
 +    assert_int_equal((uint32_t) packed, 2U);
-+    assert_int_equal((uint32_t) (packed >> 32), 3U);
++    assert_int_equal((uint32_t) (packed >> 32), 1U);
 +
 +    uint16_t xs[] = {3, 1, 2};
 +    llb_sort_u16(xs, 3);

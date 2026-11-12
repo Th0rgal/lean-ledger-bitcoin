@@ -64,20 +64,35 @@ timeout 180s "$LEAN_NATIVE" emit-freestanding-c-lib \
   -o "$REPO_ROOT/ffi/vanadium/build/host/liblean_ledger_bitcoin.a" --json > "$WORK_TMP/emit_host.json"
 
 echo "[2/6] Building RV32IMAC ELF variants (Reference, Lean-Optimized, Same-Profile)..."
-mkdir -p "$WORK_TMP/elfs"
+mkdir -p "$WORK_TMP/elfs/ref_plain/target" \
+         "$WORK_TMP/elfs/ref_auto/target" \
+         "$WORK_TMP/elfs/lean_plain/target" \
+         "$WORK_TMP/elfs/lean_auto/target" \
+         "$WORK_TMP/elfs/sameprof_plain/target" \
+         "$WORK_TMP/elfs/sameprof_auto/target"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/ref_plain/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/ref_auto/Cargo.toml"
+cp "$VANADIUM_LEAN/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/lean_plain/Cargo.toml"
+cp "$VANADIUM_LEAN/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/lean_auto/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/sameprof_plain/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/sameprof_auto/Cargo.toml"
 
 # Reference plain + autoapprove
 (cd "$VANADIUM_REF/apps/bitcoin/app" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_plain/target/ref_plain.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_plain.elf" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_auto/target/ref_auto.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_auto.elf")
 
 # Lean-optimized plain + autoapprove
 (cd "$VANADIUM_LEAN/apps/bitcoin/app" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_plain/target/lean_plain.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_plain.elf" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_auto/target/lean_auto.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_auto.elf")
 
 # Same-profile Lean plain + autoapprove (upstream linker flags, panic=unwind, strip=none, VAPP_HEAP_SIZE=65536)
@@ -87,11 +102,13 @@ SAMEPROF_TARGET="/tmp/w4-sameprof-target"
   cargo build --release --target riscv32imac-unknown-none-elf --target-dir "$SAMEPROF_TARGET" \
     --config 'profile.release.panic="unwind"' --config 'profile.release.strip="none"' \
     --no-default-features --features target_vanadium_ledger --quiet && \
+  cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_plain/target/sameprof_plain.elf" && \
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_plain.elf" && \
   VAPP_HEAP_SIZE=65536 RUSTFLAGS="-Clink-arg=--no-rosegment" \
   cargo build --release --target riscv32imac-unknown-none-elf --target-dir "$SAMEPROF_TARGET" \
     --config 'profile.release.panic="unwind"' --config 'profile.release.strip="none"' \
     --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf" && \
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto.elf")
 
 echo "[3/6] Running deterministic host microbenchmarks (llb-vanadium-ffi)..."
@@ -448,9 +465,9 @@ CARGO_TARGET_DIR=/tmp/w4-bench-driver-cache cargo build --release --quiet --mani
 DRIVER_BIN="/tmp/w4-bench-driver-cache/release/vanadium-e2e-bench"
 
 VM_RELEASE_BIN="$VANADIUM_REF/vm/target/flex/release/app-vanadium"
-REF_VAPP_PATH="$WORK_TMP/elfs/ref_auto.elf"
-LEAN_VAPP_PATH="$WORK_TMP/elfs/lean_auto.elf"
-SAMEPROF_VAPP_PATH="$WORK_TMP/elfs/sameprof_auto.elf"
+REF_VAPP_PATH="$WORK_TMP/elfs/ref_auto/target/ref_auto.elf"
+LEAN_VAPP_PATH="$WORK_TMP/elfs/lean_auto/target/lean_auto.elf"
+SAMEPROF_VAPP_PATH="$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf"
 
 echo "[5/6] Running ABBA interleaved Speculos Flex E2E latency ($E2E_RUNS ABBA pairs = $((E2E_RUNS * 2)) samples/variant) + exact RV32 VM & peak_heap_bytes metrics..."
 ABBA_LAT_JSON="$("$DRIVER_BIN" --abba "$VM_RELEASE_BIN" "$REF_VAPP_PATH" "$LEAN_VAPP_PATH" "$E2E_RUNS")"
