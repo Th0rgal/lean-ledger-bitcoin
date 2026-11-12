@@ -7,6 +7,20 @@
     "Host is shared with concurrent CI/Forge workloads; Speculos wall-clock latencies remain noisy and do not prove zero latency regression.",
     "Benchmark metadata says NanoX API22 while Speculos reports API27."
   ],
+  "artifact_provenance": {
+    "firmware_directory": "/tmp/opencode/t7_baseline/cycle1-artifacts",
+    "lean_unit_art": "/tmp/opencode/ledger-hub/w4-bolos/lean-artifacts/unit-tests-build",
+    "host_unit_suite_passed": "31/31",
+    "cpu_affinity": "0",
+    "elf_sha256_verified_at_publication": {
+      "nanosp-mainnet/app.elf": "2d87aa44f15204654e6627b249aabd0749ab34dc95ff0e96a1f754fb36e585f6",
+      "nanox-mainnet/app.elf": "f7577f325d54b0064e4efc35c298937d6cfec4464c0e02a0045d7ec1f8e6a46d",
+      "nanosp-testnet-perf/app.elf": "fe19b6120d82e1f5e85c57a3e9ce8448e5d2fc6a7750a4c07671c920365da38e",
+      "nanox-testnet-perf/app.elf": "fa0d841975f4bb124a042e76a28ee7a6814e84ae16d8a91a8e79d242c2fb499c"
+    },
+    "api_evidence": "Speculos detected API 27 from both testnet-perf ELF metadata at run time; the legacy Nano X API 22 label below is inconsistent and not authoritative.",
+    "measurement_binding_caveat": "ELF hashes recorded after measurement, not atomically by the benchmark driver; no claim of immutable or fully validated measurement provenance. Fresh-measurements report is a separate mixed-provenance baseline-firmware run and must not be interpreted as cycle1."
+  },
   "metadata": {
     "upstream_repo": "LedgerHQ/app-bitcoin",
     "upstream_commit": "f010982d3050e02813cd7129bebd68cf2d1f2099",
