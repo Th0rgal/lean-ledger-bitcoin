@@ -530,7 +530,7 @@ out_payload = {
         },
         "targets": {
             "nanosp": "thumbv8m.main-none-eabi (cortex-m35p+nodsp, API_LEVEL 27)",
-            "nanox": "thumbv6m-none-eabi (cortex-m3, API_LEVEL 22)",
+            "nanox": "thumbv6m-none-eabi (cortex-m3, runtime API must be verified from ELF and QEMU; historical T7 runtime API 27)",
         },
         "compiler": "Debian clang 21.1.8 + ld.lld 21.1.8 + arm-none-eabi-gcc sysroot",
     },
