@@ -522,8 +522,12 @@ out_payload = {
     "metadata": {
         "upstream_repo": "LedgerHQ/app-bitcoin",
         "upstream_commit": "f010982d3050e02813cd7129bebd68cf2d1f2099",
-        "turbo_lean_branch": "feat/ledger-32bit-llvm-opt",
-        "turbo_lean_commit": "6eea5eaddb445b243cc45c13cb4096c87a251430",
+        "turbo_lean_branch": "feat/freestanding-flat-ptr-loops",
+        "turbo_lean_commit": "b9524d8059476935730c16afab0e18501ff80b49",
+        "measurement_host": {
+            "environment": os.environ.get("BENCHMARK_HOST_CLASS", "unspecified"),
+            "same_host_reference_and_lean": True,
+        },
         "targets": {
             "nanosp": "thumbv8m.main-none-eabi (cortex-m35p+nodsp, API_LEVEL 27)",
             "nanox": "thumbv6m-none-eabi (cortex-m3, API_LEVEL 22)",
