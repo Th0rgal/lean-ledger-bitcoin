@@ -1052,7 +1052,7 @@ index 6232ef6..caf1313 100644
 +    assert_eq!(result, Err(Error::SigningFailed));
 +}
 diff --git a/apps/bitcoin/app/src/main.rs b/apps/bitcoin/app/src/main.rs
-index 1807eea..ab6eea4 100644
+index 1807eea..d22f8a1 100644
 --- a/apps/bitcoin/app/src/main.rs
 +++ b/apps/bitcoin/app/src/main.rs
 @@ -23,7 +23,9 @@ async fn handle_request(
@@ -1096,7 +1096,7 @@ index 1807eea..ab6eea4 100644
      let mut decoder = minicbor::Decoder::new(request);
      let Ok(decoded_request) = decoder.decode::<Request>() else {
          return minicbor::to_vec(&Response::Error {
-@@ -105,3 +125,211 @@ pub fn main() {
+@@ -105,3 +125,227 @@ pub fn main() {
          .developer("Salvatore Ingala")
          .run();
  }
@@ -1234,6 +1234,22 @@ index 1807eea..ab6eea4 100644
 +            false,
 +        ));
 +        assert_eq!(reg_older_res, Err(common::errors::Error::InvalidWalletPolicy));
++
++        let sane_older_after = WalletPolicy::new(
++            "wsh(and_v(v:older(100),and_v(v:after(500000100),pk(@0/**))))",
++            vec![xpub0.try_into().unwrap()],
++        )
++        .unwrap();
++        assert!(sane_older_after.to_script(false, 0).is_ok());
++        let reg_older_after_res = sdk::executor::block_on(handlers::handle_register_account(
++            &mut app,
++            "Sane older after",
++            &common::message::Account::WalletPolicy(sane_older_after),
++            None,
++            None,
++            false,
++        ));
++        assert!(reg_older_after_res.is_ok());
 +
 +        // Unsane `older(0)` must be rejected.
 +        let older_zero = WalletPolicy::new(
