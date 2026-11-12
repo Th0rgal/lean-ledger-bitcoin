@@ -1052,7 +1052,7 @@ index 6232ef6..caf1313 100644
 +    assert_eq!(result, Err(Error::SigningFailed));
 +}
 diff --git a/apps/bitcoin/app/src/main.rs b/apps/bitcoin/app/src/main.rs
-index 1807eea..9b93497 100644
+index 1807eea..ab6eea4 100644
 --- a/apps/bitcoin/app/src/main.rs
 +++ b/apps/bitcoin/app/src/main.rs
 @@ -23,7 +23,9 @@ async fn handle_request(
@@ -1096,7 +1096,7 @@ index 1807eea..9b93497 100644
      let mut decoder = minicbor::Decoder::new(request);
      let Ok(decoded_request) = decoder.decode::<Request>() else {
          return minicbor::to_vec(&Response::Error {
-@@ -105,3 +125,192 @@ pub fn main() {
+@@ -105,3 +125,211 @@ pub fn main() {
          .developer("Salvatore Ingala")
          .run();
  }
@@ -1215,6 +1215,25 @@ index 1807eea..9b93497 100644
 +        ));
 +        assert_eq!(reg_res, Err(common::errors::Error::InvalidWalletPolicy));
 +
++        // Unsane relative timelock mix (blocks + 512s time `older` in `and_v`) must also be rejected.
++        let unsane_older_mix = WalletPolicy::new(
++            "wsh(and_v(v:older(100),and_v(v:older(4194305),pk(@0/**))))",
++            vec![xpub0.try_into().unwrap()],
++        )
++        .unwrap();
++        assert_eq!(
++            unsane_older_mix.to_script(false, 0),
++            Err(common::errors::Error::InvalidWalletPolicy)
++        );
++        let reg_older_res = sdk::executor::block_on(handlers::handle_register_account(
++            &mut app,
++            "Bad older mix",
++            &common::message::Account::WalletPolicy(unsane_older_mix),
++            None,
++            None,
++            false,
++        ));
++        assert_eq!(reg_older_res, Err(common::errors::Error::InvalidWalletPolicy));
 +
 +        // Unsane `older(0)` must be rejected.
 +        let older_zero = WalletPolicy::new(
