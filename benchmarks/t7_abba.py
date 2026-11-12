@@ -165,6 +165,7 @@ def prepare(args):
     evidence = json.loads(args.build_evidence.read_text()) if args.build_evidence else None
     cpu = [line for line in Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')]
     governors = {str(path): path.read_text().strip() for path in Path('/sys/devices/system/cpu').glob('cpu*/cpufreq/scaling_governor')}
+    freeze = subprocess.run([sys.executable, '-m', 'pip', 'freeze'], text=True, capture_output=True)
     manifest = {'status': 'experimental_nonvalidated', 'created_ns': time.time_ns(),
                 'host': host(), 'profile': args.profile, 'artifacts': artifacts, 'tools': tools,
                 'source_snapshots_not_build_attestations': sources,
@@ -172,7 +173,9 @@ def prepare(args):
                 'build_evidence': evidence,
                 'defines': ['AUTOAPPROVE_FOR_PERF_TESTS=1'],
                 'cpu_model': cpu, 'governors': governors,
-                'pip_freeze': subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'], text=True).splitlines(),
+                'pip_freeze': freeze.stdout.splitlines() if freeze.returncode == 0 else None,
+                'pip_freeze_limitation': freeze.stderr.strip() if freeze.returncode else None,
+                'installed_distributions': sorted(f"{d.metadata['Name']}=={d.version}" for d in importlib.metadata.distributions()),
                 'sampling_unit': 'launch',
                 'stack_bytes': None,
                 'stack_limitation': 'No stack attribution without ELF-hash-linked build evidence.',
