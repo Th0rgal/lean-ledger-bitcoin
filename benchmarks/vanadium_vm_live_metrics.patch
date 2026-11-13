@@ -1,0 +1,139 @@
+diff --git a/vm/src/handlers/get_metrics.rs b/vm/src/handlers/get_metrics.rs
+index 1f76cd2..99146a3 100644
+--- a/vm/src/handlers/get_metrics.rs
++++ b/vm/src/handlers/get_metrics.rs
+@@ -6,6 +6,63 @@ use common::metrics::VAppMetrics;
+ /// Global storage for the last V-App's metrics
+ static mut LAST_VAPP_METRICS: VAppMetrics = VAppMetrics::new();
+ 
++/// Counters of the V-App that is currently running. Unlike `LAST_VAPP_METRICS`, these are
++/// updated while the V-App runs, so that they can be read every time it is interrupted.
++static mut LIVE_VAPP_METRICS: VAppMetrics = VAppMetrics::new();
++
++/// Resets the live counters; called when a V-App starts.
++pub fn live_start(vapp_name: &[u8], vapp_hash: [u8; 32]) {
++    let mut metrics = VAppMetrics::new();
++    let copy_len = vapp_name.len().min(metrics.vapp_name.len());
++    metrics.vapp_name[..copy_len].copy_from_slice(&vapp_name[..copy_len]);
++    metrics.vapp_hash = vapp_hash;
++    unsafe {
++        LIVE_VAPP_METRICS = metrics;
++    }
++}
++
++#[inline(always)]
++pub fn live_count_instruction() {
++    unsafe {
++        LIVE_VAPP_METRICS.instruction_count += 1;
++    }
++}
++
++#[inline(always)]
++pub fn live_count_page_load() {
++    unsafe {
++        LIVE_VAPP_METRICS.page_loads += 1;
++    }
++}
++
++#[inline(always)]
++pub fn live_count_page_commit() {
++    unsafe {
++        LIVE_VAPP_METRICS.page_commits += 1;
++    }
++}
++
++/// Replies to a GetMetrics command received while the V-App is interrupted (that is, when the
++/// VM is waiting for the client's `Continue`) with the live counters, in the same 80-byte format
++/// as [`handler_get_metrics`]. Returns the `Comm`, so that the caller can keep waiting.
++pub fn reply_live_metrics<'a, const N: usize>(
++    command: ledger_device_sdk::io::Command<'a, N>,
++) -> &'a mut ledger_device_sdk::io::Comm<N> {
++    let metrics = unsafe { LIVE_VAPP_METRICS };
++
++    let mut response = command.into_response();
++    response.append(&metrics.vapp_name).unwrap();
++    response.append(&metrics.vapp_hash).unwrap();
++    response
++        .append(&metrics.instruction_count.to_be_bytes())
++        .unwrap();
++    response.append(&metrics.page_loads.to_be_bytes()).unwrap();
++    response
++        .append(&metrics.page_commits.to_be_bytes())
++        .unwrap();
++    response.send(AppSW::Ok).unwrap()
++}
++
+ /// Sets the metrics for the last executed V-App.
+ /// # Safety
+ /// This function is not thread-safe, but is safe in the single-threaded Ledger environment.
+diff --git a/vm/src/handlers/lib/outsourced_mem.rs b/vm/src/handlers/lib/outsourced_mem.rs
+index 7914230..8c96eac 100644
+--- a/vm/src/handlers/lib/outsourced_mem.rs
++++ b/vm/src/handlers/lib/outsourced_mem.rs
+@@ -159,6 +159,7 @@ impl<'c, const N: usize> OutsourcedMemory<'c, N> {
+         #[cfg(feature = "metrics")]
+         {
+             self.n_page_commits += 1;
++            crate::handlers::get_metrics::live_count_page_commit();
+         }
+ 
+         let mut aes_ctr = self.aes_ctr.borrow_mut();
+@@ -267,6 +268,7 @@ impl<'c, const N: usize> OutsourcedMemory<'c, N> {
+         #[cfg(feature = "metrics")]
+         {
+             self.n_page_loads += 1;
++            crate::handlers::get_metrics::live_count_page_load();
+         }
+ 
+         #[cfg(feature = "trace_pages")]
+diff --git a/vm/src/handlers/start_vapp.rs b/vm/src/handlers/start_vapp.rs
+index 495c13e..1e3ea1c 100644
+--- a/vm/src/handlers/start_vapp.rs
++++ b/vm/src/handlers/start_vapp.rs
+@@ -150,6 +150,8 @@ pub fn handler_start_vapp(
+ 
+     #[cfg(feature = "metrics")]
+     let mut instr_count = 0;
++    #[cfg(feature = "metrics")]
++    super::get_metrics::live_start(manifest.get_app_name().as_bytes(), vapp_hash);
+ 
+     loop {
+         // Handle instruction fetch errors
+@@ -183,6 +185,7 @@ pub fn handler_start_vapp(
+         #[cfg(feature = "metrics")]
+         {
+             instr_count += 1;
++            super::get_metrics::live_count_instruction();
+         }
+ 
+         match result {
+diff --git a/vm/src/io.rs b/vm/src/io.rs
+index c4b7077..2bd12b0 100644
+--- a/vm/src/io.rs
++++ b/vm/src/io.rs
+@@ -39,7 +39,25 @@ pub fn interrupt<'a, const N: usize>(
+     response: io::CommandResponse<'a, N>,
+ ) -> Result<io::Command<'a, N>, InterruptError> {
+     let comm = response.send(AppSW::InterruptedExecution).unwrap();
++    #[cfg(not(feature = "metrics"))]
+     let command = comm.next_command();
++    // With the "metrics" feature, GetMetrics is also served here, any number of times: it
++    // replies with the live counters and leaves the V-App interrupted, still waiting for
++    // 'Continue'.
++    #[cfg(feature = "metrics")]
++    let command = {
++        let mut comm = comm;
++        loop {
++            let command = comm.next_command();
++            if !matches!(
++                command.decode::<Instruction>(),
++                Ok(Instruction::GetMetrics)
++            ) {
++                break command;
++            }
++            comm = crate::handlers::get_metrics::reply_live_metrics(command);
++        }
++    };
+ 
+     let ins = command
+         .decode::<Instruction>()

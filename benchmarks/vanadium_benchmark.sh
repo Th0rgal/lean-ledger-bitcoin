@@ -19,6 +19,16 @@
 #   VANADIUM_LEAN  (default: /var/lib/orb-node/work/w4-vanadium/vanadium-lean)
 #   VM_METRICS_BIN (default: /var/lib/orb-node/work/w4-vanadium/vm-metrics/app-vanadium-metrics)
 #   E2E_RUNS       (default: 5)
+#
+# Per-APDU counter trace (optional; replaces steps 3, 5 and 6):
+#   TRACE_OUT_DIR  if set (to a directory that has no elfs/ yet), runs only the sign_transaction
+#                  workload for the three variants, samples the VM counters after every APDU
+#                  exchange, then exits. Needs VM_METRICS_BIN to be a VM built with the "metrics"
+#                  feature *and* benchmarks/vanadium_vm_live_metrics.patch applied (upstream only
+#                  serves GetMetrics after the V-App has exited). Raw runs, frozen ELFs and
+#                  Speculos screenshots are written there; benchmarks/vanadium_trace.py
+#                  assembles them into benchmarks/vanadium_trace.json.
+#   TRACE_RUNS     measured runs per variant, interleaved in mirrored cycles (default: 3)
 
 set -euo pipefail
 
@@ -111,9 +121,11 @@ SAMEPROF_TARGET="/tmp/w4-sameprof-target"
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf" && \
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto.elf")
 
+if [[ -z "${TRACE_OUT_DIR:-}" ]]; then
 echo "[3/6] Running deterministic host microbenchmarks (llb-vanadium-ffi)..."
 HOST_BENCH_JSON="$(cargo run --release --quiet --manifest-path "$REPO_ROOT/ffi/vanadium/Cargo.toml" --example bench_kernels -- 1000000)"
 echo "  Host bench: $HOST_BENCH_JSON"
+fi
 
 echo "[4/6] Building Speculos Flex E2E benchmark driver..."
 mkdir -p "$WORK_TMP/driver/src"
@@ -131,6 +143,7 @@ bitcoin = { version = "0.32.0", features = ["serde"], default-features = false }
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 hex = "0.4.3"
 tokio = { version = "1.38.1", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+async-trait = "0.1.81"
 EOF
 
 cat > "$WORK_TMP/driver/src/main.rs" << 'EOF'
@@ -161,6 +174,7 @@ use sdk::{
     transport::{APDUCommand, StatusWord, Transport, TransportTcp, TransportWrapper},
     vanadium_client::VanadiumAppClient,
 };
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::sleep;
 use vnd_bitcoin_client::BitcoinClient;
 
@@ -168,7 +182,7 @@ fn free_port() -> u16 {
     TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 }
 
-async fn spawn_speculos(vanadium_bin: &str) -> (Child, Arc<TransportTcp>) {
+async fn spawn_speculos(vanadium_bin: &str) -> (Child, Arc<TransportTcp>, u16) {
     for _ in 0..10 {
         let apdu_port = free_port();
         let api_port = free_port();
@@ -191,7 +205,7 @@ async fn spawn_speculos(vanadium_bin: &str) -> (Child, Arc<TransportTcp>) {
                 break;
             }
             if let Ok(tcp) = TransportTcp::new(addr).await {
-                return (child, Arc::new(tcp));
+                return (child, Arc::new(tcp), api_port);
             }
             sleep(Duration::from_millis(150)).await;
         }
@@ -238,7 +252,7 @@ async fn run_workload(
     with_metrics: bool,
     query_heap: bool,
 ) -> WorkloadResult {
-    let (mut child, tcp) = spawn_speculos(vanadium_bin).await;
+    let (mut child, tcp, _api_port) = spawn_speculos(vanadium_bin).await;
     let transport = Arc::new(TransportWrapper::new(tcp.clone()));
 
     let t0 = Instant::now();
@@ -257,17 +271,7 @@ async fn run_workload(
             assert_eq!(fpr, 0xf5acc2fd);
         }
         "sign_transaction" => {
-            let psbt_b64 = "cHNidP8BAH0CAAAAAeFoYcDSl0n1LNLt3hDLzE9ZEhBxD2QOXY4UQM6F2W3GAQAAAAD9////Ao00lwAAAAAAIlEgC450hrwwagrvt6fACvBAVULbGs1z7syoJ3HM9f5etg+ghgEAAAAAABYAFBOZuKCYR6A5sDUvWNISwYC6sX93AAAAAAABASvfu5gAAAAAACJRIImQSmNI1/+aRNSduLaoB8Yi6Gg2TFR9pCbzC1piExhqIRbpxpsJXtBLVir8jUFpGTa6Vz629om8I2YAvk+jkm9kEhkA9azC/VYAAIABAACAAAAAgAEAAAADAAAAARcg6cabCV7QS1Yq/I1BaRk2ulc+tvaJvCNmAL5Po5JvZBIAAQUgApCB7OVhaqHLmTGfxIdO/uR/CM66X2AEY2yMQ0CaXwohBwKQgezlYWqhy5kxn8SHTv7kfwjOul9gBGNsjENAml8KGQD1rML9VgAAgAEAAIAAAACAAQAAAAIAAAAAAA==";
-            let mut psbt = PsbtV2::from_v0(&base64::engine::general_purpose::STANDARD.decode(psbt_b64).unwrap()).unwrap();
-            let wallet_policy = parse_wallet_policy(
-                "tr(@0/**)",
-                &["[f5acc2fd/86'/1'/0']tpubDDKYE6BREvDsSWMazgHoyQWiJwYaDDYPbCFjYxN3HFXJP5fokeiK4hwK5tTLBNEDBwrDXn8cQ4v9b2xdW62Xr5yxoQdMu1v6c7UDXYVH27U"],
-            );
-            let account_name = "My taproot account #0";
-            let (_, por) = client.register_account(account_name, &wallet_policy, None, None, false).await.unwrap();
-            prepare_psbt(&mut psbt, &[(&wallet_policy, &account_name, &por.dangerous_as_bytes())]).unwrap();
-            let result = client.sign_psbt(&psbt.serialize()).await.unwrap();
-            assert_eq!(result.signatures.len(), 1);
+            sign_transaction_flow(&mut client, &|_| {}).await;
         }
         "send_to_silent_payment" => {
             let xpub = "tpubDCtKfsNyRhULjZ9XMS4VKKtVcPdVDi8MKUbcSD9MJDyjRu1A2ND5MiipozyyspBT9bg8upEp7a8EAgFxNxXn1d7QkdbL52Ty5jiSLcxPt1P";
@@ -366,6 +370,183 @@ async fn run_workload(
     }
 }
 
+// The Taproot `tr(@0/**)` signing flow of the "sign_transaction" workload. `on_phase` is called
+// right before the client request that opens each phase.
+async fn sign_transaction_flow(client: &mut BitcoinClient, on_phase: &dyn Fn(&'static str)) {
+    let psbt_b64 = "cHNidP8BAH0CAAAAAeFoYcDSl0n1LNLt3hDLzE9ZEhBxD2QOXY4UQM6F2W3GAQAAAAD9////Ao00lwAAAAAAIlEgC450hrwwagrvt6fACvBAVULbGs1z7syoJ3HM9f5etg+ghgEAAAAAABYAFBOZuKCYR6A5sDUvWNISwYC6sX93AAAAAAABASvfu5gAAAAAACJRIImQSmNI1/+aRNSduLaoB8Yi6Gg2TFR9pCbzC1piExhqIRbpxpsJXtBLVir8jUFpGTa6Vz629om8I2YAvk+jkm9kEhkA9azC/VYAAIABAACAAAAAgAEAAAADAAAAARcg6cabCV7QS1Yq/I1BaRk2ulc+tvaJvCNmAL5Po5JvZBIAAQUgApCB7OVhaqHLmTGfxIdO/uR/CM66X2AEY2yMQ0CaXwohBwKQgezlYWqhy5kxn8SHTv7kfwjOul9gBGNsjENAml8KGQD1rML9VgAAgAEAAIAAAACAAQAAAAIAAAAAAA==";
+    let mut psbt = PsbtV2::from_v0(&base64::engine::general_purpose::STANDARD.decode(psbt_b64).unwrap()).unwrap();
+    let wallet_policy = parse_wallet_policy(
+        "tr(@0/**)",
+        &["[f5acc2fd/86'/1'/0']tpubDDKYE6BREvDsSWMazgHoyQWiJwYaDDYPbCFjYxN3HFXJP5fokeiK4hwK5tTLBNEDBwrDXn8cQ4v9b2xdW62Xr5yxoQdMu1v6c7UDXYVH27U"],
+    );
+    let account_name = "My taproot account #0";
+    on_phase("account_registration");
+    let (_, por) = client.register_account(account_name, &wallet_policy, None, None, false).await.unwrap();
+    on_phase("sign_transaction");
+    prepare_psbt(&mut psbt, &[(&wallet_policy, &account_name, &por.dangerous_as_bytes())]).unwrap();
+    let result = client.sign_psbt(&psbt.serialize()).await.unwrap();
+    assert_eq!(result.signatures.len(), 1);
+}
+
+// ---- Per-APDU VM counter trace (`--trace`) --------------------------------------------------
+//
+// Needs a VM built with the "metrics" feature and benchmarks/vanadium_vm_live_metrics.patch:
+// upstream only answers GetMetrics once the V-App has exited, whereas the patched VM also
+// answers it (with live counters) every time the V-App is interrupted and waiting for the
+// client's `Continue`.
+
+struct TraceSample {
+    t_ms: f64,
+    phase: &'static str,
+    vm_state: &'static str,
+    instructions: u64,
+    page_loads: u32,
+    page_commits: u32,
+}
+
+// Transport that, after every APDU exchange of the workload, reads the VM counters with one
+// extra GetMetrics exchange. The extra exchanges are not counted in `apdu_index`.
+struct TracingTransport {
+    inner: Arc<TransportTcp>,
+    t0: Instant,
+    gate: tokio::sync::Mutex<()>,
+    phase: std::sync::Mutex<&'static str>,
+    samples: std::sync::Mutex<Vec<TraceSample>>,
+}
+
+impl TracingTransport {
+    fn set_phase(&self, phase: &'static str) {
+        *self.phase.lock().unwrap() = phase;
+    }
+}
+
+#[async_trait::async_trait]
+impl Transport for TracingTransport {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    async fn exchange(&self, command: &APDUCommand) -> Result<(StatusWord, Vec<u8>), Self::Error> {
+        let _gate = self.gate.lock().await;
+        let (sw, data) = self.inner.exchange(command).await?;
+        // host-monotonic timestamp of the end of the workload's exchange, before the probe
+        let t_ms = self.t0.elapsed().as_secs_f64() * 1000.0;
+        let phase = *self.phase.lock().unwrap();
+
+        let probe = APDUCommand { cla: 0xE0, ins: 0xF0, p1: 0, p2: 0, data: Vec::new() };
+        let (probe_sw, m) = self.inner.exchange(&probe).await?;
+        let sample = if probe_sw == StatusWord::OK && m.len() == 80 {
+            let vm_state = if sw == StatusWord::InterruptedExecution { "vapp_interrupted" } else { "vapp_exited" };
+            TraceSample {
+                t_ms,
+                phase,
+                vm_state,
+                instructions: u64::from_be_bytes(m[64..72].try_into().unwrap()),
+                page_loads: u32::from_be_bytes(m[72..76].try_into().unwrap()),
+                page_commits: u32::from_be_bytes(m[76..80].try_into().unwrap()),
+            }
+        } else {
+            // No V-App has run yet on this VM instance: there is nothing to count.
+            assert_eq!(probe_sw, StatusWord::IncorrectData, "unexpected GetMetrics status");
+            assert_ne!(sw, StatusWord::InterruptedExecution, "GetMetrics refused while the V-App is interrupted");
+            TraceSample { t_ms, phase, vm_state: "no_vapp", instructions: 0, page_loads: 0, page_commits: 0 }
+        };
+        self.samples.lock().unwrap().push(sample);
+        Ok((sw, data))
+    }
+}
+
+async fn http_get(port: u16, path: &str) -> Option<Vec<u8>> {
+    let mut s = tokio::net::TcpStream::connect(("127.0.0.1", port)).await.ok()?;
+    let req = format!("GET {} HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n", path);
+    s.write_all(req.as_bytes()).await.ok()?;
+    let mut buf = Vec::new();
+    s.read_to_end(&mut buf).await.ok()?;
+    if !(buf.starts_with(b"HTTP/1.0 200") || buf.starts_with(b"HTTP/1.1 200")) {
+        return None;
+    }
+    let pos = buf.windows(4).position(|w| w == b"\r\n\r\n")?;
+    Some(buf[pos + 4..].to_vec())
+}
+
+// Saves the Speculos screen every time it changes, as `f<microseconds since t0>.png`.
+async fn record_screen(api_port: u16, t0: Instant, dir: String) {
+    let mut last: Vec<u8> = Vec::new();
+    loop {
+        if let Some(png) = http_get(api_port, "/screenshot").await {
+            if !png.is_empty() && png != last {
+                let t_us = t0.elapsed().as_micros();
+                std::fs::write(format!("{}/f{:010}.png", dir, t_us), &png).unwrap();
+                last = png;
+            }
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+}
+
+struct TraceRun {
+    wall_ms: f64,
+    samples: Vec<TraceSample>,
+}
+
+async fn run_trace(vanadium_bin: &str, vapp_bin: &str, frames_dir: Option<&str>) -> TraceRun {
+    let (mut child, tcp, api_port) = spawn_speculos(vanadium_bin).await;
+    let t0 = Instant::now();
+    let recorder = frames_dir.map(|dir| {
+        std::fs::create_dir_all(dir).unwrap();
+        tokio::spawn(record_screen(api_port, t0, dir.to_string()))
+    });
+    let transport = Arc::new(TracingTransport {
+        inner: tcp,
+        t0,
+        gate: tokio::sync::Mutex::new(()),
+        phase: std::sync::Mutex::new("app_start"),
+        samples: std::sync::Mutex::new(Vec::new()),
+    });
+    let dyn_transport: Arc<dyn Transport<Error = Box<dyn std::error::Error + Send + Sync>>> = transport.clone();
+
+    let vapp_client = VanadiumAppClient::with_vapp(vapp_bin, dyn_transport, Box::new(Sink::default()), false)
+        .await
+        .expect("VanadiumAppClient::with_vapp");
+    let mut client = BitcoinClient::new(Box::new(vapp_client));
+
+    let phase_transport = transport.clone();
+    sign_transaction_flow(&mut client, &move |phase| phase_transport.set_phase(phase)).await;
+
+    transport.set_phase("exit");
+    let status = client.exit().await.expect("client.exit");
+    assert_eq!(status, 0);
+    let wall_ms = t0.elapsed().as_secs_f64() * 1000.0;
+    drop(client);
+
+    if let Some(recorder) = recorder {
+        // leave the recorder a little longer to catch the final screen
+        sleep(Duration::from_millis(300)).await;
+        recorder.abort();
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+
+    let samples = std::mem::take(&mut *transport.samples.lock().unwrap());
+    TraceRun { wall_ms, samples }
+}
+
+fn trace_run_json(seq: usize, variant: &str, vapp_bin: &str, run: &TraceRun) -> String {
+    let mut out = format!(
+        "{{\"seq\":{},\"variant\":\"{}\",\"elf\":\"{}\",\"wall_ms\":{:.3},\"apdu_exchanges\":{},\"samples\":[\n",
+        seq, variant, vapp_bin, run.wall_ms, run.samples.len()
+    );
+    for (i, s) in run.samples.iter().enumerate() {
+        if i > 0 {
+            out.push_str(",\n");
+        }
+        out.push_str(&format!(
+            "{{\"t_ms\":{:.3},\"phase\":\"{}\",\"apdu_index\":{},\"rv32_instructions\":{},\"vm_page_loads\":{},\"vm_page_commits\":{},\"vm_state\":\"{}\"}}",
+            s.t_ms, s.phase, i, s.instructions, s.page_loads, s.page_commits, s.vm_state
+        ));
+    }
+    out.push_str("\n]}\n");
+    out
+}
+
 fn print_stats(wl: &str, times: &mut [f64], last: &WorkloadResult, idx: usize) {
     times.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let n = times.len();
@@ -439,6 +620,46 @@ async fn main() {
         return;
     }
 
+    // Per-APDU trace mode: `--trace <metrics_vm_bin> <runs> <out_dir> <variant>=<vapp_elf>...`
+    // One unmeasured warm-up run per variant, then `runs` cycles over the variants, every other
+    // cycle in reverse order (A B C, C B A, A B C, ...) to cancel host drift.
+    if args.get(1).map(|s| s.as_str()) == Some("--trace") {
+        let vanadium_bin = &args[2];
+        let runs: usize = args[3].parse().unwrap();
+        let out_dir = &args[4];
+        let variants: Vec<(&str, &str)> = args[5..]
+            .iter()
+            .map(|a| a.split_once('=').expect("expected <variant>=<vapp_elf>"))
+            .collect();
+        std::fs::create_dir_all(out_dir).unwrap();
+        for (_, vapp_bin) in variants.iter() {
+            let _ = run_trace(vanadium_bin, vapp_bin, None).await;
+        }
+        let mut seq = 0;
+        for cycle in 0..runs {
+            let mut order = variants.clone();
+            if cycle % 2 == 1 {
+                order.reverse();
+            }
+            for (variant, vapp_bin) in order {
+                let frames_dir = format!("{}/frames/run-{:02}-{}", out_dir, seq, variant);
+                let run = run_trace(vanadium_bin, vapp_bin, Some(&frames_dir)).await;
+                let last = run.samples.last().expect("no APDU exchanged");
+                eprintln!(
+                    "  [trace] run {:02} {:<18} {} APDUs, {} instructions, {} page loads, {} page commits, {:.0} ms",
+                    seq, variant, run.samples.len(), last.instructions, last.page_loads, last.page_commits, run.wall_ms
+                );
+                std::fs::write(
+                    format!("{}/run-{:02}-{}.json", out_dir, seq, variant),
+                    trace_run_json(seq, variant, vapp_bin, &run),
+                )
+                .unwrap();
+                seq += 1;
+            }
+        }
+        return;
+    }
+
     let vanadium_bin = &args[1];
     let vapp_bin = &args[2];
     let runs: usize = args[3].parse().unwrap();
@@ -468,6 +689,38 @@ VM_RELEASE_BIN="$VANADIUM_REF/vm/target/flex/release/app-vanadium"
 REF_VAPP_PATH="$WORK_TMP/elfs/ref_auto/target/ref_auto.elf"
 LEAN_VAPP_PATH="$WORK_TMP/elfs/lean_auto/target/lean_auto.elf"
 SAMEPROF_VAPP_PATH="$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf"
+
+if [[ -n "${TRACE_OUT_DIR:-}" ]]; then
+  TRACE_RUNS="${TRACE_RUNS:-3}"
+  if [[ -e "$TRACE_OUT_DIR/elfs" ]]; then
+    echo "TRACE_OUT_DIR=$TRACE_OUT_DIR already holds frozen ELFs; use a fresh directory" >&2
+    exit 1
+  fi
+  echo "[trace] Freezing and hashing the V-App ELFs and the metrics VM -> $TRACE_OUT_DIR/elfs ..."
+  mkdir -p "$TRACE_OUT_DIR/elfs"
+  cp "$REF_VAPP_PATH" "$TRACE_OUT_DIR/elfs/reference.elf"
+  cp "$LEAN_VAPP_PATH" "$TRACE_OUT_DIR/elfs/lean_optimized.elf"
+  cp "$SAMEPROF_VAPP_PATH" "$TRACE_OUT_DIR/elfs/same_profile_lean.elf"
+  cp "$VM_METRICS_BIN" "$TRACE_OUT_DIR/elfs/app-vanadium-live-metrics"
+  cp "$WORK_TMP/driver/src/main.rs" "$TRACE_OUT_DIR/driver_main.rs"
+  # The client SDK builds the V-App manifest from the Cargo.toml next to the `target` directory
+  # of the ELF path: expose each frozen ELF under <variant>/target/, with its Cargo.toml.
+  for pair in reference:ref_auto lean_optimized:lean_auto same_profile_lean:sameprof_auto; do
+    mkdir -p "$TRACE_OUT_DIR/elfs/${pair%%:*}/target"
+    cp "$WORK_TMP/elfs/${pair##*:}/Cargo.toml" "$TRACE_OUT_DIR/elfs/${pair%%:*}/Cargo.toml"
+    ln -s "../../${pair%%:*}.elf" "$TRACE_OUT_DIR/elfs/${pair%%:*}/target/${pair%%:*}.elf"
+  done
+  (cd "$TRACE_OUT_DIR/elfs" && sha256sum reference.elf lean_optimized.elf same_profile_lean.elf app-vanadium-live-metrics | tee SHA256SUMS)
+  chmod a-w "$TRACE_OUT_DIR"/elfs/*
+  echo "[trace] sign_transaction, $TRACE_RUNS runs per variant, VM counters sampled after every APDU exchange..."
+  "$DRIVER_BIN" --trace "$TRACE_OUT_DIR/elfs/app-vanadium-live-metrics" "$TRACE_RUNS" "$TRACE_OUT_DIR" \
+    "reference=$TRACE_OUT_DIR/elfs/reference/target/reference.elf" \
+    "lean_optimized=$TRACE_OUT_DIR/elfs/lean_optimized/target/lean_optimized.elf" \
+    "same_profile_lean=$TRACE_OUT_DIR/elfs/same_profile_lean/target/same_profile_lean.elf"
+  (cd "$TRACE_OUT_DIR/elfs" && sha256sum --check --quiet SHA256SUMS)
+  echo "[trace] Raw runs written to $TRACE_OUT_DIR; assemble with benchmarks/vanadium_trace.py"
+  exit 0
+fi
 
 echo "[5/6] Running ABBA interleaved Speculos Flex E2E latency ($E2E_RUNS ABBA pairs = $((E2E_RUNS * 2)) samples/variant) + exact RV32 VM & peak_heap_bytes metrics..."
 ABBA_LAT_JSON="$("$DRIVER_BIN" --abba "$VM_RELEASE_BIN" "$REF_VAPP_PATH" "$LEAN_VAPP_PATH" "$E2E_RUNS")"
