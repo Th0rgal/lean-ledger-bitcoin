@@ -160,7 +160,6 @@ INLINE_SCALARS = {
     "llb_merkle_advance_state",
     "llb_miniscript_older_ok",
     "llb_miniscript_after_ok",
-    "llb_miniscript_andor_branches_valid",
 }
 
 out = []
@@ -249,8 +248,10 @@ verify_target() {
   fi
   local sym_count
   sym_count="$(printf '%s\n' "${nm_out}" | awk '$2 == "T" && $3 ~ /^llb_/ { print $3 }' | sort -u | wc -l | tr -d ' ')"
-  if [ "${sym_count}" -lt 45 ]; then
-    die "[${tag}] archive exports ${sym_count} llb_* symbols (expected >= 45)"
+  local want_count
+  want_count="$(grep -c '^@\[export llb_' "${REPO_ROOT}/${LLB_KERNEL}")"
+  if [ "${sym_count}" -ne "${want_count}" ]; then
+    die "[${tag}] archive exports ${sym_count} llb_* symbols (the kernel source declares ${want_count})"
   fi
   log "[${tag}] symbols ok: exported=${sym_count}, undefined=0, forbidden=0"
 

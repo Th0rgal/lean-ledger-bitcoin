@@ -194,17 +194,11 @@ theorem compactSizeCanonical : Spec.CompactSizeCanonical := by
         · intro h; exact Or.inr (Or.inr (Or.inr ⟨h, by omega⟩))
         · intro h; omega
 
-theorem compactSizeLength : Spec.CompactSizeLength := by
-  intro v
-  simp only [llbVarIntEncodedLen, UInt64.le_iff_toNat_le, decide_eq_true_eq]
-  repeat' split
-  all_goals (first | rfl | (simp_all; done) | (exfalso; simp_all; omega_split) | skip)
-
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
-   compactSizeCanonical, compactSizeLength⟩
+   compactSizeCanonical⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -252,8 +246,7 @@ theorem witness_taprootSighashType :
 
 theorem witness_compactSize :
     llbVarIntPrefixIsCanonical 252 252 = true ∧ llbVarIntPrefixIsCanonical 253 253 = true ∧
-    llbVarIntPrefixIsCanonical 253 252 = false ∧ llbVarIntPrefixIsCanonical 254 65535 = false ∧
-    llbVarIntEncodedLen 252 = 1 ∧ llbVarIntEncodedLen 253 = 3 ∧
-    llbVarIntEncodedLen 65536 = 5 ∧ llbVarIntEncodedLen 4294967296 = 9 := by decide
+    llbVarIntPrefixIsCanonical 253 252 = false ∧ llbVarIntPrefixIsCanonical 254 65535 = false := by
+  decide
 
 end Proofs.KernelSpec

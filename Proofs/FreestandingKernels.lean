@@ -91,26 +91,6 @@ theorem llbCheckedSubSats_refines (a b : UInt64) :
 
 /-! ## 2. CompactSize / VarInt Header Length & Canonicality Refinement -/
 
-theorem llbVarIntEncodedLen_eq (n : UInt64) :
-    (llbVarIntEncodedLen n).toNat = BitcoinLedger.Basic.varIntByteLen n ∧
-    (llbVarIntEncodedLen n).toNat = (InternalSpec.encodeVarIntCanonical n).size := by
-  have h1 : (llbVarIntEncodedLen n).toNat = BitcoinLedger.Basic.varIntByteLen n := by
-    unfold llbVarIntEncodedLen BitcoinLedger.Basic.varIntByteLen
-    cases decide (n ≤ 0xFC)
-    · cases decide (n ≤ 0xFFFF)
-      · cases decide (n ≤ 0xFFFFFFFF) <;> rfl
-      · rfl
-    · rfl
-  have h2 : BitcoinLedger.Basic.varIntByteLen n = (InternalSpec.encodeVarIntCanonical n).size := by
-    rw [← Proofs.Basic.encodeVarInt_eq n]
-    unfold BitcoinLedger.Basic.varIntByteLen BitcoinLedger.Basic.encodeVarInt
-    cases decide (n ≤ 0xFC)
-    · cases decide (n ≤ 0xFFFF)
-      · cases decide (n ≤ 0xFFFFFFFF) <;> rfl
-      · rfl
-    · rfl
-  exact ⟨h1, h1.trans h2⟩
-
 theorem llbVarIntPrefixIsCanonical_encodeVarInt (n : UInt64) :
     llbVarIntPrefixIsCanonical ((BitcoinLedger.Basic.encodeVarInt n).data.toList.headD 0) n = true := by
   unfold BitcoinLedger.Basic.encodeVarInt
@@ -177,11 +157,6 @@ theorem llbBip32IsHardened_eq (idx : UInt32) :
     llbBip32IsHardened idx = BitcoinLedger.Bip32.isHardened idx ∧
     llbBip32IsHardened idx = InternalSpec.isHardened idx :=
   ⟨rfl, Proofs.Bip32.isHardened_eq idx⟩
-
-theorem llbBip32Harden_eq (n : UInt32) :
-    llbBip32Harden n = BitcoinLedger.Bip32.harden n ∧
-    llbBip32Harden n = InternalSpec.harden n :=
-  ⟨rfl, Proofs.Bip32.harden_eq n⟩
 
 theorem llbBip32Unharden_eq (idx : UInt32) :
     llbBip32Unharden idx = BitcoinLedger.Bip32.unharden idx ∧
@@ -295,178 +270,6 @@ theorem llbSegwitProgramValid_refines (witver : UInt8) (witprog : ByteArray)
       rw [h20, h32]
   exact ⟨h1, h1.trans (Proofs.Script.isValidSegwitProgram_eq witver witprog)⟩
 
-theorem llbBech32PolymodStep_eq (pre : UInt32) (val : UInt8) :
-    llbBech32PolymodStep pre val = BitcoinLedger.Script.bech32PolymodStep pre val ∧
-    llbBech32PolymodStep pre val = InternalSpec.bech32PolymodStep pre val :=
-  ⟨rfl, Proofs.Script.bech32PolymodStep_eq pre val⟩
-
-theorem llbMinimalPushOpcodeOk_sound
-    {script payload rem : ByteArray}
-    (hdec : BitcoinLedger.Script.decodeMinimalPushPrefix? script = some (payload, rem))
-    (hlen32 : payload.size ≤ 0xFFFFFFFF) :
-    llbMinimalPushOpcodeOk
-      (script.data.toList.headD 0xFF)
-      (payload.data.toList.headD 0)
-      (UInt32.ofNat payload.size) = true := by
-  unfold BitcoinLedger.Script.decodeMinimalPushPrefix? at hdec
-  cases hs : script.data.toList with
-  | nil => simp [hs] at hdec
-  | cons op rest =>
-      rw [hs] at hdec
-      dsimp only at hdec
-      dsimp [List.headD]
-      unfold llbMinimalPushOpcodeOk
-      unfold BitcoinLedger.Script.OP_0 BitcoinLedger.Script.OP_1NEGATE
-        BitcoinLedger.Script.OP_1 BitcoinLedger.Script.OP_16
-        BitcoinLedger.Script.OP_PUSHDATA1 BitcoinLedger.Script.OP_PUSHDATA2
-        BitcoinLedger.Script.OP_PUSHDATA4 at hdec
-      cases h0 : decide (op = 0x00)
-      · rw [h0] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-        cases h4f : decide (op = 0x4F)
-        · rw [h4f] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-          cases h51 : (decide (0x51 ≤ op) && decide (op ≤ 0x60))
-          · rw [h51] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-            cases h01 : decide (op = 0x01)
-            · rw [h01] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-              have hop2 : (decide (2 ≤ op.toNat) && decide (op.toNat ≤ 75)) =
-                  (decide ((0x02 : UInt8) ≤ op) && decide (op ≤ 0x4B)) := rfl
-              rw [hop2] at hdec
-              cases h2_75 : (decide ((0x02 : UInt8) ≤ op) && decide (op ≤ 0x4B))
-              · rw [h2_75] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-                cases h4c : decide (op = 0x4C)
-                · rw [h4c] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-                  cases h4d : decide (op = 0x4D)
-                  · rw [h4d] at hdec; simp only [Bool.false_eq_true, ↓reduceIte] at hdec ⊢
-                    cases h4e : decide (op = 0x4E)
-                    · rw [h4e] at hdec; simp at hdec
-                    · rw [h4e] at hdec; simp only [↓reduceIte] at hdec ⊢
-                      cases rest with
-                      | nil => simp at hdec
-                      | cons b0 r1 =>
-                          cases r1 with
-                          | nil => simp at hdec
-                          | cons b1 r2 =>
-                              cases r2 with
-                              | nil => simp at hdec
-                              | cons b2 r3 =>
-                                  cases r3 with
-                                  | nil => simp at hdec
-                                  | cons b3 tail =>
-                                      dsimp only at hdec
-                                      cases hbad : (decide (b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat < 65536) ||
-                                        decide (tail.length < b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat))
-                                      · rw [hbad] at hdec
-                                        simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-                                        rcases hdec with ⟨rfl, _⟩
-                                        rcases Bool.or_eq_false_iff.mp hbad with ⟨hge1, hlen1⟩
-                                        have hge : 65536 ≤ b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat :=
-                                          Nat.le_of_not_lt (of_decide_eq_false hge1)
-                                        have hleT : b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat ≤ tail.length :=
-                                          Nat.le_of_not_lt (of_decide_eq_false hlen1)
-                                        have hsz : (ByteArray.mk (tail.take (b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat)).toArray).size =
-                                            b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat := by
-                                          simp [ByteArray.size, List.length_take_of_le hleT]
-                                        rw [hsz] at hlen32 ⊢
-                                        have hlt32 : b0.toNat + 256 * b1.toNat + 65536 * b2.toNat + 16777216 * b3.toNat < 2 ^ 32 :=
-                                          Nat.lt_of_le_of_lt hlen32 (by decide)
-                                        apply decide_eq_true
-                                        rw [UInt32.le_iff_toNat_le, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32]
-                                        exact hge
-                                      · rw [hbad] at hdec; simp at hdec
-                  · rw [h4d] at hdec; simp only [↓reduceIte] at hdec ⊢
-                    cases rest with
-                    | nil => simp at hdec
-                    | cons b0 r1 =>
-                        cases r1 with
-                        | nil => simp at hdec
-                        | cons b1 tail =>
-                            dsimp only at hdec
-                            cases hbad : (decide (b0.toNat + 256 * b1.toNat < 256) || decide (tail.length < b0.toNat + 256 * b1.toNat))
-                            · rw [hbad] at hdec
-                              simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-                              rcases hdec with ⟨rfl, _⟩
-                              rcases Bool.or_eq_false_iff.mp hbad with ⟨hge1, hlen1⟩
-                              have hge : 256 ≤ b0.toNat + 256 * b1.toNat := Nat.le_of_not_lt (of_decide_eq_false hge1)
-                              have hleT : b0.toNat + 256 * b1.toNat ≤ tail.length := Nat.le_of_not_lt (of_decide_eq_false hlen1)
-                              have hsz : (ByteArray.mk (tail.take (b0.toNat + 256 * b1.toNat)).toArray).size = b0.toNat + 256 * b1.toNat := by
-                                simp [ByteArray.size, List.length_take_of_le hleT]
-                              rw [hsz]
-                              have hmax : b0.toNat + 256 * b1.toNat ≤ 65535 := by
-                                have hb0 : b0.toNat ≤ 255 := Nat.le_of_lt_succ b0.toNat_lt
-                                have hb1 : b1.toNat ≤ 255 := Nat.le_of_lt_succ b1.toNat_lt
-                                exact Nat.le_trans (Nat.add_le_add hb0 (Nat.mul_le_mul_left 256 hb1)) (by decide)
-                              have hlt32 : b0.toNat + 256 * b1.toNat < 2 ^ 32 := Nat.lt_of_le_of_lt hmax (by decide)
-                              apply Bool.and_eq_true_iff.mpr
-                              refine ⟨decide_eq_true ?_, decide_eq_true ?_⟩
-                              · rw [UInt32.le_iff_toNat_le, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32]; exact hge
-                              · rw [UInt32.le_iff_toNat_le, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32]; exact hmax
-                            · rw [hbad] at hdec; simp at hdec
-                · rw [h4c] at hdec; simp only [↓reduceIte] at hdec ⊢
-                  cases rest with
-                  | nil => simp at hdec
-                  | cons lenByte tail =>
-                      dsimp only at hdec
-                      cases hbad : (decide (lenByte.toNat < 76) || decide (tail.length < lenByte.toNat))
-                      · rw [hbad] at hdec
-                        simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-                        rcases hdec with ⟨rfl, _⟩
-                        rcases Bool.or_eq_false_iff.mp hbad with ⟨hge1, hlen1⟩
-                        have hge : 76 ≤ lenByte.toNat := Nat.le_of_not_lt (of_decide_eq_false hge1)
-                        have hleT : lenByte.toNat ≤ tail.length := Nat.le_of_not_lt (of_decide_eq_false hlen1)
-                        have hsz : (ByteArray.mk (tail.take lenByte.toNat).toArray).size = lenByte.toNat := by
-                          simp [ByteArray.size, List.length_take_of_le hleT]
-                        rw [hsz]
-                        have hmax : lenByte.toNat ≤ 255 := Nat.le_of_lt_succ lenByte.toNat_lt
-                        have hlt32 : lenByte.toNat < 2 ^ 32 := Nat.lt_of_le_of_lt hmax (by decide)
-                        apply Bool.and_eq_true_iff.mpr
-                        refine ⟨decide_eq_true ?_, decide_eq_true ?_⟩
-                        · rw [UInt32.le_iff_toNat_le, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32]; exact hge
-                        · rw [UInt32.le_iff_toNat_le, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32]; exact hmax
-                      · rw [hbad] at hdec; simp at hdec
-              · rw [h2_75] at hdec; simp only [↓reduceIte] at hdec ⊢
-                cases hshort : decide (rest.length < op.toNat)
-                · rw [hshort] at hdec
-                  simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-                  rcases hdec with ⟨rfl, _⟩
-                  have hleT : op.toNat ≤ rest.length := Nat.le_of_not_lt (of_decide_eq_false hshort)
-                  have hsz : (ByteArray.mk (rest.take op.toNat).toArray).size = op.toNat := by
-                    simp [ByteArray.size, List.length_take_of_le hleT]
-                  rw [hsz]
-                  apply decide_eq_true
-                  apply UInt32.toNat_inj.mp
-                  have hlt32 : op.toNat < 2 ^ 32 := Nat.lt_trans op.toNat_lt (by decide)
-                  rw [UInt32.toNat_ofNat', Nat.mod_eq_of_lt hlt32, UInt8.toNat_toUInt32]
-                · rw [hshort] at hdec; simp at hdec
-            · rw [h01] at hdec; simp only [↓reduceIte] at hdec ⊢
-              cases rest with
-              | nil => simp at hdec
-              | cons b tail =>
-                  dsimp only at hdec
-                  have hbchk : ((decide (1 ≤ b.toNat) && decide (b.toNat ≤ 16)) || decide (b = 0x81)) =
-                      ((decide ((1 : UInt8) ≤ b) && decide (b ≤ 16)) || decide (b = 0x81)) := rfl
-                  rw [hbchk] at hdec
-                  cases hnonmin : ((decide ((1 : UInt8) ≤ b) && decide (b ≤ 16)) || decide (b = 0x81))
-                  · rw [hnonmin] at hdec
-                    simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-                    rcases hdec with ⟨rfl, _⟩
-                    change decide ((1 : UInt32) = 1) &&
-                      !((decide ((1 : UInt8) ≤ b) && decide (b ≤ 16)) || decide (b = 0x81)) = true
-                    rw [hnonmin]
-                    rfl
-                  · rw [hnonmin] at hdec; simp at hdec
-          · rw [h51] at hdec
-            simp only [↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-            rcases hdec with ⟨rfl, _⟩
-            exact decide_eq_true rfl
-        · rw [h4f] at hdec
-          simp only [↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-          rcases hdec with ⟨rfl, _⟩
-          rfl
-      · rw [h0] at hdec
-        simp only [↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hdec
-        rcases hdec with ⟨rfl, _⟩
-        rfl
-
 /-! ## 5. BOLOS APDU, Sighash & Merkle Scalar Refinement + Concrete Witnesses -/
 
 private theorem forall_u8_of_range {p : UInt8 → Bool}
@@ -521,55 +324,7 @@ theorem llbTaprootSighashValid_refines_psbt (sighashByte : UInt8) :
     forall_u8_of_range (by decide)
   exact of_decide_eq_true (hall sighashByte)
 
-theorem llbMerkleDepthIndexOk_refines_merkleProtocol
-    (treeSize index : UInt32) (depth : UInt8) :
-    llbMerkleDepthIndexOk treeSize index depth =
-      !(decide (treeSize.toNat = 0) ||
-        decide (index.toNat ≥ treeSize.toNat) ||
-        decide (index.toNat > InternalSpec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX) ||
-        decide (depth.toNat > InternalSpec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH)) := by
-  unfold llbMerkleDepthIndexOk InternalSpec.MerkleProtocol.MAX_MERKLE_LEAF_INDEX
-    InternalSpec.MerkleProtocol.MAX_MERKLE_TREE_DEPTH
-  cases h0 : decide (0 < treeSize)
-  · have hz : treeSize.toNat = 0 := Nat.eq_zero_of_not_pos (of_decide_eq_false h0)
-    simp [hz]
-  · have hnz : treeSize.toNat ≠ 0 := Nat.ne_of_gt (of_decide_eq_true h0)
-    simp only [Bool.true_and, hnz, decide_false, Bool.false_or]
-    cases hlt : decide (index < treeSize)
-    · have hge : index.toNat ≥ treeSize.toNat := Nat.le_of_not_lt (of_decide_eq_false hlt)
-      simp [hge]
-    · have hltNat : ¬ (index.toNat ≥ treeSize.toNat) := Nat.not_le.mpr (of_decide_eq_true hlt)
-      simp only [Bool.true_and, hltNat, decide_false, Bool.false_or]
-      cases hidx : decide (index ≤ 0x7FFFFFFF)
-      · have hgtIdx : index.toNat > 0x7FFFFFFF :=
-          Nat.lt_of_not_le (fun h => of_decide_eq_false hidx (UInt32.le_iff_toNat_le.mpr h))
-        simp [hgtIdx]
-      · have hngIdx : ¬ (index.toNat > 0x7FFFFFFF) :=
-          Nat.not_lt.mpr (UInt32.le_iff_toNat_le.mp (of_decide_eq_true hidx))
-        simp only [Bool.true_and, hngIdx, decide_false, Bool.false_or]
-        cases hd : decide (depth ≤ 32)
-        · have hgtD : depth.toNat > 32 :=
-            Nat.lt_of_not_le (fun h => of_decide_eq_false hd (UInt8.le_iff_toNat_le.mpr h))
-          simp [hgtD]
-        · have hngD : ¬ (depth.toNat > 32) :=
-            Nat.not_lt.mpr (UInt8.le_iff_toNat_le.mp (of_decide_eq_true hd))
-          simp [hngD]
-
-theorem llbBolosSwForError_refines (err : InternalSpec.SpecError) :
-    llbBolosSwForError (BitcoinLedger.Basic.specErrorToTag err) =
-      BitcoinLedger.Basic.specErrorToBolosU16 err ∧
-    llbBolosSwForError (BitcoinLedger.Basic.specErrorToTag err) =
-      err.toBolosCode := by
-  cases err <;> exact ⟨rfl, rfl⟩
-
 set_option maxRecDepth 16384 in
-theorem llbBolosSwForError_never_ok (errTag : UInt8) :
-    llbBolosSwForError errTag ≠ 0x9000 ∧ llbBolosSwForError errTag ≠ 0xE000 := by
-  have hall :
-      ∀ x : UInt8,
-        decide (llbBolosSwForError x ≠ 0x9000 ∧ llbBolosSwForError x ≠ 0xE000) = true :=
-    forall_u8_of_range (by decide)
-  exact of_decide_eq_true (hall errTag)
 
 /-! ## 6. Wave 4 BOLOS Optimization Kernels — Machine-Checked Refinement (`0 Classical.choice`) -/
 
@@ -1147,11 +902,23 @@ def merkleAdvanceSteps : Nat → UInt64 → UInt64
   | 0, st => st
   | n + 1, st => merkleAdvanceSteps n (llbMerkleAdvanceState st)
 
-/-- Single-step refinement: `llbMerkleStateDir` computes the head direction of `InternalSpec.MerkleProtocol.merkleDirections`. -/
-theorem llbMerkleStateDir_spec (size index : UInt32) :
-    llbMerkleStateDir (packMerkleState size index) =
+/-- Proof-side reader of the branch direction at a packed `(size, index)` state
+    (`0` = left, `1` = right, `0xFF` = leaf / invalid). It is not part of the compiled kernel:
+    the app derives the direction from two consecutive `llbMerkleAdvanceState` states. -/
+def merkleStateDir (st : UInt64) : UInt8 :=
+  let size : UInt32 := (st >>> 32).toUInt32
+  let index : UInt32 := st.toUInt32
+  if decide (size ≤ 1) || !decide (index < size) then
+    0xFF
+  else
+    let mask := largestPow2LtU32 size
+    if decide (index < mask) then 0 else 1
+
+/-- Single-step refinement: `merkleStateDir` computes the head direction of `InternalSpec.MerkleProtocol.merkleDirections`. -/
+theorem merkleStateDir_spec (size index : UInt32) :
+    merkleStateDir (packMerkleState size index) =
       encodeMerkleDir? (InternalSpec.MerkleProtocol.merkleDirections size.toNat index.toNat).head? := by
-  unfold llbMerkleStateDir
+  unfold merkleStateDir
   dsimp only
   have ⟨hhi, hlo⟩ := packMerkleState_roundtrip size index
   rw [hhi, hlo]
@@ -1198,11 +965,11 @@ theorem llbMerkleStateDir_spec (size index : UInt32) :
     · rename_i hc; exact absurd (Nat.le_trans hc.1 hle1) (by decide)
     · rfl
 
-/-- Multi-step refinement: `step` iterations of `llbMerkleAdvanceState` followed by `llbMerkleStateDir`
+/-- Multi-step refinement: `step` iterations of `llbMerkleAdvanceState` followed by `merkleStateDir`
     computes the exact `step`-th top-down Merkle proof direction of `InternalSpec.MerkleProtocol.merkleDirections` in `O(step)`. -/
 theorem llbMerkleAdvanceState_steps_spec
     (step : Nat) (size index : UInt32) (hidx_valid : index < size ∨ size ≤ 1) :
-    llbMerkleStateDir (merkleAdvanceSteps step (packMerkleState size index)) =
+    merkleStateDir (merkleAdvanceSteps step (packMerkleState size index)) =
       encodeMerkleDir? ((InternalSpec.MerkleProtocol.merkleDirections size.toNat index.toNat)[step]?) := by
   induction step generalizing size index with
   | zero =>
@@ -1211,7 +978,7 @@ theorem llbMerkleAdvanceState_steps_spec
         (InternalSpec.MerkleProtocol.merkleDirections size.toNat index.toNat).head? := by
       cases InternalSpec.MerkleProtocol.merkleDirections size.toNat index.toNat <;> rfl
     rw [h0]
-    exact llbMerkleStateDir_spec size index
+    exact merkleStateDir_spec size index
   | succ n ih =>
     unfold merkleAdvanceSteps
     have hadv :
@@ -2064,7 +1831,6 @@ theorem llbPsbtLocktime_eq_determineLocktime
 
 /-! ## 9. Exact Division/Modulo by 10 (`div10U32`, `mod10U32`) & BIP-379 Miniscript Refinement -/
 
-
 private theorem div_lt_of_lt_mul10 {a b c : Nat} (h : a < b * c) : a / b < c := by
   have h1 : b * (a / b) ≤ a := Nat.mul_div_le a b
   have h2 : b * (a / b) < b * c := Nat.lt_of_le_of_lt h1 h
@@ -2172,16 +1938,6 @@ theorem llbMiniscriptAfterOk_iff (n : UInt32) :
     llbMiniscriptAfterOk n = true ↔ (1 : UInt32) ≤ n ∧ n < 0x80000000 := by
   unfold llbMiniscriptAfterOk
   rw [band_eq, Bool.and_eq_true_iff, decide_eq_true_iff, decide_eq_true_iff]
-
-theorem llbMiniscriptAndorBranchesValid_iff (notifOp elseOp endifOp : UInt8) :
-    llbMiniscriptAndorBranchesValid notifOp elseOp endifOp = true ↔
-      notifOp = BitcoinLedger.WalletPolicy.OP_NOTIF ∧
-      elseOp = BitcoinLedger.WalletPolicy.OP_ELSE ∧
-      endifOp = BitcoinLedger.WalletPolicy.OP_ENDIF := by
-  unfold llbMiniscriptAndorBranchesValid
-    BitcoinLedger.WalletPolicy.OP_NOTIF BitcoinLedger.WalletPolicy.OP_ELSE BitcoinLedger.WalletPolicy.OP_ENDIF
-  rw [band_eq, band_eq, Bool.and_assoc, Bool.and_eq_true_iff, Bool.and_eq_true_iff,
-      decide_eq_true_iff, decide_eq_true_iff, decide_eq_true_iff]
 
 /-! ### Packed `UInt16` Miniscript Node Algebra (`msBit`, `msOrBit`, `msPack`) -/
 
@@ -3124,166 +2880,6 @@ theorem llbCheckDualUtxo_refines
           rw [hw, hnw]
           exact (hall i.toNat hknw hkw).symm
 
-/-! ## 3. `llbSumAmountsLe64` Refinement & Overflow Soundness (VND-03, CVE-2020-14199) -/
-
-private theorem bit63_mask_getLsbD :
-    ∀ i < 64, (((1 : UInt64) <<< 63).toBitVec).getLsbD i = decide (i = 63) := by decide
-
-private theorem low63_mask_getLsbD :
-    ∀ i < 64, ((0x7FFFFFFFFFFFFFFF : UInt64).toBitVec).getLsbD i = decide (i < 63) := by decide
-
-private theorem sum_tag_ne_zero (s : UInt64) : (((1 : UInt64) <<< 63) ||| s) ≠ 0 := by
-  intro heq
-  have hb : ((((1 : UInt64) <<< 63) ||| s).toBitVec).getLsbD 63 = (0 : UInt64).toBitVec.getLsbD 63 :=
-    congrArg (fun x : UInt64 => x.toBitVec.getLsbD 63) heq
-  simp only [UInt64.toBitVec_or, BitVec.getLsbD_or] at hb
-  rw [bit63_mask_getLsbD 63 (by decide)] at hb
-  exact Bool.noConfusion hb
-
-private theorem sum_tag_unmask (s : UInt64) (hs : s ≤ MAX_MONEY_U64) :
-    ((((1 : UInt64) <<< 63) ||| s) &&& 0x7FFFFFFFFFFFFFFF) = s := by
-  apply UInt64.eq_of_toBitVec_eq
-  apply BitVec.eq_of_getLsbD_eq
-  intro i hi
-  simp only [UInt64.toBitVec_and, UInt64.toBitVec_or, BitVec.getLsbD_and, BitVec.getLsbD_or]
-  rw [bit63_mask_getLsbD i hi, low63_mask_getLsbD i hi]
-  cases hlt63 : decide (i < 63)
-  · simp only [Bool.and_false]
-    have hge63 : 63 ≤ i := Nat.not_lt.mp (of_decide_eq_false hlt63)
-    have hs_lt : s.toNat < 2 ^ 63 :=
-      Nat.lt_of_le_of_lt (UInt64.le_iff_toNat_le.mp hs) (by decide)
-    have hbit : (s.toBitVec).getLsbD i = false := by
-      show Nat.testBit s.toNat i = false
-      exact Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le hs_lt (Nat.pow_le_pow_right (by decide : 0 < 2) hge63))
-    exact hbit.symm
-  · have hi63 : i ≠ 63 := Nat.ne_of_lt (of_decide_eq_true hlt63)
-    rw [decide_eq_false hi63, Bool.false_or, Bool.and_true]
-
-private theorem sumAmounts_step_zero (vs : List UInt64) :
-    vs.foldl (fun (acc : UInt64) v =>
-      if decide (acc = 0) then 0
-      else if llbCheckedAddSatsOk (acc &&& 0x7FFFFFFFFFFFFFFF) v then
-        ((1 : UInt64) <<< 63) ||| ((acc &&& 0x7FFFFFFFFFFFFFFF) + v)
-      else 0) 0 = 0 := by
-  induction vs with
-  | nil => rfl
-  | cons v vs ih =>
-    rw [List.foldl_cons]
-    exact ih
-
-private theorem sumAmounts_fold_eq_loop (vs : List UInt64) (s : UInt64) (hs : s ≤ MAX_MONEY_U64) :
-    vs.foldl (fun (acc : UInt64) v =>
-      if decide (acc = 0) then 0
-      else if llbCheckedAddSatsOk (acc &&& 0x7FFFFFFFFFFFFFFF) v then
-        ((1 : UInt64) <<< 63) ||| ((acc &&& 0x7FFFFFFFFFFFFFFF) + v)
-      else 0) (((1 : UInt64) <<< 63) ||| s) =
-    match BitcoinLedger.Basic.checkedSumSatsLoop s vs with
-    | some total => ((1 : UInt64) <<< 63) ||| total
-    | none => 0 := by
-  induction vs generalizing s with
-  | nil => rfl
-  | cons v vs ih =>
-    rw [List.foldl_cons]
-    unfold BitcoinLedger.Basic.checkedSumSatsLoop
-    rw [decide_eq_false (sum_tag_ne_zero s)]
-    simp only [Bool.false_eq_true, ↓reduceIte]
-    rw [sum_tag_unmask s hs]
-    have hokEq : llbCheckedAddSatsOk s v =
-        (decide (s ≤ BitcoinLedger.Basic.MAX_MONEY) && decide (v ≤ BitcoinLedger.Basic.MAX_MONEY - s)) := rfl
-    unfold BitcoinLedger.Basic.checkedAddSats?
-    rw [hokEq]
-    cases hok : (decide (s ≤ BitcoinLedger.Basic.MAX_MONEY) && decide (v ≤ BitcoinLedger.Basic.MAX_MONEY - s))
-    · simp only [Bool.false_eq_true, ↓reduceIte]
-      exact sumAmounts_step_zero vs
-    · simp only [↓reduceIte]
-      have ⟨hs_le, hv_le⟩ := Bool.and_eq_true_iff.mp hok
-      have hs_nat : s.toNat ≤ MAX_MONEY_U64.toNat := UInt64.le_iff_toNat_le.mp (of_decide_eq_true hs_le)
-      have hv_sub : v.toNat ≤ (MAX_MONEY_U64 - s).toNat := UInt64.le_iff_toNat_le.mp (of_decide_eq_true hv_le)
-      have hsub : (MAX_MONEY_U64 - s).toNat = MAX_MONEY_U64.toNat - s.toNat :=
-        UInt64.toNat_sub_of_le MAX_MONEY_U64 s (of_decide_eq_true hs_le)
-      rw [hsub] at hv_sub
-      have hsum_le_nat : s.toNat + v.toNat ≤ MAX_MONEY_U64.toNat := by
-        have := Nat.add_le_add_left hv_sub s.toNat
-        rwa [Nat.add_sub_of_le hs_nat] at this
-      have hsum_lt64 : s.toNat + v.toNat < UInt64.size :=
-        Nat.lt_of_le_of_lt hsum_le_nat (by decide)
-      have hsum_le : s + v ≤ MAX_MONEY_U64 := by
-        rw [UInt64.le_iff_toNat_le, UInt64.toNat_add, Nat.mod_eq_of_lt hsum_lt64]
-        exact hsum_le_nat
-      exact ih (s + v) hsum_le
-
-/-- Exact refinement of `llbSumAmountsLe64` against `BitcoinLedger.Basic.checkedSumSats?` and
-    `InternalSpec.sumAmounts?` over the `count` 64-bit little-endian amounts in `amounts`. -/
-theorem llbSumAmountsLe64_refines (amounts : ConstBytes) (count : UInt32) :
-    let vals := (List.range count.toNat).map (fun k => readU64Le amounts (UInt32.ofNat k * 8))
-    llbSumAmountsLe64 amounts count =
-      (match BitcoinLedger.Basic.checkedSumSats? vals with
-       | some total => ((1 : UInt64) <<< 63) ||| total
-       | none => 0) ∧
-    llbSumAmountsLe64 amounts count =
-      (match InternalSpec.sumAmounts? vals with
-       | some total => ((1 : UInt64) <<< 63) ||| total
-       | none => 0) := by
-  dsimp only
-  have h1 :
-      llbSumAmountsLe64 amounts count =
-        (match BitcoinLedger.Basic.checkedSumSats?
-            ((List.range count.toNat).map (fun k => readU64Le amounts (UInt32.ofNat k * 8))) with
-         | some total => ((1 : UInt64) <<< 63) ||| total
-         | none => 0) := by
-    unfold llbSumAmountsLe64 BitcoinLedger.Basic.checkedSumSats?
-    rw [forRangeU64_zero_eq_foldl]
-    have hmap :
-        List.foldl
-          (fun (acc : UInt64) k =>
-            if decide (acc = 0) then 0
-            else
-              let v := readU64Le amounts (UInt32.ofNat k * 8)
-              if llbCheckedAddSatsOk (acc &&& 0x7FFFFFFFFFFFFFFF) v then
-                ((1 : UInt64) <<< 63) ||| ((acc &&& 0x7FFFFFFFFFFFFFFF) + v)
-              else 0)
-          ((1 : UInt64) <<< 63) (List.range count.toNat) =
-        List.foldl
-          (fun (acc : UInt64) v =>
-            if decide (acc = 0) then 0
-            else if llbCheckedAddSatsOk (acc &&& 0x7FFFFFFFFFFFFFFF) v then
-              ((1 : UInt64) <<< 63) ||| ((acc &&& 0x7FFFFFFFFFFFFFFF) + v)
-            else 0)
-          ((1 : UInt64) <<< 63)
-          ((List.range count.toNat).map (fun k => readU64Le amounts (UInt32.ofNat k * 8))) := by
-      rw [List.foldl_map]
-    rw [hmap]
-    have hinit : ((1 : UInt64) <<< 63) = (((1 : UInt64) <<< 63) ||| 0) := by decide
-    rw [hinit]
-    exact sumAmounts_fold_eq_loop _ 0 (by decide)
-  refine ⟨h1, ?_⟩
-  rw [h1, Proofs.Basic.checkedSumSats?_eq]
-
-/-- Batch satoshi summation soundness (CVE-2020-14199): whenever `llbSumAmountsLe64 amounts count ≠ 0`,
-    every entry is a valid Bitcoin amount (`≤ MAX_MONEY`) and the unmasked 63-bit result equals the
-    exact non-wrapping `Nat` sum `≤ MAX_MONEY`. -/
-theorem llbSumAmountsLe64_sound (amounts : ConstBytes) (count : UInt32)
-    (h : llbSumAmountsLe64 amounts count ≠ 0) :
-    let vals := (List.range count.toNat).map (fun k => readU64Le amounts (UInt32.ofNat k * 8))
-    let total := llbSumAmountsLe64 amounts count &&& 0x7FFFFFFFFFFFFFFF
-    total.toNat = InternalSpec.natAmountSum vals ∧
-    total.toNat ≤ InternalSpec.MAX_MONEY.toNat ∧
-    (∀ v ∈ vals, InternalSpec.ValidAmount v) := by
-  dsimp only
-  have href := (llbSumAmountsLe64_refines amounts count).2
-  rw [href] at h ⊢
-  cases hsum : InternalSpec.sumAmounts?
-      ((List.range count.toNat).map (fun k => readU64Le amounts (UInt32.ofNat k * 8))) with
-  | none =>
-    rw [hsum] at h
-    exact absurd rfl h
-  | some tot =>
-    dsimp only
-    obtain ⟨hnat, hle, hall⟩ := InternalSpec.sumAmounts?_sound hsum
-    have htot_le : tot ≤ MAX_MONEY_U64 := UInt64.le_iff_toNat_le.mpr hle
-    rw [sum_tag_unmask tot htot_le]
-    exact ⟨hnat, hle, hall⟩
-
 /-! ## 4. `bip32TailClear` & `llbBip32CheckExportPath` (VND-07) -/
 
 theorem bip32TailClear_iff (path : ConstU32s) (lo pathLen : UInt32) :
@@ -3472,47 +3068,6 @@ theorem llbBip32CheckExportPath_refines
           exact hh
     rw [htail, ← hlen_u8]
     exact llbBip32PubkeyExportPrefixOk_refines net arr hbyte
-
-/-! ## 5. `llbPsbtDetermineLocktime` Full-Buffer Refinement (VND-04, BIP-370) -/
-
-private theorem foldl_range_eq_foldl_list
-    {α β : Type} (f : Nat → β → β) (g : β → α → β) (xs : List α) (init : β)
-    (hfg : ∀ (k : Nat) (hk : k < xs.length) (acc : β), f k acc = g acc (xs[k]'hk)) :
-    (List.range xs.length).foldl (fun acc k => f k acc) init = xs.foldl g init := by
-  induction xs generalizing f init with
-  | nil => rfl
-  | cons x xs ih =>
-    rw [List.length_cons, List.range_succ_eq_map, List.foldl_cons, List.foldl_map, List.foldl_cons]
-    rw [hfg 0 (Nat.succ_pos _) init]
-    exact ih (fun k acc => f (k + 1) acc) (g init x)
-      (fun k hk acc => hfg (k + 1) (Nat.succ_lt_succ hk) acc)
-
-/-- Predicate stating that the `i`-th 10-byte record in `buf` encodes `inp`'s
-    `(requiredHeightLocktime, requiredTimeLocktime)`. -/
-def ltRecordMatchesInput (buf : ConstBytes) (i : UInt32) (inp : InternalSpec.Psbt.PsbtInput) : Prop :=
-  let base := i * 10
-  let h := (readU8 buf (base + 1)).toUInt32 ||| ((readU8 buf (base + 2)).toUInt32 <<< 8) |||
-    ((readU8 buf (base + 3)).toUInt32 <<< 16) ||| ((readU8 buf (base + 4)).toUInt32 <<< 24)
-  let t := (readU8 buf (base + 6)).toUInt32 ||| ((readU8 buf (base + 7)).toUInt32 <<< 8) |||
-    ((readU8 buf (base + 8)).toUInt32 <<< 16) ||| ((readU8 buf (base + 9)).toUInt32 <<< 24)
-  readU8 buf base = (if inp.requiredHeightLocktime.isSome then 1 else 0) ∧
-  h = inp.requiredHeightLocktime.getD 0 ∧
-  readU8 buf (base + 5) = (if inp.requiredTimeLocktime.isSome then 1 else 0) ∧
-  t = inp.requiredTimeLocktime.getD 0
-
-theorem ltRecord_eq_step_of_matches (buf : ConstBytes) (i : UInt32)
-    (inp : InternalSpec.Psbt.PsbtInput) (st : UInt64)
-    (hm : ltRecordMatchesInput buf i inp) :
-    ltRecord buf i st =
-      llbPsbtLocktimeStep st
-        (if inp.requiredHeightLocktime.isSome then 1 else 0)
-        (inp.requiredHeightLocktime.getD 0)
-        (if inp.requiredTimeLocktime.isSome then 1 else 0)
-        (inp.requiredTimeLocktime.getD 0) := by
-  rcases hm with ⟨hhOn, hhVal, htOn, htVal⟩
-  unfold ltRecord
-  dsimp only
-  rw [hhOn, hhVal, htOn, htVal]
 
 /-! ## 6. `llbReadCompactSizeChecked` Canonical VarInt Prefix Refinement (VND-09) -/
 
@@ -3791,38 +3346,6 @@ theorem llbReadCompactSizeChecked_refines
       simp only [List.take, hfc, ↓reduceIte]
       cases decide (tag.toUInt64 ≤ maxVal.toUInt64) <;> rfl
 
-
-/-- End-to-end full-buffer refinement of `llbPsbtDetermineLocktime` against
-    `BitcoinLedger.Psbt.determineLocktime` and `InternalSpec.Psbt.determineLocktime` (VND-04 / BIP-370). -/
-theorem llbPsbtDetermineLocktime_refines
-    (buf : ConstBytes) (numInputs : UInt32) (fallbackLocktime : Option UInt32)
-    (inputs : List InternalSpec.Psbt.PsbtInput)
-    (hlen : numInputs.toNat = inputs.length)
-    (hrec : ∀ (k : Nat) (hk : k < inputs.length),
-      ltRecordMatchesInput buf (UInt32.ofNat k) (inputs[k]'hk)) :
-    llbPsbtDetermineLocktime buf numInputs (fallbackLocktime.getD 0) =
-      encodeLocktimeResult (BitcoinLedger.Psbt.determineLocktime fallbackLocktime inputs) ∧
-    llbPsbtDetermineLocktime buf numInputs (fallbackLocktime.getD 0) =
-      encodeLocktimeResult (InternalSpec.Psbt.determineLocktime fallbackLocktime inputs) := by
-  have hmain :
-      llbPsbtDetermineLocktime buf numInputs (fallbackLocktime.getD 0) =
-        encodeLocktimeResult (BitcoinLedger.Psbt.determineLocktime fallbackLocktime inputs) := by
-    unfold llbPsbtDetermineLocktime
-    dsimp only
-    rw [forRangeU64_zero_eq_foldl, hlen]
-    have hfold :
-        (List.range inputs.length).foldl (fun st k => ltRecord buf (UInt32.ofNat k) st) llbPsbtLocktimeInit =
-          inputs.foldl psbtInputStep64 llbPsbtLocktimeInit := by
-      apply foldl_range_eq_foldl_list
-        (fun k st => ltRecord buf (UInt32.ofNat k) st)
-        psbtInputStep64 inputs llbPsbtLocktimeInit
-      intro k hk st
-      exact ltRecord_eq_step_of_matches buf (UInt32.ofNat k) (inputs[k]'hk) st (hrec k hk)
-    rw [hfold, ← psbtFoldInputs64_eq_foldl]
-    exact llbPsbtLocktime_eq_determineLocktime fallbackLocktime inputs
-  refine ⟨hmain, ?_⟩
-  rw [hmain, Proofs.Psbt.determineLocktime_eq_spec]
-
 /-- Concrete Witness: Freestanding C99 entrypoints agree on representative Bitcoin / Ledger vectors. -/
 theorem witness_freestanding_kernels :
     llbVersionPacked = 0x00020401 ∧
@@ -3833,8 +3356,6 @@ theorem witness_freestanding_kernels :
     llbCheckedSubSatsOk 100 101 = false ∧
     llbSatsDiv1e8 2100000000000000 = 21000000 ∧
     llbSatsMod1e8 123456789 = 23456789 ∧
-    llbVarIntEncodedLen 252 = 1 ∧
-    llbVarIntEncodedLen 253 = 3 ∧
     llbVarIntPrefixIsCanonical 0xFD 252 = false ∧
     llbVarIntPrefixIsCanonical 0xFD 253 = true ∧
     llbBip32StandardPurposeOk 0x80000054 = true ∧
@@ -3851,19 +3372,14 @@ theorem witness_freestanding_kernels :
     llbSighashTypeValid 0x00 = false ∧
     llbSighashTypeValid 0x81 = true ∧
     llbTaprootSighashValid 0x00 = true ∧
-    llbMerkleDepthIndexOk 16 15 4 = true ∧
-    llbMerkleDepthIndexOk 16 16 4 = false ∧
-    llbMerkleStateDir (merkleAdvanceSteps 1 (packMerkleState 5 4)) = 0xFF ∧
-    llbMerkleStateDir (merkleAdvanceSteps 2 (packMerkleState 5 3)) = 1 ∧
-    llbBolosSwForError 5 = 0x6985 ∧
+    merkleStateDir (merkleAdvanceSteps 1 (packMerkleState 5 4)) = 0xFF ∧
+    merkleStateDir (merkleAdvanceSteps 2 (packMerkleState 5 3)) = 1 ∧
     div10U32 4294967295 = 429496729 ∧
     mod10U32 4294967295 = 5 ∧
     llbMiniscriptOlderOk 144 = true ∧
     llbMiniscriptOlderOk 0 = false ∧
     llbMiniscriptAfterOk 800000 = true ∧
     llbMiniscriptAfterOk 0x80000000 = false ∧
-    llbMiniscriptAndorBranchesValid 0x64 0x67 0x68 = true ∧
-    llbMiniscriptAndorBranchesValid 0x63 0x67 0x68 = false ∧
     llbPsbtLocktimeFinalize (llbPsbtLocktimeStep (llbPsbtLocktimeStep llbPsbtLocktimeInit 1 800000 0 0) 1 750000 1 1700000000) 0 =
       (((1 : UInt64) <<< 32) ||| 800000) ∧
     llbPsbtLocktimeFinalize (llbPsbtLocktimeStep (llbPsbtLocktimeStep llbPsbtLocktimeInit 1 800000 0 0) 0 0 1 1700000000) 0 = 0 := by

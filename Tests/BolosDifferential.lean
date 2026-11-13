@@ -759,7 +759,6 @@ def checkBasicAndFreestanding : Bool :=
   -- 4. Canonical CompactSize / VarInt & non-canonical rejections
   ([0, 0xFC, 0xFD, 0xFFFF, 0x10000, 0xFFFFFFFF, 0x100000000, MAX_MONEY].all fun v =>
     let enc := encodeVarInt v
-    (enc.size == (llbVarIntEncodedLen v).toNat) &&
     (decodeVarIntCanonical? enc == some v)) &&
   (decodeVarIntCanonical? (ByteArray.mk #[0xFD, 0xFC, 0x00]) == none) &&
   (decodeVarIntCanonical? (ByteArray.mk #[0xFE, 0xFF, 0xFF, 0x00, 0x00]) == none) &&
@@ -770,31 +769,25 @@ def checkBasicAndFreestanding : Bool :=
   !llbVarIntPrefixIsCanonical 0xFE 0xFFFF &&
   !llbVarIntPrefixIsCanonical 0xFF 0xFFFFFFFF &&
   llbVarIntPrefixIsCanonical 0xFF 0x100000000 &&
-  -- 5. All 19 `SpecError` status-word & tag roundtrips match freestanding `llb_bolos_sw_for_error`
+  -- 5. All 19 `SpecError` tags roundtrip
   (allSpecErrors.all fun err =>
-    let tag := specErrorToTag err
-    (specErrorFromTag? tag == some err) &&
-    (llbBolosSwForError tag == specErrorToBolosU16 err)) &&
-  (llbBolosSwForError 255 == 0xB007) &&
+    specErrorFromTag? (specErrorToTag err) == some err) &&
   -- 6. Remaining freestanding scalar kernels (`llb_bip32_*`, `llb_witness_*`, `llb_segwit_*`, `llb_sighash_*`, `llb_merkle_*`)
-  (llbBip32Harden 84 == 0x80000054) &&
   llbBip32IsHardened 0x80000054 &&
   (llbBip32Unharden 0x80000054 == 84) &&
   llbBip32BolosDepthOk 10 && !llbBip32BolosDepthOk 11 &&
   llbBip32VanadiumDepthOk 16 && !llbBip32VanadiumDepthOk 17 &&
-  llbBip32StandardPurposeOk (llbBip32Harden 84) &&
-  llbBip32StandardPurposeOk (llbBip32Harden 45) &&
-  !llbBip32StandardPurposeOk (llbBip32Harden 48) &&
+  llbBip32StandardPurposeOk 0x80000054 &&
+  llbBip32StandardPurposeOk 0x8000002D &&
+  !llbBip32StandardPurposeOk 0x80000030 &&
   (llbWitnessOpcodeToVersion 0x00 == 0) &&
   (llbWitnessOpcodeToVersion 0x51 == 1) &&
   (llbWitnessOpcodeToVersion 0x60 == 16) &&
   (llbWitnessOpcodeToVersion 0x50 == 0xFF) &&
   llbSegwitProgramValid 0 20 && llbSegwitProgramValid 0 32 && !llbSegwitProgramValid 0 16 &&
   llbSegwitProgramValid 1 2 && llbSegwitProgramValid 1 40 && !llbSegwitProgramValid 1 41 &&
-  (llbBech32PolymodStep 1 3 == 0x23) &&
   llbSighashTypeValid 0x01 && llbSighashTypeValid 0x83 && !llbSighashTypeValid 0x00 &&
-  llbTaprootSighashValid 0x00 && llbTaprootSighashValid 0x83 && !llbTaprootSighashValid 0x80 &&
-  llbMerkleDepthIndexOk 5 4 3 && !llbMerkleDepthIndexOk 5 5 3 && !llbMerkleDepthIndexOk 5 0 33
+  llbTaprootSighashValid 0x00 && llbTaprootSighashValid 0x83 && !llbTaprootSighashValid 0x80
 
 end BasicAndFreestanding
 
@@ -953,10 +946,6 @@ def checkScriptConformance : Bool :=
   (decodeMinimalPushPrefix? (ByteArray.mk #[0x01, 0x05]) == none) &&
   (decodeMinimalPushPrefix? (ByteArray.mk #[0x01, 0x81]) == none) &&
   (decodeMinimalPushPrefix? (ByteArray.mk #[0x4C, 75] ++ ByteArray.mk (Array.replicate 75 0x41)) == none) &&
-  -- `llb_minimal_push_opcode_ok(0x01, 0x00, 1)` matches BOLOS `script.c:191-196` (`true`), whereas BIP-62 `OP_0` is 0-byte push
-  BitcoinLedger.FreestandingKernels.llbMinimalPushOpcodeOk 0x01 0x00 1 &&
-  !BitcoinLedger.FreestandingKernels.llbMinimalPushOpcodeOk 0x01 0x01 1 &&
-  !BitcoinLedger.FreestandingKernels.llbMinimalPushOpcodeOk 0x01 0x81 1 &&
   -- 4. Official BIP-173 Bech32 & BIP-350 Bech32m vectors (`decodeSegwitAddr?` normalizes case via `toLower`; mixed case rejected)
   (let v0Prog20 := RefCrypto.hex! "751e76e8199196d454941c45d1b3a323f1433bd6"
    let v1Prog32 := RefCrypto.hex! "a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c"

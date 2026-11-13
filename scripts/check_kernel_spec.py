@@ -8,8 +8,8 @@ checks, and fails otherwise, that:
    reason it has no statement yet;
 2. every statement of Spec.lean has a theorem of that type in Proofs/KernelSpec.lean
    and is part of `Spec.KernelSpec`;
-3. the set of exports that neither app calls is exactly NOT_CALLED below, so a new
-   dead export, or a newly used one, has to be acknowledged here.
+3. every export is called by at least one app (NOT_CALLED below is empty and has to
+   stay empty).
 
 Run from the repository root: `python3 scripts/check_kernel_spec.py`.
 """
@@ -30,28 +30,17 @@ MODEL = "proved equal to a definition of the app model (Proofs/FreestandingKerne
 BUFFER = "reads or writes a buffer; the kernel has no memory model yet, so no statement about it can be written"
 PENDING = {
     "llb_version_packed": "constant",
-    "llb_bip32_standard_purpose_ok": MODEL,
     "llb_bip32_pubkey_export_prefix_ok": MODEL,
-    "llb_bech32_polymod_step": MODEL,
     "llb_bech32_final_constant": "constant table",
-    "llb_minimal_push_opcode_ok": "only soundness is proved (Proofs/FreestandingKernels.lean)",
-    "llb_merkle_depth_index_ok": MODEL,
     "llb_merkle_advance_state": MODEL,
-    "llb_merkle_state_dir": MODEL,
-    "llb_bolos_sw_for_error": MODEL,
     "llb_wallet_name_char_ok": "restates its implementation; needs an independent statement",
     "llb_miniscript_older_ok": MODEL,
     "llb_miniscript_after_ok": MODEL,
-    "llb_miniscript_andor_branches_valid": "restates its implementation; needs an independent statement",
     "llb_psbt_locktime_init": MODEL,
     "llb_psbt_locktime_step": MODEL,
     "llb_psbt_locktime_finalize": MODEL,
-    "llb_bip32_harden": "not called by either app",
     "llb_miniscript_check_postfix": BUFFER + "; only its combinators are proved",
-    "llb_psbt_determine_locktime": BUFFER,
-    "llb_bytes_eq": BUFFER,
     "llb_check_dual_utxo": BUFFER,
-    "llb_sum_amounts_le64": BUFFER,
     "llb_bip32_check_export_path": BUFFER,
     "llb_read_compact_size_checked": BUFFER,
     "llb_sort_fixed_bytes": BUFFER + "; no theorem at all",
@@ -59,24 +48,9 @@ PENDING = {
     "llb_format_sats_ascii": BUFFER + "; no theorem at all",
 }
 
-# Exports that neither app calls in a release build. They should be removed from the
-# export list the next time the generated IR and the patches are regenerated.
-NOT_CALLED = {
-    "llb_varint_encoded_len",
-    "llb_bip32_harden",
-    "llb_bip32_standard_purpose_ok",
-    "llb_bech32_polymod_step",
-    "llb_minimal_push_opcode_ok",
-    "llb_merkle_depth_index_ok",
-    "llb_bolos_sw_for_error",
-    "llb_sats_div_1e8",
-    "llb_sats_mod_1e8",
-    "llb_merkle_state_dir",
-    "llb_psbt_determine_locktime",
-    "llb_bytes_eq",
-    "llb_sum_amounts_le64",
-    "llb_miniscript_andor_branches_valid",
-}
+# Exports that neither app calls in a release build. Must stay empty: an export that no
+# app calls is removed from the kernel instead of being listed here.
+NOT_CALLED = set()
 
 
 def exports():

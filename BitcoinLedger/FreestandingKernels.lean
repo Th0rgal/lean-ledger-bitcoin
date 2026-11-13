@@ -52,15 +52,7 @@ def llbCheckedSubSatsOk (a b : UInt64) : Bool :=
 def llbCheckedSubSatsVal (a b : UInt64) : UInt64 :=
   if llbCheckedSubSatsOk a b then a - b else 0
 
-/-! ## 2. CompactSize / VarInt Header Length & Canonicality -/
-
-/-- Canonical CompactSize / VarInt encoded byte length (`1`, `3`, `5`, or `9`) for `n : UInt64`. -/
-@[export llb_varint_encoded_len]
-def llbVarIntEncodedLen (n : UInt64) : UInt8 :=
-  if decide (n ≤ 0xFC) then 1
-  else if decide (n ≤ 0xFFFF) then 3
-  else if decide (n ≤ 0xFFFFFFFF) then 5
-  else 9
+/-! ## 2. CompactSize / VarInt Canonicality -/
 
 /-- Check that a VarInt prefix `tag` paired with decoded little-endian payload `decodedVal` is canonical:
     - `tag ≤ 0xFC`: `decodedVal == tag`
@@ -85,11 +77,6 @@ def llbVarIntPrefixIsCanonical (tag : UInt8) (decodedVal : UInt64) : Bool :=
 def llbBip32IsHardened (idx : UInt32) : Bool :=
   !decide ((idx &&& 0x80000000) = 0)
 
-/-- Set the BIP-32 hardened bit (`n ||| 0x80000000`). -/
-@[export llb_bip32_harden]
-def llbBip32Harden (n : UInt32) : UInt32 :=
-  n ||| 0x80000000
-
 /-- Clear the BIP-32 hardened bit (`idx &&& 0x7FFFFFFF`). -/
 @[export llb_bip32_unharden]
 def llbBip32Unharden (idx : UInt32) : UInt32 :=
@@ -107,14 +94,13 @@ def llbBip32VanadiumDepthOk (depth : UInt8) : Bool :=
 
 /-- Check whether `purposeStep` is a hardened standard 3-step BIP purpose
     (`44'`, `49'`, `84'`, `86'`, `87'`, or `45'`). -/
-@[export llb_bip32_standard_purpose_ok]
 def llbBip32StandardPurposeOk (purposeStep : UInt32) : Bool :=
   llbBip32IsHardened purposeStep &&
     (let p := llbBip32Unharden purposeStep
      decide (p = 44) || decide (p = 49) || decide (p = 84) ||
      decide (p = 86) || decide (p = 87) || decide (p = 45))
 
-/-! ## 4. Script, SegWit, Bech32 Polymod & `MINIMALDATA` Scalar Checks -/
+/-! ## 4. Script & SegWit Scalar Checks -/
 
 /-- Decode a Bitcoin Script witness-version opcode (`OP_0 = 0x00` -> `0`, `OP_1..OP_16 = 0x51..0x60` -> `1..16`),
     returning `0xFF` when `op` is not a valid witness-version opcode. -/
@@ -137,50 +123,7 @@ def llbSegwitProgramValid (witver : UInt8) (progLen : UInt8) : Bool :=
   else
     false
 
-/-- Single GF(32) generator-polynomial step for BIP-173 Bech32 / BIP-350 Bech32m `polymod`. -/
-@[export llb_bech32_polymod_step]
-def llbBech32PolymodStep (pre : UInt32) (val : UInt8) : UInt32 :=
-  let b := pre >>> (25 : UInt32)
-  let shifted := ((pre &&& 0x1FFFFFF) <<< 5) ^^^ val.toUInt32
-  let g0 := if !decide ((b &&& 1) = 0) then (0x3b6a57b2 : UInt32) else 0
-  let g1 := if !decide ((b &&& 2) = 0) then (0x26508e6d : UInt32) else 0
-  let g2 := if !decide ((b &&& 4) = 0) then (0x1ea119fa : UInt32) else 0
-  let g3 := if !decide ((b &&& 8) = 0) then (0x3d4233dd : UInt32) else 0
-  let g4 := if !decide ((b &&& 16) = 0) then (0x2a1462b3 : UInt32) else 0
-  shifted ^^^ g0 ^^^ g1 ^^^ g2 ^^^ g3 ^^^ g4
-
-/-- Validate BIP-62 `MINIMALDATA` canonicality for a single push operation header `(op, firstByte, pushLen)`:
-    - `OP_0` (`0x00`): `pushLen == 0`
-    - `OP_1NEGATE` (`0x4F`): `pushLen == 1 && firstByte == 0x81`
-    - `OP_1..OP_16` (`0x51..0x60`): `pushLen == 1 && firstByte == op - 0x50`
-    - `0x01`: `pushLen == 1` and `firstByte` is neither `1..16` nor `0x81`
-    - `0x02..0x4B` (`2..75`): `pushLen == op`
-    - `OP_PUSHDATA1` (`0x4C`): `76 ≤ pushLen ≤ 255`
-    - `OP_PUSHDATA2` (`0x4D`): `256 ≤ pushLen ≤ 65535`
-    - `OP_PUSHDATA4` (`0x4E`): `65536 ≤ pushLen`. -/
-@[export llb_minimal_push_opcode_ok]
-def llbMinimalPushOpcodeOk (op : UInt8) (firstByte : UInt8) (pushLen : UInt32) : Bool :=
-  if decide (op = 0x00) then
-    decide (pushLen = 0)
-  else if decide (op = 0x4F) then
-    decide (pushLen = 1) && decide (firstByte = 0x81)
-  else if decide (0x51 ≤ op) && decide (op ≤ 0x60) then
-    decide (pushLen = 1) && decide (firstByte = op - 0x50)
-  else if decide (op = 0x01) then
-    decide (pushLen = 1) &&
-      !((decide (1 ≤ firstByte) && decide (firstByte ≤ 16)) || decide (firstByte = 0x81))
-  else if decide (0x02 ≤ op) && decide (op ≤ 0x4B) then
-    decide (pushLen = op.toUInt32)
-  else if decide (op = 0x4C) then
-    decide (76 ≤ pushLen) && decide (pushLen ≤ 255)
-  else if decide (op = 0x4D) then
-    decide (256 ≤ pushLen) && decide (pushLen ≤ 65535)
-  else if decide (op = 0x4E) then
-    decide (65536 ≤ pushLen)
-  else
-    false
-
-/-! ## 5. BOLOS APDU, Sighash & Merkle Scalar Checks -/
+/-! ## 5. Sighash Scalar Checks -/
 
 /-- Validate a 32-bit non-Taproot sighash type (`0x01`, `0x02`, `0x03`, `0x81`, `0x82`, `0x83`). -/
 @[export llb_sighash_type_valid]
@@ -195,40 +138,6 @@ def llbTaprootSighashValid (sighashByte : UInt8) : Bool :=
   decide (sighashByte = 0x00) ||
     (let base := sighashByte &&& 0x7F
      decide (1 ≤ base) && decide (base ≤ 3))
-
-/-- Validate BOLOS Merkle inclusion-proof header bounds (`0 < treeSize`, `index < treeSize`,
-    `index ≤ 0x7FFFFFFF`, and `depth ≤ 32`). -/
-@[export llb_merkle_depth_index_ok]
-def llbMerkleDepthIndexOk (treeSize : UInt32) (index : UInt32) (depth : UInt8) : Bool :=
-  decide (0 < treeSize) &&
-  decide (index < treeSize) &&
-  decide (index ≤ 0x7FFFFFFF) &&
-  decide (depth ≤ 32)
-
-/-- Map compact `SpecError` discriminant tag (`0..18`) to its BOLOS 16-bit APDU status word
-    (defaulting unknown tags `≥ 19` to `SW_BAD_STATE = 0xB007`). -/
-@[export llb_bolos_sw_for_error]
-def llbBolosSwForError (errTag : UInt8) : UInt16 :=
-  if decide (errTag = 0) then 0x6700 -- wrongLength -> SW_WRONG_LENGTH
-  else if decide (errTag = 1) then 0x6A87 -- wrongDataLength -> SW_WRONG_DATA_LENGTH
-  else if decide (errTag = 2) then 0x6D00 -- unsupportedInstruction -> SW_INS_NOT_SUPPORTED
-  else if decide (errTag = 3) then 0x6E00 -- unsupportedClass -> SW_CLA_NOT_SUPPORTED
-  else if decide (errTag = 4) then 0x6A86 -- wrongP1P2 -> SW_WRONG_P1P2
-  else if decide (errTag = 5) then 0x6985 -- userRejected -> SW_DENY
-  else if decide (errTag = 6) then 0x6982 -- securityStatusNotSatisfied -> SW_SECURITY_STATUS_NOT_SATISFIED
-  else if decide (errTag = 7) then 0x6B00 -- swapValidationFailed -> SW_FAIL_SWAP
-  else if decide (errTag = 8) then 0x6A80 -- invalidData -> SW_INCORRECT_DATA
-  else if decide (errTag = 9) then 0x6A80 -- bip32PathTooLong -> SW_INCORRECT_DATA
-  else if decide (errTag = 10) then 0x6A82 -- unsupportedBip32Path -> SW_NOT_SUPPORTED
-  else if decide (errTag = 11) then 0x6A82 -- notSupported -> SW_NOT_SUPPORTED
-  else if decide (errTag = 12) then 0x6A80 -- invalidAmount -> SW_INCORRECT_DATA
-  else if decide (errTag = 13) then 0x6A80 -- invalidScriptOrAddress -> SW_INCORRECT_DATA
-  else if decide (errTag = 14) then 0x6A80 -- invalidWalletPolicy -> SW_INCORRECT_DATA
-  else if decide (errTag = 15) then 0x6A80 -- invalidPsbt -> SW_INCORRECT_DATA
-  else if decide (errTag = 16) then 0xB007 -- badState -> SW_BAD_STATE
-  else if decide (errTag = 17) then 0xB000 -- wrongResponseLength -> SW_WRONG_RESPONSE_LENGTH
-  else if decide (errTag = 18) then 0xB008 -- cryptoOrSignatureFailed -> SW_SIGNATURE_FAIL
-  else 0xB007 -- fallback -> SW_BAD_STATE
 
 /-! ## 6. Wave 4 BOLOS Optimization Kernels (Division-Free Satoshi Split, O(log n) Merkle, BIP32 & Bech32) -/
 
@@ -254,13 +163,11 @@ def mulHiRecip1e8 (x : UInt64) : UInt64 :=
 
 /-- Exact division-free `amount / 100_000_000` for any `amount : UInt64`
     (`⌊amount * 0xABCC77118461CEFD / 2^90⌋`), eliminating 64-bit software division on BOLOS ARM. -/
-@[export llb_sats_div_1e8]
 def llbSatsDiv1e8 (amount : UInt64) : UInt64 :=
   (mulHiRecip1e8 amount) >>> 26
 
 /-- Exact division-free `amount % 100_000_000` (`0..99_999_999`) for any `amount : UInt64`
     computed in 32-bit arithmetic (`amount.toUInt32 - q.toUInt32 * 100_000_000`). -/
-@[export llb_sats_mod_1e8]
 def llbSatsMod1e8 (amount : UInt64) : UInt32 :=
   let q := llbSatsDiv1e8 amount
   amount.toUInt32 - (q.toUInt32 * 100000000)
@@ -298,17 +205,6 @@ def llbMerkleAdvanceState (st : UInt64) : UInt64 :=
       packMerkleState mask index
     else
       packMerkleState (size - mask) (index - mask)
-
-/-- Extract the branch direction at packed `(size, index)` (`0` = left, `1` = right, `0xFF` = leaf / invalid). -/
-@[export llb_merkle_state_dir]
-def llbMerkleStateDir (st : UInt64) : UInt8 :=
-  let size : UInt32 := (st >>> 32).toUInt32
-  let index : UInt32 := st.toUInt32
-  if decide (size ≤ 1) || !decide (index < size) then
-    0xFF
-  else
-    let mask := largestPow2LtU32 size
-    if decide (index < mask) then 0 else 1
 
 /-- Exact scalar check for BOLOS `is_path_safe_for_pubkey_export` (`get_extended_pubkey.c`):
     given `p0..p3`, `pathLen`, `expectedCoinType` (`0` mainnet / `1` testnet), and whether all
@@ -451,7 +347,7 @@ def selU32 (c : Bool) (t f : UInt32) : UInt32 :=
 def selU64 (c : Bool) (t f : UInt64) : UInt64 :=
   f ^^^ ((0 - c.toUInt64) &&& (t ^^^ f))
 
-/-! ## 8. Option 2 Miniscript Timelock & Branch Validators (VND-01 / VND-06) -/
+/-! ## 8. Option 2 Miniscript Timelock Validators (VND-01 / VND-06) -/
 
 /-- BIP-68 `older(n)` consensus range check (`policy.c:check_older_node_cb`,
     `WalletPolicy.validOlderArg` / `validOlderBitmask`): `(n & 0xFFBF0000) == 0` and
@@ -464,11 +360,6 @@ def llbMiniscriptOlderOk (n : UInt32) : Bool :=
 @[export llb_miniscript_after_ok]
 def llbMiniscriptAfterOk (n : UInt32) : Bool :=
   band (decide (1 ≤ n)) (decide (n < 0x80000000))
-
-/-- Canonical `andor` Script branch framing (`OP_NOTIF (0x64)`, `OP_ELSE (0x67)`, `OP_ENDIF (0x68)`, VND-01). -/
-@[export llb_miniscript_andor_branches_valid]
-def llbMiniscriptAndorBranchesValid (notifOp elseOp endifOp : UInt8) : Bool :=
-  band (band (decide (notifOp = 0x64)) (decide (elseOp = 0x67))) (decide (endifOp = 0x68))
 
 /-! ## 9. Option 2 Postfix Miniscript Typechecker (VND-01 / VND-05 / VND-06, BIP-379 / BIP-388)
 
@@ -964,25 +855,9 @@ def llbPsbtLocktimeFinalize (st : UInt64) (fallbackLocktime : UInt32) : UInt64 :
       (selU32 (bor (decide (mode = 1)) (decide (mode = 2))) (ltMaxH st) (ltMaxT st))
   selU64 (decide (st ≠ 0)) (((1 : UInt64) <<< 32) ||| chosen.toUInt64) 0
 
-/-- One 10-byte locktime record: `hasH`, `h` LE, `hasT`, `t` LE. -/
-def ltRecord (buf : ConstBytes) (i : UInt32) (st : UInt64) : UInt64 :=
-  let base := i * 10
-  let h := (readU8 buf (base + 1)).toUInt32 ||| ((readU8 buf (base + 2)).toUInt32 <<< 8) |||
-    ((readU8 buf (base + 3)).toUInt32 <<< 16) ||| ((readU8 buf (base + 4)).toUInt32 <<< 24)
-  let t := (readU8 buf (base + 6)).toUInt32 ||| ((readU8 buf (base + 7)).toUInt32 <<< 8) |||
-    ((readU8 buf (base + 8)).toUInt32 <<< 16) ||| ((readU8 buf (base + 9)).toUInt32 <<< 24)
-  llbPsbtLocktimeStep st (readU8 buf base) h (readU8 buf (base + 5)) t
-
-/-- Scan `numInputs` contiguous 10-byte records and finalize the BIP-370 locktime. -/
-@[export llb_psbt_determine_locktime]
-def llbPsbtDetermineLocktime (buf : ConstBytes) (numInputs : UInt32) (fallbackLocktime : UInt32) : UInt64 :=
-  let step := fun i st => ltRecord buf i st
-  llbPsbtLocktimeFinalize (forRangeU64 0 numInputs llbPsbtLocktimeInit step) fallbackLocktime
-
-/-! ## 11. Dual-UTXO Equality & Batch Satoshi Accounting (VND-02 / VND-03, CVE-2020-14199) -/
+/-! ## 11. Dual-UTXO Equality (VND-02, CVE-2020-14199) -/
 
 /-- `1` iff `a[i] = b[i]` for every `i < len` (constant iteration count). -/
-@[export llb_bytes_eq]
 def llbBytesEq (a b : ConstBytes) (len : UInt32) : Bool :=
   let step := fun i acc =>
     if decide (readU8 a i = readU8 b i) then acc else 0
@@ -993,26 +868,6 @@ def llbBytesEq (a b : ConstBytes) (len : UInt32) : Bool :=
 def llbCheckDualUtxo (witAmount : UInt64) (witSpk : ConstBytes) (witSpkLen : UInt32) (nonWitAmount : UInt64) (nonWitSpk : ConstBytes) (nonWitSpkLen : UInt32) : Bool :=
   llbValidAmount witAmount && decide (witAmount = nonWitAmount) && decide (witSpkLen = nonWitSpkLen) &&
     llbBytesEq witSpk nonWitSpk witSpkLen
-
-/-- Read one little-endian `UInt64` at byte `base`. -/
-def readU64Le (buf : ConstBytes) (base : UInt32) : UInt64 :=
-  (readU8 buf base).toUInt64 ||| ((readU8 buf (base + 1)).toUInt64 <<< 8) |||
-    ((readU8 buf (base + 2)).toUInt64 <<< 16) ||| ((readU8 buf (base + 3)).toUInt64 <<< 24) |||
-    ((readU8 buf (base + 4)).toUInt64 <<< 32) ||| ((readU8 buf (base + 5)).toUInt64 <<< 40) |||
-    ((readU8 buf (base + 6)).toUInt64 <<< 48) ||| ((readU8 buf (base + 7)).toUInt64 <<< 56)
-
-/-- Sum `count` little-endian satoshi amounts. `(1 <<< 63) ||| sum` when every entry and the
-    running total stay `≤ MAX_MONEY`; `0` on overflow. -/
-@[export llb_sum_amounts_le64]
-def llbSumAmountsLe64 (amounts : ConstBytes) (count : UInt32) : UInt64 :=
-  let step := fun i (acc : UInt64) =>
-    if decide (acc = 0) then (0 : UInt64)
-    else
-      let v := readU64Le amounts (i * 8)
-      if llbCheckedAddSatsOk (acc &&& (0x7FFFFFFFFFFFFFFF : UInt64)) v then
-        (((1 : UInt64) <<< 63) ||| ((acc &&& (0x7FFFFFFFFFFFFFFF : UInt64)) + v) : UInt64)
-      else (0 : UInt64)
-  forRangeU64 0 count ((1 : UInt64) <<< 63) step
 
 /-! ## 12. Full-Buffer BIP-32 Export Path (VND-07) -/
 
@@ -1209,8 +1064,6 @@ def llbFormatSatsAscii (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt
 #guard llbMiniscriptOlderOk 1 == true
 #guard llbMiniscriptAfterOk 0 == false
 #guard llbMiniscriptAfterOk 1 == true
-#guard llbMiniscriptAndorBranchesValid 0x64 0x67 0x68 == true
-#guard llbMiniscriptAndorBranchesValid 0x63 0x67 0x68 == false
 #guard div10U32 0 == 0
 #guard div10U32 9 == 0
 #guard div10U32 10 == 1

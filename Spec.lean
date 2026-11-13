@@ -50,7 +50,8 @@ def CheckedSub : Prop :=
     (llbCheckedSubSatsOk a b = true → (llbCheckedSubSatsVal a b).toNat = a.toNat - b.toNat) ∧
     (llbCheckedSubSatsOk a b = false → llbCheckedSubSatsVal a b = 0)
 
-/-- The division-free BTC / satoshi split is exact for every 64-bit amount. -/
+/-- The division-free BTC / satoshi split is exact for every 64-bit amount. The two functions
+    are not exported on their own: they are compiled into `llb_format_sats_ascii`. -/
 def SplitBtc : Prop :=
   ∀ a : UInt64,
     (llbSatsDiv1e8 a).toNat = a.toNat / 100000000 ∧
@@ -115,20 +116,11 @@ def CompactSizeCanonical : Prop :=
       (65536 ≤ v.toNat ∧ v.toNat ≤ 4294967295 ∧ tag.toNat = 254) ∨
       (4294967296 ≤ v.toNat ∧ tag.toNat = 255)
 
-/-- The shortest CompactSize encoding of a value takes 1, 3, 5 or 9 bytes. -/
-def CompactSizeLength : Prop :=
-  ∀ v : UInt64,
-    (llbVarIntEncodedLen v).toNat =
-      if v.toNat ≤ 252 then 1
-      else if v.toNat ≤ 65535 then 3
-      else if v.toNat ≤ 4294967295 then 5
-      else 9
-
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
   HardenedBit ∧ DepthLimits ∧
   SegwitProgram ∧ WitnessOpcode ∧ SighashType ∧ TaprootSighashType ∧
-  CompactSizeCanonical ∧ CompactSizeLength
+  CompactSizeCanonical
 
 end Spec
