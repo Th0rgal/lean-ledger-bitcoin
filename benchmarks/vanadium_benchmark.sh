@@ -64,20 +64,35 @@ timeout 180s "$LEAN_NATIVE" emit-freestanding-c-lib \
   -o "$REPO_ROOT/ffi/vanadium/build/host/liblean_ledger_bitcoin.a" --json > "$WORK_TMP/emit_host.json"
 
 echo "[2/6] Building RV32IMAC ELF variants (Reference, Lean-Optimized, Same-Profile)..."
-mkdir -p "$WORK_TMP/elfs"
+mkdir -p "$WORK_TMP/elfs/ref_plain/target" \
+         "$WORK_TMP/elfs/ref_auto/target" \
+         "$WORK_TMP/elfs/lean_plain/target" \
+         "$WORK_TMP/elfs/lean_auto/target" \
+         "$WORK_TMP/elfs/sameprof_plain/target" \
+         "$WORK_TMP/elfs/sameprof_auto/target"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/ref_plain/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/ref_auto/Cargo.toml"
+cp "$VANADIUM_LEAN/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/lean_plain/Cargo.toml"
+cp "$VANADIUM_LEAN/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/lean_auto/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/sameprof_plain/Cargo.toml"
+cp "$VANADIUM_REF/apps/bitcoin/app/Cargo.toml" "$WORK_TMP/elfs/sameprof_auto/Cargo.toml"
 
 # Reference plain + autoapprove
 (cd "$VANADIUM_REF/apps/bitcoin/app" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_plain/target/ref_plain.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_plain.elf" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_auto/target/ref_auto.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/ref_auto.elf")
 
 # Lean-optimized plain + autoapprove
 (cd "$VANADIUM_LEAN/apps/bitcoin/app" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_plain/target/lean_plain.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_plain.elf" && \
   cargo build --release --target riscv32imac-unknown-none-elf --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_auto/target/lean_auto.elf" && \
   cp target/riscv32imac-unknown-none-elf/release/vnd-bitcoin "$WORK_TMP/elfs/lean_auto.elf")
 
 # Same-profile Lean plain + autoapprove (upstream linker flags, panic=unwind, strip=none, VAPP_HEAP_SIZE=65536)
@@ -87,11 +102,13 @@ SAMEPROF_TARGET="/tmp/w4-sameprof-target"
   cargo build --release --target riscv32imac-unknown-none-elf --target-dir "$SAMEPROF_TARGET" \
     --config 'profile.release.panic="unwind"' --config 'profile.release.strip="none"' \
     --no-default-features --features target_vanadium_ledger --quiet && \
+  cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_plain/target/sameprof_plain.elf" && \
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_plain.elf" && \
   VAPP_HEAP_SIZE=65536 RUSTFLAGS="-Clink-arg=--no-rosegment" \
   cargo build --release --target riscv32imac-unknown-none-elf --target-dir "$SAMEPROF_TARGET" \
     --config 'profile.release.panic="unwind"' --config 'profile.release.strip="none"' \
     --no-default-features --features target_vanadium_ledger,autoapprove --quiet && \
+  cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf" && \
   cp "$SAMEPROF_TARGET/riscv32imac-unknown-none-elf/release/vnd-bitcoin" "$WORK_TMP/elfs/sameprof_auto.elf")
 
 echo "[3/6] Running deterministic host microbenchmarks (llb-vanadium-ffi)..."
@@ -107,9 +124,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-vnd-bitcoin-client = { path = "$VANADIUM_REF/apps/bitcoin/client" }
-common = { package = "vnd-bitcoin-common", path = "$VANADIUM_REF/apps/bitcoin/common", default-features = false, features = ["target_native"] }
-sdk = { package = "vanadium-client-sdk", path = "$VANADIUM_REF/client-sdk" }
+vnd-bitcoin-client = { path = "$VANADIUM_LEAN/apps/bitcoin/client" }
+common = { package = "vnd-bitcoin-common", path = "$VANADIUM_LEAN/apps/bitcoin/common", default-features = false, features = ["target_native"] }
+sdk = { package = "vanadium-client-sdk", path = "$VANADIUM_LEAN/client-sdk" }
 bitcoin = { version = "0.32.0", features = ["serde"], default-features = false }
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 hex = "0.4.3"
@@ -198,6 +215,8 @@ struct WorkloadResult {
     instruction_count: Option<u64>,
     page_loads: Option<u32>,
     page_commits: Option<u32>,
+    current_heap_bytes: Option<u32>,
+    peak_heap_bytes: Option<u32>,
 }
 
 async fn query_vm_metrics(tcp: &TransportTcp) -> (u64, u32, u32) {
@@ -212,7 +231,13 @@ async fn query_vm_metrics(tcp: &TransportTcp) -> (u64, u32, u32) {
     )
 }
 
-async fn run_workload(vanadium_bin: &str, vapp_bin: &str, name: &str, with_metrics: bool) -> WorkloadResult {
+async fn run_workload(
+    vanadium_bin: &str,
+    vapp_bin: &str,
+    name: &str,
+    with_metrics: bool,
+    query_heap: bool,
+) -> WorkloadResult {
     let (mut child, tcp) = spawn_speculos(vanadium_bin).await;
     let transport = Arc::new(TransportWrapper::new(tcp.clone()));
 
@@ -221,6 +246,10 @@ async fn run_workload(vanadium_bin: &str, vapp_bin: &str, name: &str, with_metri
         .await
         .expect("VanadiumAppClient::with_vapp");
     let mut client = BitcoinClient::new(Box::new(vapp_client));
+
+    if query_heap {
+        let _ = client.get_heap_stats(true).await;
+    }
 
     match name {
         "get_fingerprint" => {
@@ -297,6 +326,15 @@ async fn run_workload(vanadium_bin: &str, vapp_bin: &str, name: &str, with_metri
         other => panic!("Unknown workload: {}", other),
     }
 
+    let (current_heap_bytes, peak_heap_bytes) = if query_heap {
+        match client.get_heap_stats(false).await {
+            Ok((cur, peak)) => (Some(cur), Some(peak)),
+            Err(_) => (None, None),
+        }
+    } else {
+        (None, None)
+    };
+
     let status = client.exit().await.expect("client.exit");
     assert_eq!(status, 0);
     let wall_ms = t0.elapsed().as_secs_f64() * 1000.0;
@@ -315,40 +353,108 @@ async fn run_workload(vanadium_bin: &str, vapp_bin: &str, name: &str, with_metri
     let _ = child.kill();
     let _ = child.wait();
 
-    WorkloadResult { wall_ms, apdu_exchanges, bytes_sent, bytes_received, instruction_count, page_loads, page_commits }
+    WorkloadResult {
+        wall_ms,
+        apdu_exchanges,
+        bytes_sent,
+        bytes_received,
+        instruction_count,
+        page_loads,
+        page_commits,
+        current_heap_bytes,
+        peak_heap_bytes,
+    }
+}
+
+fn print_stats(wl: &str, times: &mut [f64], last: &WorkloadResult, idx: usize) {
+    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let n = times.len();
+    let median_ms = times[n / 2];
+    let min_ms = times[0];
+    let mean_ms = times.iter().sum::<f64>() / (n as f64);
+    if idx > 0 { print!(","); }
+    print!(
+        "\"{}\":{{\"median_ms\":{:.2},\"min_ms\":{:.2},\"mean_ms\":{:.2},\"apdu_exchanges\":{},\"bytes_sent\":{},\"bytes_received\":{}",
+        wl, median_ms, min_ms, mean_ms, last.apdu_exchanges, last.bytes_sent, last.bytes_received
+    );
+    if let (Some(ic), Some(pl), Some(pc)) = (last.instruction_count, last.page_loads, last.page_commits) {
+        print!(",\"rv32_instructions\":{},\"page_loads\":{},\"page_commits\":{}", ic, pl, pc);
+    }
+    if let (Some(ch), Some(ph)) = (last.current_heap_bytes, last.peak_heap_bytes) {
+        print!(",\"current_heap_bytes\":{},\"peak_heap_bytes\":{}", ch, ph);
+    }
+    print!("}}");
 }
 
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
+    let workloads = ["get_fingerprint", "sign_transaction", "send_to_silent_payment", "silent_payment_account"];
+
+    // Interleaved ABBA comparison mode: `--abba <vm_bin> <ref_vapp> <lean_vapp> <pairs>`
+    // Runs warm-up + `pairs` interleaved A-B-B-A cycles (2 * pairs samples per binary) to cancel host drift.
+    if args.get(1).map(|s| s.as_str()) == Some("--abba") {
+        let vanadium_bin = &args[2];
+        let ref_vapp = &args[3];
+        let lean_vapp = &args[4];
+        let pairs: usize = args[5].parse().unwrap();
+        let samples = pairs * 2;
+        print!("{{\"mode\":\"ABBA\",\"pairs\":{},\"samples_per_variant\":{},\"reference\":{{\"runs\":{},\"workloads\":{{", pairs, samples, samples);
+        let mut ref_all: Vec<(Vec<f64>, WorkloadResult)> = Vec::with_capacity(workloads.len());
+        let mut lean_all: Vec<(Vec<f64>, WorkloadResult)> = Vec::with_capacity(workloads.len());
+        for wl in workloads.iter() {
+            // Unmeasured warm-up pair (A then B)
+            let _ = run_workload(vanadium_bin, ref_vapp, wl, false, false).await;
+            let _ = run_workload(vanadium_bin, lean_vapp, wl, false, false).await;
+
+            let mut ref_times = Vec::with_capacity(samples);
+            let mut lean_times = Vec::with_capacity(samples);
+            let mut ref_last = WorkloadResult::default();
+            let mut lean_last = WorkloadResult::default();
+            for _ in 0..pairs {
+                let ra1 = run_workload(vanadium_bin, ref_vapp, wl, false, false).await;
+                let rb1 = run_workload(vanadium_bin, lean_vapp, wl, false, false).await;
+                let rb2 = run_workload(vanadium_bin, lean_vapp, wl, false, false).await;
+                let ra2 = run_workload(vanadium_bin, ref_vapp, wl, false, false).await;
+                ref_times.push(ra1.wall_ms);
+                ref_times.push(ra2.wall_ms);
+                lean_times.push(rb1.wall_ms);
+                lean_times.push(rb2.wall_ms);
+                ref_last = ra2;
+                lean_last = rb2;
+            }
+            ref_all.push((ref_times, ref_last));
+            lean_all.push((lean_times, lean_last));
+        }
+        for (idx, wl) in workloads.iter().enumerate() {
+            let (ref mut times, ref last) = ref_all[idx];
+            print_stats(wl, times, last, idx);
+        }
+        print!("}}}},\"lean_optimized\":{{\"runs\":{},\"workloads\":{{", samples);
+        for (idx, wl) in workloads.iter().enumerate() {
+            let (ref mut times, ref last) = lean_all[idx];
+            print_stats(wl, times, last, idx);
+        }
+        println!("}}}}}}");
+        return;
+    }
+
     let vanadium_bin = &args[1];
     let vapp_bin = &args[2];
     let runs: usize = args[3].parse().unwrap();
     let with_metrics = args.iter().any(|a| a == "--metrics");
-    let workloads = ["get_fingerprint", "sign_transaction", "send_to_silent_payment", "silent_payment_account"];
+    let query_heap = args.iter().any(|a| a == "--heap");
 
     print!("{{\"runs\":{},\"workloads\":{{", runs);
     for (idx, wl) in workloads.iter().enumerate() {
         let mut times = Vec::with_capacity(runs);
         let mut last = WorkloadResult::default();
         for _ in 0..runs {
-            let r = run_workload(vanadium_bin, vapp_bin, wl, with_metrics).await;
+            let r = run_workload(vanadium_bin, vapp_bin, wl, with_metrics, query_heap).await;
             times.push(r.wall_ms);
             last = r;
         }
-        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let median_ms = times[runs / 2];
-        let min_ms = times[0];
-        let mean_ms = times.iter().sum::<f64>() / (runs as f64);
-        if idx > 0 { print!(","); }
-        print!(
-            "\"{}\":{{\"median_ms\":{:.2},\"min_ms\":{:.2},\"mean_ms\":{:.2},\"apdu_exchanges\":{},\"bytes_sent\":{},\"bytes_received\":{}",
-            wl, median_ms, min_ms, mean_ms, last.apdu_exchanges, last.bytes_sent, last.bytes_received
-        );
-        if let (Some(ic), Some(pl), Some(pc)) = (last.instruction_count, last.page_loads, last.page_commits) {
-            print!(",\"rv32_instructions\":{},\"page_loads\":{},\"page_commits\":{}", ic, pl, pc);
-        }
-        print!("}}");
+        print_stats(wl, &mut times, &last, idx);
     }
     println!("}}}}");
 }
@@ -359,20 +465,23 @@ CARGO_TARGET_DIR=/tmp/w4-bench-driver-cache cargo build --release --quiet --mani
 DRIVER_BIN="/tmp/w4-bench-driver-cache/release/vanadium-e2e-bench"
 
 VM_RELEASE_BIN="$VANADIUM_REF/vm/target/flex/release/app-vanadium"
-REF_VAPP_PATH="$VANADIUM_REF/apps/bitcoin/app/target/riscv32imac-unknown-none-elf/release/vnd-bitcoin"
-LEAN_VAPP_PATH="$VANADIUM_LEAN/apps/bitcoin/app/target/riscv32imac-unknown-none-elf/release/vnd-bitcoin"
+REF_VAPP_PATH="$WORK_TMP/elfs/ref_auto/target/ref_auto.elf"
+LEAN_VAPP_PATH="$WORK_TMP/elfs/lean_auto/target/lean_auto.elf"
+SAMEPROF_VAPP_PATH="$WORK_TMP/elfs/sameprof_auto/target/sameprof_auto.elf"
 
-echo "[5/6] Running Speculos Flex E2E latency ($E2E_RUNS runs each) + exact RV32 VM metrics..."
-REF_LAT_JSON="$("$DRIVER_BIN" "$VM_RELEASE_BIN" "$REF_VAPP_PATH" "$E2E_RUNS")"
-LEAN_LAT_JSON="$("$DRIVER_BIN" "$VM_RELEASE_BIN" "$LEAN_VAPP_PATH" "$E2E_RUNS")"
+echo "[5/6] Running ABBA interleaved Speculos Flex E2E latency ($E2E_RUNS ABBA pairs = $((E2E_RUNS * 2)) samples/variant) + exact RV32 VM & peak_heap_bytes metrics..."
+ABBA_LAT_JSON="$("$DRIVER_BIN" --abba "$VM_RELEASE_BIN" "$REF_VAPP_PATH" "$LEAN_VAPP_PATH" "$E2E_RUNS")"
 REF_MET_JSON="$("$DRIVER_BIN" "$VM_METRICS_BIN" "$REF_VAPP_PATH" 1 --metrics)"
 LEAN_MET_JSON="$("$DRIVER_BIN" "$VM_METRICS_BIN" "$LEAN_VAPP_PATH" 1 --metrics)"
+SAMEPROF_MET_JSON="$("$DRIVER_BIN" "$VM_METRICS_BIN" "$SAMEPROF_VAPP_PATH" 1 --metrics)"
+LEAN_HEAP_JSON="$("$DRIVER_BIN" "$VM_METRICS_BIN" "$LEAN_VAPP_PATH" 1 --heap)"
+SAMEPROF_HEAP_JSON="$("$DRIVER_BIN" "$VM_METRICS_BIN" "$SAMEPROF_VAPP_PATH" 1 --heap)"
 
 echo "[6/6] Assembling complete JSON results -> $OUT_JSON..."
-python3 - "$WORK_TMP" "$OUT_JSON" "$HOST_BENCH_JSON" "$REF_LAT_JSON" "$LEAN_LAT_JSON" "$REF_MET_JSON" "$LEAN_MET_JSON" "$REPO_ROOT" << 'PY'
+python3 - "$WORK_TMP" "$OUT_JSON" "$HOST_BENCH_JSON" "$ABBA_LAT_JSON" "$REF_MET_JSON" "$LEAN_MET_JSON" "$SAMEPROF_MET_JSON" "$LEAN_HEAP_JSON" "$SAMEPROF_HEAP_JSON" "$REPO_ROOT" << 'PY'
 import json, math, os, re, subprocess, sys
 
-work_tmp, out_json, host_json, ref_lat, lean_lat, ref_met, lean_met, repo_root = sys.argv[1:9]
+work_tmp, out_json, host_json, abba_lat, ref_met, lean_met, sameprof_met, lean_heap, sameprof_heap, repo_root = sys.argv[1:11]
 
 def parse_elf(elf_path, stack_size):
     elf_bytes = os.path.getsize(elf_path)
@@ -423,11 +532,11 @@ def parse_elf(elf_path, stack_size):
         "n_stack_pages_256b": n_stack_pages,
     }
 
-def merge_e2e(lat_obj, met_obj):
+def merge_e2e(lat_obj, met_obj, heap_obj=None):
     out = {}
     for wl, ldata in lat_obj["workloads"].items():
         mdata = met_obj["workloads"][wl]
-        out[wl] = {
+        entry = {
             "wall_median_ms": ldata["median_ms"],
             "wall_min_ms": ldata["min_ms"],
             "wall_mean_ms": ldata["mean_ms"],
@@ -438,6 +547,12 @@ def merge_e2e(lat_obj, met_obj):
             "vm_page_loads": mdata["page_loads"],
             "vm_page_commits": mdata["page_commits"],
         }
+        if heap_obj is not None:
+            hdata = heap_obj["workloads"].get(wl, {})
+            if "peak_heap_bytes" in hdata:
+                entry["peak_heap_bytes"] = hdata["peak_heap_bytes"]
+                entry["current_heap_bytes"] = hdata["current_heap_bytes"]
+        out[wl] = entry
     return out
 
 su_path = os.path.join(repo_root, "ffi/vanadium/build/riscv32imac/liblean_ledger_bitcoin.su")
@@ -458,8 +573,10 @@ lean_auto = parse_elf(os.path.join(work_tmp, "elfs/lean_auto.elf"), 32768)
 same_plain = parse_elf(os.path.join(work_tmp, "elfs/sameprof_plain.elf"), 65536)
 same_auto = parse_elf(os.path.join(work_tmp, "elfs/sameprof_auto.elf"), 65536)
 
-ref_e2e = merge_e2e(json.loads(ref_lat), json.loads(ref_met))
-lean_e2e = merge_e2e(json.loads(lean_lat), json.loads(lean_met))
+abba = json.loads(abba_lat)
+ref_e2e = merge_e2e(abba["reference"], json.loads(ref_met))
+lean_e2e = merge_e2e(abba["lean_optimized"], json.loads(lean_met), json.loads(lean_heap))
+same_e2e = merge_e2e(json.loads(sameprof_met), json.loads(sameprof_met), json.loads(sameprof_heap))
 
 summary_deltas = {
     "plain_production_vapp": {
@@ -505,12 +622,17 @@ summary_deltas = {
 
 doc = {
     "benchmark_suite": "vanadium-bitcoin-vapp-wave4",
+    "measurement_host": {
+        "environment": os.environ.get("BENCHMARK_HOST_CLASS", "unspecified"),
+        "same_host_reference_and_lean": True,
+    },
     "upstream_reference_commit": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
     "target_isa": "riscv32imac-unknown-none-elf",
     "device_model": "Ledger Flex (Speculos --model flex, 480x600 E-Ink)",
     "lean_freestanding_kernels": {
         "version_packed": "0x00020401",
-        "exported_symbols": len(su_frames),
+        "exported_symbols": sum(1 for line in subprocess.check_output(["llvm-nm", "--defined-only", "--extern-only", os.path.join(repo_root, "ffi/vanadium/build/riscv32imac/liblean_ledger_bitcoin.a")], text=True).splitlines() if line.split() and line.split()[-1].startswith("llb_")),
+        "stack_frame_count": len(su_frames),
         "max_stack_frame_bytes": max((x["stack_frame_bytes"] for x in su_frames), default=0),
         "frames": su_frames,
     },
@@ -523,9 +645,12 @@ doc = {
         "same_profile_lean_autoapprove": same_auto,
     },
     "speculos_flex_e2e": {
-        "runs_per_workload": json.loads(ref_lat)["runs"],
+        "protocol": "ABBA interleaved (1 unmeasured warm-up pair + N A-B-B-A cycles; identical spawn_task + display_transaction + await_task path across plain and autoapprove)",
+        "abba_pairs_per_workload": abba["pairs"],
+        "runs_per_workload": abba["samples_per_variant"],
         "reference": ref_e2e,
         "lean_optimized": lean_e2e,
+        "same_profile_lean": same_e2e,
     },
     "host_microbenchmarks": json.loads(host_json),
     "summary_deltas": summary_deltas,

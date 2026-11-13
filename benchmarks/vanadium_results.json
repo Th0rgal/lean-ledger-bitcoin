@@ -1,19 +1,204 @@
 {
   "benchmark_suite": "vanadium-bitcoin-vapp-wave4",
+  "measurement_host": {
+    "environment": "static fleet dedicated server",
+    "same_host_reference_and_lean": true
+  },
   "upstream_reference_commit": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
   "target_isa": "riscv32imac-unknown-none-elf",
   "device_model": "Ledger Flex (Speculos --model flex, 480x600 E-Ink)",
   "lean_freestanding_kernels": {
     "version_packed": "0x00020401",
-    "exported_symbols": 23,
-    "max_stack_frame_bytes": 0,
+    "exported_symbols": 45,
+    "stack_frame_count": 120,
+    "max_stack_frame_bytes": 96,
     "frames": [
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_check_dual_utxo",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_valid_amount",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bytes_eq",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_band",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_mod10U32",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_div10U32",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__BASE",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__Z",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msOrBit",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_largestPow2LtU32",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_packMerkleState",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msWrite",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msLeafB",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msPack",
+        "stack_frame_bytes": 16
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msErr",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_readU64Le",
+        "stack_frame_bytes": 0
+      },
       {
         "symbol": "llb_checked_add_sats_ok",
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_valid_amount",
+        "symbol": "l_BitcoinLedger_FreestandingKernels_mulHiRecip1e8",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_mulU32ToU64",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msApplyBinary",
+        "stack_frame_bytes": 80
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msBit",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msConflict",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_bor",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_bnot",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_selU16",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__M",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msApplyAndor",
+        "stack_frame_bytes": 16
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_bip32TailClear",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_is_hardened",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_ltMaxH",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_ltMode",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_selU32",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__G",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__I",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_selU64",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_sort_u16",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_sortU16Pass",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_sats_mod_1e8",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_sats_div_1e8",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_sort_fixed_bytes",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_sortBytesPass",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_recGreater",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_recSwap",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_miniscript_after_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_ltPack",
         "stack_frame_bytes": 0
       },
       {
@@ -25,7 +210,79 @@
         "stack_frame_bytes": 0
       },
       {
+        "symbol": "llb_bip32_unharden",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_read_compact_size_checked",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_varint_prefix_is_canonical",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msThreshStepVal",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "llb_miniscript_andor_branches_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep",
+        "stack_frame_bytes": 96
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msFinishImm",
+        "stack_frame_bytes": 48
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msThreshChild",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msRead",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msThreshPack",
+        "stack_frame_bytes": 16
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_miniscript_older_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_msApplyUnary",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msReplaceTop",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_fracSigLen",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bech32_final_constant",
+        "stack_frame_bytes": 0
+      },
+      {
         "symbol": "l_BitcoinLedger_FreestandingKernels_MAX__MONEY__U64",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_merkle_state_dir",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__E",
         "stack_frame_bytes": 0
       },
       {
@@ -33,11 +290,39 @@
         "stack_frame_bytes": 0
       },
       {
+        "symbol": "llb_psbt_determine_locktime",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_ltRecord",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_psbt_locktime_step",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_u32Max",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_psbt_locktime_finalize",
+        "stack_frame_bytes": 0
+      },
+      {
         "symbol": "llb_taproot_sighash_valid",
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_bip32_unharden",
+        "symbol": "llb_merkle_advance_state",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_miniscript_check_postfix",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__S",
         "stack_frame_bytes": 0
       },
       {
@@ -45,15 +330,47 @@
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_bech32_polymod_step",
-        "stack_frame_bytes": 0
-      },
-      {
         "symbol": "llb_merkle_depth_index_ok",
         "stack_frame_bytes": 0
       },
       {
+        "symbol": "llb_bech32_polymod_step",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_check_export_path",
+        "stack_frame_bytes": 32
+      },
+      {
+        "symbol": "llb_bip32_bolos_depth_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_bip32_pubkey_export_prefix_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__O",
+        "stack_frame_bytes": 0
+      },
+      {
         "symbol": "llb_sighash_type_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_psbt_locktime_init",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "llb_format_sats_ascii",
+        "stack_frame_bytes": 64
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_decLenU32",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte",
         "stack_frame_bytes": 0
       },
       {
@@ -69,7 +386,23 @@
         "stack_frame_bytes": 0
       },
       {
+        "symbol": "llb_sum_amounts_le64",
+        "stack_frame_bytes": 64
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__K",
+        "stack_frame_bytes": 0
+      },
+      {
         "symbol": "llb_segwit_program_valid",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__N",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__J",
         "stack_frame_bytes": 0
       },
       {
@@ -77,15 +410,23 @@
         "stack_frame_bytes": 0
       },
       {
+        "symbol": "llb_wallet_name_char_ok",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_ltMaxT",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__D",
+        "stack_frame_bytes": 0
+      },
+      {
         "symbol": "llb_version_packed",
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_bip32_is_hardened",
-        "stack_frame_bytes": 0
-      },
-      {
-        "symbol": "llb_varint_prefix_is_canonical",
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__F",
         "stack_frame_bytes": 0
       },
       {
@@ -93,305 +434,421 @@
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_bip32_bolos_depth_ok",
+        "symbol": "llb_checked_sub_sats_val",
         "stack_frame_bytes": 0
       },
       {
-        "symbol": "llb_checked_sub_sats_val",
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__U",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "l_BitcoinLedger_FreestandingKernels_MSB__H",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_0",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_1",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_2",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_3",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_4",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_5",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_6",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_7",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_8",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_9",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_10",
+        "stack_frame_bytes": 0
+      },
+      {
+        "symbol": "OUTLINED_FUNCTION_11",
         "stack_frame_bytes": 0
       }
     ]
   },
   "storage_and_ram": {
     "reference_plain": {
-      "elf_file_bytes": 542092,
+      "elf_file_bytes": 542552,
       "pt_load_segments": 2,
-      "load_rx_bytes": 306008,
+      "load_rx_bytes": 306522,
       "load_rw_ram_bytes": 65836,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 65536,
       "total_vapp_ram_bytes": 131372,
-      "text_bytes": 251708,
-      "rodata_bytes": 26376,
-      "eh_frame_bytes": 27708,
+      "text_bytes": 251506,
+      "rodata_bytes": 27108,
+      "eh_frame_bytes": 27692,
       "data_bytes": 16,
       "bss_bytes": 65820,
-      "n_code_pages_256b": 1196,
+      "n_code_pages_256b": 1198,
       "code_merkle_tree_depth": 11,
       "n_data_pages_256b": 258,
       "n_stack_pages_256b": 256
     },
     "lean_optimized_plain": {
-      "elf_file_bytes": 244780,
+      "elf_file_bytes": 268384,
       "pt_load_segments": 2,
-      "load_rx_bytes": 244350,
-      "load_rw_ram_bytes": 33068,
+      "load_rx_bytes": 267954,
+      "load_rw_ram_bytes": 33076,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 32768,
-      "total_vapp_ram_bytes": 65836,
-      "text_bytes": 234848,
-      "rodata_bytes": 9286,
+      "total_vapp_ram_bytes": 65844,
+      "text_bytes": 258162,
+      "rodata_bytes": 9576,
       "eh_frame_bytes": 0,
       "data_bytes": 16,
-      "bss_bytes": 33052,
-      "n_code_pages_256b": 955,
-      "code_merkle_tree_depth": 10,
+      "bss_bytes": 33060,
+      "n_code_pages_256b": 1047,
+      "code_merkle_tree_depth": 11,
       "n_data_pages_256b": 130,
       "n_stack_pages_256b": 128
     },
     "same_profile_lean_plain": {
-      "elf_file_bytes": 508368,
+      "elf_file_bytes": 538860,
       "pt_load_segments": 2,
-      "load_rx_bytes": 268742,
-      "load_rw_ram_bytes": 65836,
+      "load_rx_bytes": 292560,
+      "load_rw_ram_bytes": 65844,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 65536,
-      "total_vapp_ram_bytes": 131372,
-      "text_bytes": 234722,
-      "rodata_bytes": 9286,
-      "eh_frame_bytes": 24516,
+      "total_vapp_ram_bytes": 131380,
+      "text_bytes": 257708,
+      "rodata_bytes": 9576,
+      "eh_frame_bytes": 25060,
       "data_bytes": 16,
-      "bss_bytes": 65820,
-      "n_code_pages_256b": 1050,
+      "bss_bytes": 65828,
+      "n_code_pages_256b": 1143,
       "code_merkle_tree_depth": 11,
       "n_data_pages_256b": 258,
       "n_stack_pages_256b": 256
     },
     "reference_autoapprove": {
-      "elf_file_bytes": 485256,
+      "elf_file_bytes": 485684,
       "pt_load_segments": 2,
-      "load_rx_bytes": 271664,
+      "load_rx_bytes": 272168,
       "load_rw_ram_bytes": 65836,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 65536,
       "total_vapp_ram_bytes": 131372,
-      "text_bytes": 223336,
-      "rodata_bytes": 23348,
-      "eh_frame_bytes": 24764,
+      "text_bytes": 223132,
+      "rodata_bytes": 24072,
+      "eh_frame_bytes": 24748,
       "data_bytes": 16,
       "bss_bytes": 65820,
-      "n_code_pages_256b": 1062,
+      "n_code_pages_256b": 1064,
       "code_merkle_tree_depth": 11,
       "n_data_pages_256b": 258,
       "n_stack_pages_256b": 256
     },
     "lean_optimized_autoapprove": {
-      "elf_file_bytes": 213552,
+      "elf_file_bytes": 235852,
       "pt_load_segments": 2,
-      "load_rx_bytes": 213122,
-      "load_rw_ram_bytes": 33068,
+      "load_rx_bytes": 235422,
+      "load_rw_ram_bytes": 33076,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 32768,
-      "total_vapp_ram_bytes": 65836,
-      "text_bytes": 206432,
-      "rodata_bytes": 6474,
+      "total_vapp_ram_bytes": 65844,
+      "text_bytes": 228426,
+      "rodata_bytes": 6780,
       "eh_frame_bytes": 0,
       "data_bytes": 16,
-      "bss_bytes": 33052,
-      "n_code_pages_256b": 833,
+      "bss_bytes": 33060,
+      "n_code_pages_256b": 920,
       "code_merkle_tree_depth": 10,
       "n_data_pages_256b": 130,
       "n_stack_pages_256b": 128
     },
     "same_profile_lean_autoapprove": {
-      "elf_file_bytes": 449448,
+      "elf_file_bytes": 478100,
       "pt_load_segments": 2,
-      "load_rx_bytes": 234726,
-      "load_rw_ram_bytes": 65836,
+      "load_rx_bytes": 257150,
+      "load_rw_ram_bytes": 65844,
       "load_rw_filesz_bytes": 16,
       "stack_bytes": 65536,
-      "total_vapp_ram_bytes": 131372,
-      "text_bytes": 206298,
-      "rodata_bytes": 6474,
-      "eh_frame_bytes": 21736,
+      "total_vapp_ram_bytes": 131380,
+      "text_bytes": 228226,
+      "rodata_bytes": 6780,
+      "eh_frame_bytes": 21928,
       "data_bytes": 16,
-      "bss_bytes": 65820,
-      "n_code_pages_256b": 917,
+      "bss_bytes": 65828,
+      "n_code_pages_256b": 1005,
       "code_merkle_tree_depth": 10,
       "n_data_pages_256b": 258,
       "n_stack_pages_256b": 256
     }
   },
   "speculos_flex_e2e": {
-    "runs_per_workload": 5,
+    "protocol": "ABBA interleaved (1 unmeasured warm-up pair + N A-B-B-A cycles; identical spawn_task + display_transaction + await_task path across plain and autoapprove)",
+    "abba_pairs_per_workload": 5,
+    "runs_per_workload": 10,
     "reference": {
       "get_fingerprint": {
-        "wall_median_ms": 615.32,
-        "wall_min_ms": 473.84,
-        "wall_mean_ms": 606.38,
-        "apdu_exchanges": 268,
-        "apdu_bytes_sent": 87552,
-        "apdu_bytes_received": 2632,
+        "wall_median_ms": 950.66,
+        "wall_min_ms": 912.68,
+        "wall_mean_ms": 946.11,
+        "apdu_exchanges": 266,
+        "apdu_bytes_sent": 86907,
+        "apdu_bytes_received": 2613,
         "rv32_instructions": 6190,
-        "vm_page_loads": 137,
+        "vm_page_loads": 136,
         "vm_page_commits": 0
       },
       "sign_transaction": {
-        "wall_median_ms": 2605.29,
-        "wall_min_ms": 2512.71,
-        "wall_mean_ms": 2670.43,
-        "apdu_exchanges": 2744,
-        "apdu_bytes_sent": 926105,
-        "apdu_bytes_received": 72708,
-        "rv32_instructions": 234238,
-        "vm_page_loads": 1384,
+        "wall_median_ms": 4976.32,
+        "wall_min_ms": 4236.07,
+        "wall_mean_ms": 4886.87,
+        "apdu_exchanges": 2626,
+        "apdu_bytes_sent": 888050,
+        "apdu_bytes_received": 71587,
+        "rv32_instructions": 234214,
+        "vm_page_loads": 1325,
         "vm_page_commits": 169
       },
       "send_to_silent_payment": {
-        "wall_median_ms": 2598.98,
-        "wall_min_ms": 2454.36,
-        "wall_mean_ms": 2571.38,
-        "apdu_exchanges": 2737,
-        "apdu_bytes_sent": 936894,
-        "apdu_bytes_received": 84369,
-        "rv32_instructions": 276951,
-        "vm_page_loads": 1387,
+        "wall_median_ms": 5120.08,
+        "wall_min_ms": 4979.51,
+        "wall_mean_ms": 5489.82,
+        "apdu_exchanges": 2646,
+        "apdu_bytes_sent": 907795,
+        "apdu_bytes_received": 83507,
+        "rv32_instructions": 276922,
+        "vm_page_loads": 1342,
         "vm_page_commits": 211
       },
       "silent_payment_account": {
-        "wall_median_ms": 1988.04,
-        "wall_min_ms": 1959.62,
-        "wall_mean_ms": 2041.24,
-        "apdu_exchanges": 1962,
-        "apdu_bytes_sent": 641645,
-        "apdu_bytes_received": 32613,
-        "rv32_instructions": 180682,
-        "vm_page_loads": 981,
+        "wall_median_ms": 3975.53,
+        "wall_min_ms": 3706.21,
+        "wall_mean_ms": 3933.52,
+        "apdu_exchanges": 1896,
+        "apdu_bytes_sent": 620360,
+        "apdu_bytes_received": 31986,
+        "rv32_instructions": 180688,
+        "vm_page_loads": 948,
         "vm_page_commits": 49
       }
     },
     "lean_optimized": {
       "get_fingerprint": {
-        "wall_median_ms": 466.58,
-        "wall_min_ms": 443.16,
-        "wall_mean_ms": 522.35,
-        "apdu_exchanges": 243,
-        "apdu_bytes_sent": 75706,
-        "apdu_bytes_received": 2397,
-        "rv32_instructions": 5690,
-        "vm_page_loads": 125,
-        "vm_page_commits": 0
+        "wall_median_ms": 952.26,
+        "wall_min_ms": 728.06,
+        "wall_mean_ms": 912.01,
+        "apdu_exchanges": 262,
+        "apdu_bytes_sent": 81297,
+        "apdu_bytes_received": 2575,
+        "rv32_instructions": 5891,
+        "vm_page_loads": 134,
+        "vm_page_commits": 0,
+        "peak_heap_bytes": 853,
+        "current_heap_bytes": 837
       },
       "sign_transaction": {
-        "wall_median_ms": 2018.6,
-        "wall_min_ms": 1760.9,
-        "wall_mean_ms": 2092.1,
-        "apdu_exchanges": 2155,
-        "apdu_bytes_sent": 689236,
-        "apdu_bytes_received": 60514,
-        "rv32_instructions": 192632,
-        "vm_page_loads": 1085,
-        "vm_page_commits": 145
+        "wall_median_ms": 4249.16,
+        "wall_min_ms": 3926.9,
+        "wall_mean_ms": 4269.2,
+        "apdu_exchanges": 2437,
+        "apdu_bytes_sent": 780537,
+        "apdu_bytes_received": 65963,
+        "rv32_instructions": 200029,
+        "vm_page_loads": 1232,
+        "vm_page_commits": 155,
+        "peak_heap_bytes": 5318,
+        "current_heap_bytes": 869
       },
       "send_to_silent_payment": {
-        "wall_median_ms": 1946.07,
-        "wall_min_ms": 1934.87,
-        "wall_mean_ms": 2032.29,
-        "apdu_exchanges": 2319,
-        "apdu_bytes_sent": 753320,
-        "apdu_bytes_received": 76009,
-        "rv32_instructions": 236852,
-        "vm_page_loads": 1177,
-        "vm_page_commits": 195
+        "wall_median_ms": 4856.23,
+        "wall_min_ms": 4661.52,
+        "wall_mean_ms": 5311.59,
+        "apdu_exchanges": 2528,
+        "apdu_bytes_sent": 820575,
+        "apdu_bytes_received": 79651,
+        "rv32_instructions": 243238,
+        "vm_page_loads": 1284,
+        "vm_page_commits": 201,
+        "peak_heap_bytes": 6851,
+        "current_heap_bytes": 869
       },
       "silent_payment_account": {
-        "wall_median_ms": 1829.69,
-        "wall_min_ms": 1616.79,
-        "wall_mean_ms": 1778.23,
-        "apdu_exchanges": 1747,
-        "apdu_bytes_sent": 542662,
-        "apdu_bytes_received": 30025,
-        "rv32_instructions": 177240,
-        "vm_page_loads": 874,
-        "vm_page_commits": 47
+        "wall_median_ms": 3587.34,
+        "wall_min_ms": 3234.74,
+        "wall_mean_ms": 3576.4,
+        "apdu_exchanges": 1803,
+        "apdu_bytes_sent": 559826,
+        "apdu_bytes_received": 30557,
+        "rv32_instructions": 179232,
+        "vm_page_loads": 902,
+        "vm_page_commits": 47,
+        "peak_heap_bytes": 1269,
+        "current_heap_bytes": 837
+      }
+    },
+    "same_profile_lean": {
+      "get_fingerprint": {
+        "wall_median_ms": 859.71,
+        "wall_min_ms": 859.71,
+        "wall_mean_ms": 859.71,
+        "apdu_exchanges": 273,
+        "apdu_bytes_sent": 84852,
+        "apdu_bytes_received": 2677,
+        "rv32_instructions": 5891,
+        "vm_page_loads": 139,
+        "vm_page_commits": 0,
+        "peak_heap_bytes": 853,
+        "current_heap_bytes": 837
+      },
+      "sign_transaction": {
+        "wall_median_ms": 4099.36,
+        "wall_min_ms": 4099.36,
+        "wall_mean_ms": 4099.36,
+        "apdu_exchanges": 2492,
+        "apdu_bytes_sent": 807638,
+        "apdu_bytes_received": 66204,
+        "rv32_instructions": 199963,
+        "vm_page_loads": 1258,
+        "vm_page_commits": 154,
+        "peak_heap_bytes": 5318,
+        "current_heap_bytes": 869
+      },
+      "send_to_silent_payment": {
+        "wall_median_ms": 4836.95,
+        "wall_min_ms": 4836.95,
+        "wall_mean_ms": 4836.95,
+        "apdu_exchanges": 2602,
+        "apdu_bytes_sent": 852897,
+        "apdu_bytes_received": 77051,
+        "rv32_instructions": 243176,
+        "vm_page_loads": 1318,
+        "vm_page_commits": 189,
+        "peak_heap_bytes": 6851,
+        "current_heap_bytes": 869
+      },
+      "silent_payment_account": {
+        "wall_median_ms": 3741.68,
+        "wall_min_ms": 3741.68,
+        "wall_mean_ms": 3741.68,
+        "apdu_exchanges": 1841,
+        "apdu_bytes_sent": 575153,
+        "apdu_bytes_received": 30918,
+        "rv32_instructions": 179220,
+        "vm_page_loads": 921,
+        "vm_page_commits": 47,
+        "peak_heap_bytes": 1269,
+        "current_heap_bytes": 837
       }
     }
   },
   "host_microbenchmarks": {
     "iterations": 1000000,
-    "upstream_hotpath_median_ns": 471079831,
-    "lean_hotpath_median_ns": 11802469,
-    "upstream_ns_per_tx_step": 471.08,
-    "lean_ns_per_tx_step": 11.8,
-    "upstream_ops_per_sec": 2122782,
-    "lean_ops_per_sec": 84728034,
-    "hotpath_speedup_x": 39.91,
-    "lean_freestanding_kernel_ns_per_check": 1.3355,
-    "lean_freestanding_kernel_mops_per_sec": 748.76
+    "upstream_hotpath_median_ns": 1022290283,
+    "lean_hotpath_median_ns": 46027747,
+    "upstream_ns_per_tx_step": 1022.29,
+    "lean_ns_per_tx_step": 46.03,
+    "upstream_ops_per_sec": 978196,
+    "lean_ops_per_sec": 21726025,
+    "hotpath_speedup_x": 22.21,
+    "lean_freestanding_kernel_ns_per_check": 3.5942,
+    "lean_freestanding_kernel_mops_per_sec": 278.23
   },
   "summary_deltas": {
     "plain_production_vapp": {
-      "load_rx_delta_bytes": -61658,
-      "load_rx_delta_pct": -20.15,
-      "elf_file_delta_bytes": -297312,
-      "elf_file_delta_pct": -54.85,
-      "load_rw_ram_delta_bytes": -32768,
-      "load_rw_ram_delta_pct": -49.77,
-      "total_vapp_ram_delta_bytes": -65536,
-      "total_vapp_ram_delta_pct": -49.89
+      "load_rx_delta_bytes": -38568,
+      "load_rx_delta_pct": -12.58,
+      "elf_file_delta_bytes": -274168,
+      "elf_file_delta_pct": -50.53,
+      "load_rw_ram_delta_bytes": -32760,
+      "load_rw_ram_delta_pct": -49.76,
+      "total_vapp_ram_delta_bytes": -65528,
+      "total_vapp_ram_delta_pct": -49.88
     },
     "autoapprove_e2e_vapp": {
-      "load_rx_delta_bytes": -58542,
-      "load_rx_delta_pct": -21.55,
-      "elf_file_delta_bytes": -271704,
-      "elf_file_delta_pct": -55.99,
-      "load_rw_ram_delta_bytes": -32768,
-      "load_rw_ram_delta_pct": -49.77
+      "load_rx_delta_bytes": -36746,
+      "load_rx_delta_pct": -13.5,
+      "elf_file_delta_bytes": -249832,
+      "elf_file_delta_pct": -51.44,
+      "load_rw_ram_delta_bytes": -32760,
+      "load_rw_ram_delta_pct": -49.76
     },
     "same_profile_plain_vapp": {
-      "load_rx_delta_bytes": -37266,
-      "load_rx_delta_pct": -12.18,
-      "elf_file_delta_bytes": -33724,
-      "elf_file_delta_pct": -6.22
+      "load_rx_delta_bytes": -13962,
+      "load_rx_delta_pct": -4.55,
+      "elf_file_delta_bytes": -3692,
+      "elf_file_delta_pct": -0.68
     },
     "speculos_flex_e2e_deltas": {
       "get_fingerprint": {
-        "wall_median_delta_ms": -148.74,
-        "wall_median_delta_pct": -24.17,
-        "rv32_instructions_delta": -500,
-        "rv32_instructions_delta_pct": -8.08,
-        "vm_page_loads_delta": -12,
-        "vm_page_loads_delta_pct": -8.76,
-        "apdu_exchanges_delta": -25,
-        "apdu_exchanges_delta_pct": -9.33,
-        "apdu_bytes_sent_delta": -11846,
-        "apdu_bytes_sent_delta_pct": -13.53
+        "wall_median_delta_ms": 1.6,
+        "wall_median_delta_pct": 0.17,
+        "rv32_instructions_delta": -299,
+        "rv32_instructions_delta_pct": -4.83,
+        "vm_page_loads_delta": -2,
+        "vm_page_loads_delta_pct": -1.47,
+        "apdu_exchanges_delta": -4,
+        "apdu_exchanges_delta_pct": -1.5,
+        "apdu_bytes_sent_delta": -5610,
+        "apdu_bytes_sent_delta_pct": -6.46
       },
       "sign_transaction": {
-        "wall_median_delta_ms": -586.69,
-        "wall_median_delta_pct": -22.52,
-        "rv32_instructions_delta": -41606,
-        "rv32_instructions_delta_pct": -17.76,
-        "vm_page_loads_delta": -299,
-        "vm_page_loads_delta_pct": -21.6,
-        "apdu_exchanges_delta": -589,
-        "apdu_exchanges_delta_pct": -21.47,
-        "apdu_bytes_sent_delta": -236869,
-        "apdu_bytes_sent_delta_pct": -25.58
+        "wall_median_delta_ms": -727.16,
+        "wall_median_delta_pct": -14.61,
+        "rv32_instructions_delta": -34185,
+        "rv32_instructions_delta_pct": -14.6,
+        "vm_page_loads_delta": -93,
+        "vm_page_loads_delta_pct": -7.02,
+        "apdu_exchanges_delta": -189,
+        "apdu_exchanges_delta_pct": -7.2,
+        "apdu_bytes_sent_delta": -107513,
+        "apdu_bytes_sent_delta_pct": -12.11
       },
       "send_to_silent_payment": {
-        "wall_median_delta_ms": -652.91,
-        "wall_median_delta_pct": -25.12,
-        "rv32_instructions_delta": -40099,
-        "rv32_instructions_delta_pct": -14.48,
-        "vm_page_loads_delta": -210,
-        "vm_page_loads_delta_pct": -15.14,
-        "apdu_exchanges_delta": -418,
-        "apdu_exchanges_delta_pct": -15.27,
-        "apdu_bytes_sent_delta": -183574,
-        "apdu_bytes_sent_delta_pct": -19.59
+        "wall_median_delta_ms": -263.85,
+        "wall_median_delta_pct": -5.15,
+        "rv32_instructions_delta": -33684,
+        "rv32_instructions_delta_pct": -12.16,
+        "vm_page_loads_delta": -58,
+        "vm_page_loads_delta_pct": -4.32,
+        "apdu_exchanges_delta": -118,
+        "apdu_exchanges_delta_pct": -4.46,
+        "apdu_bytes_sent_delta": -87220,
+        "apdu_bytes_sent_delta_pct": -9.61
       },
       "silent_payment_account": {
-        "wall_median_delta_ms": -158.35,
-        "wall_median_delta_pct": -7.97,
-        "rv32_instructions_delta": -3442,
-        "rv32_instructions_delta_pct": -1.91,
-        "vm_page_loads_delta": -107,
-        "vm_page_loads_delta_pct": -10.91,
-        "apdu_exchanges_delta": -215,
-        "apdu_exchanges_delta_pct": -10.96,
-        "apdu_bytes_sent_delta": -98983,
-        "apdu_bytes_sent_delta_pct": -15.43
+        "wall_median_delta_ms": -388.19,
+        "wall_median_delta_pct": -9.76,
+        "rv32_instructions_delta": -1456,
+        "rv32_instructions_delta_pct": -0.81,
+        "vm_page_loads_delta": -46,
+        "vm_page_loads_delta_pct": -4.85,
+        "apdu_exchanges_delta": -93,
+        "apdu_exchanges_delta_pct": -4.91,
+        "apdu_bytes_sent_delta": -60534,
+        "apdu_bytes_sent_delta_pct": -9.76
       }
     }
   }

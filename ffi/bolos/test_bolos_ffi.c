@@ -633,9 +633,101 @@ static void test_wave4_opt_kernels(void) {
   TEST_CHECK(llb_wallet_name_char_ok((uint8_t)'A', 1) == 1);
 }
 
+static void test_option2_flat_slice_kernels(void) {
+  TEST_NOTE("test_option2_flat_slice_kernels");
+
+  /* Byte slice equality */
+  uint8_t b1[4] = {0x01, 0x02, 0x03, 0x04};
+  uint8_t b2[4] = {0x01, 0x02, 0x03, 0x05};
+  TEST_CHECK(llb_bytes_eq(b1, b1, 4) == 1);
+  TEST_CHECK(llb_bytes_eq(b1, b2, 4) == 0);
+
+  /* Checked CompactSize reader */
+  uint8_t vi1[1] = {252};
+  uint8_t vi3[3] = {0xFD, 0xFD, 0x00};
+  uint8_t vi_bad[3] = {0xFD, 0xFC, 0x00};
+  uint64_t r1 = llb_read_compact_size_checked(vi1, 1, 1000u);
+  TEST_CHECK((r1 >> 32) == 1 && (uint32_t)r1 == 252u);
+  uint64_t r3 = llb_read_compact_size_checked(vi3, 3, 1000u);
+  TEST_CHECK((r3 >> 32) == 3 && (uint32_t)r3 == 253u);
+  TEST_CHECK(llb_read_compact_size_checked(vi_bad, 3, 1000u) == 0);
+  TEST_CHECK(llb_read_compact_size_checked(vi3, 3, 252u) == 0);
+
+  /* Division-free ASCII satoshi formatting */
+  char amt[32];
+  uint32_t alen = llb_format_sats_ascii(UINT64_C(123450000), (const uint8_t *)"BTC", 3, 0,
+                                        (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 10);
+  TEST_CHECK(fs_memcmp(amt, "1.2345 BTC", 11) == 0);
+  alen = llb_format_sats_ascii(UINT64_C(123450000), (const uint8_t *)"BTC", 3, 1,
+                               (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 14 && fs_memcmp(amt, "1.23450000 BTC", 15) == 0);
+  alen = llb_format_sats_ascii(UINT64_C(100000000), NULL, 0, 0, (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 1 && fs_memcmp(amt, "1", 2) == 0);
+
+  /* Full-path BIP-32 pubkey export safety */
+  const uint32_t ok_path[5] = {0x80000054u, 0x80000000u, 0x80000000u, 0u, 7u};
+  const uint32_t bad_tail[5] = {0x80000054u, 0x80000000u, 0x80000000u, 0x80000000u, 7u};
+  TEST_CHECK(llb_bip32_check_export_path(ok_path, 5, 0) == 1);
+  TEST_CHECK(llb_bip32_check_export_path(bad_tail, 5, 0) == 0);
+
+  /* PSBT locktime accumulator + batch determine + checked sats + dual UTXO */
+  uint64_t lt = llb_psbt_locktime_init();
+  lt = llb_psbt_locktime_step(lt, 1, 800000u, 0, 0u);
+  TEST_CHECK(lt != 0);
+  uint64_t fin = llb_psbt_locktime_finalize(lt, 0u);
+  TEST_CHECK((fin >> 32) == 1 && (uint32_t)fin == 800000u);
+  TEST_CHECK(llb_psbt_locktime_step(lt, 0, 0u, 1, 500000000u) == 0);
+
+  /* 2 inputs: input 0 has height=100, input 1 has height=250 (10 bytes/input) */
+  uint8_t lt_batch[20] = {
+      1, 100, 0, 0, 0, 0, 0, 0, 0, 0,
+      1, 250, 0, 0, 0, 0, 0, 0, 0, 0};
+  uint64_t det = llb_psbt_determine_locktime(lt_batch, 2, 42u);
+  TEST_CHECK((det >> 32) == 1 && (uint32_t)det == 250u);
+
+  uint8_t amounts_le[16] = {
+      0x64, 0, 0, 0, 0, 0, 0, 0,
+      0xC8, 0, 0, 0, 0, 0, 0, 0};
+  TEST_CHECK(llb_sum_amounts_le64(amounts_le, 2) == ((UINT64_C(1) << 63) | UINT64_C(300)));
+  TEST_CHECK(llb_checked_add_sats_ok(UINT64_C(2100000000000000), 1u) == 0);
+  TEST_CHECK(llb_checked_add_sats_val(100u, 200u) == 300u);
+
+  uint8_t p2tr[34];
+  p2tr[0] = 0x51;
+  p2tr[1] = 0x20;
+  for (size_t i = 0; i < 32; i++) {
+    p2tr[2 + i] = (uint8_t)(i + 1);
+  }
+  TEST_CHECK(llb_check_dual_utxo(500u, p2tr, 34, 500u, p2tr, 34) == 1);
+  TEST_CHECK(llb_check_dual_utxo(500u, p2tr, 34, 501u, p2tr, 34) == 0);
+
+  /* Constant-stack sorting */
+  uint16_t u16s[4] = {40, 10, 30, 20};
+  llb_sort_u16(u16s, 4);
+  TEST_CHECK(u16s[0] == 10 && u16s[1] == 20 && u16s[2] == 30 && u16s[3] == 40);
+  uint8_t recs[9] = {0x03, 0x00, 0x01, 0x01, 0x09, 0x00, 0x01, 0x02, 0x00};
+  llb_sort_fixed_bytes(recs, 3, 3);
+  TEST_CHECK(recs[0] == 0x01 && recs[1] == 0x02 && recs[3] == 0x01 && recs[4] == 0x09 &&
+             recs[6] == 0x03);
+
+  /* BIP-379 Miniscript postfix typechecker & script helpers */
+  TEST_CHECK(llb_miniscript_older_ok(144u) == 1);
+  TEST_CHECK(llb_miniscript_older_ok(0u) == 0);
+  TEST_CHECK(llb_miniscript_after_ok(800000u) == 1);
+  TEST_CHECK(llb_miniscript_after_ok(0u) == 0);
+  TEST_CHECK(llb_miniscript_andor_branches_valid(0x64u, 0x67u, 0x68u) == 1);
+  TEST_CHECK(llb_miniscript_andor_branches_valid(0x63u, 0x67u, 0x68u) == 0);
+  /* and_v(v:pk(A), older(144)) => [pk_k(0x02), c:(0x12), v:(0x15), older(0x06, 144 LE), and_v(0x20)] */
+  uint8_t ms_ops[9] = {0x02, 0x12, 0x15, 0x06, 0x90, 0x00, 0x00, 0x00, 0x20};
+  uint8_t ms_scratch[128];
+  TEST_CHECK(llb_miniscript_check_postfix(ms_ops, 9, 0, 0x03, ms_scratch) == 1);
+}
+
 int main(void) {
   test_kernel_version_abi();
   test_wave4_opt_kernels();
+  test_option2_flat_slice_kernels();
   test_fail_closed_without_tcb();
   test_tcb_table_validation();
   install_mock_tcb();

@@ -1,0 +1,955 @@
+{
+  "status": "experimental_nonvalidated",
+  "caveats": [
+    "Complete cycle1 firmware + fresh verified host unit-tests-build measured under CPU0 pinning.",
+    "All proof/audit/unit/FFI/Speculos E2E gates passed (turbo-lean ./scripts/ci_verify.sh, lean-ledger-bitcoin Spec/InternalSpec/BitcoinLedger/Proofs/Tests + AxiomAudit + BolosDifferential + VanadiumDifferential + build-freestanding.sh + ffi/bolos + ffi/vanadium, app-bitcoin ctest 31/31, vanadium app 90/90 + common 49/49 + client 5/5 + Speculos integration_test 4/4).",
+    "Cycle 2 (removing llb_merkle_advance_state from INLINE_SCALARS) and Cycle 3 (relaxing minsize to optsize on llb_sort_fixed_bytes) yielded no Flash improvement (Cycle 2: 0 B Flash delta, +12 B text, +12 B Merkle stack; Cycle 3: +512 B Nano S+ / +768 B Nano X Flash regression) and were reverted.",
+    "Host is shared with concurrent CI/Forge workloads; Speculos wall-clock latencies remain noisy and do not prove zero latency regression.",
+    "Benchmark metadata says NanoX API22 while Speculos reports API27."
+  ],
+  "artifact_provenance": {
+    "firmware_directory": "/tmp/opencode/t7_baseline/cycle1-artifacts",
+    "lean_unit_art": "/tmp/opencode/ledger-hub/w4-bolos/lean-artifacts/unit-tests-build",
+    "host_unit_suite_passed": "31/31",
+    "cpu_affinity": "0",
+    "elf_sha256_verified_at_publication": {
+      "nanosp-mainnet/app.elf": "2d87aa44f15204654e6627b249aabd0749ab34dc95ff0e96a1f754fb36e585f6",
+      "nanox-mainnet/app.elf": "f7577f325d54b0064e4efc35c298937d6cfec4464c0e02a0045d7ec1f8e6a46d",
+      "nanosp-testnet-perf/app.elf": "fe19b6120d82e1f5e85c57a3e9ce8448e5d2fc6a7750a4c07671c920365da38e",
+      "nanox-testnet-perf/app.elf": "fa0d841975f4bb124a042e76a28ee7a6814e84ae16d8a91a8e79d242c2fb499c"
+    },
+    "api_evidence": "Speculos detected API 27 from both testnet-perf ELF metadata at run time; the legacy Nano X API 22 label below is inconsistent and not authoritative.",
+    "measurement_binding_caveat": "ELF hashes recorded after measurement, not atomically by the benchmark driver; no claim of immutable or fully validated measurement provenance. Fresh-measurements report is a separate mixed-provenance baseline-firmware run and must not be interpreted as cycle1."
+  },
+  "metadata": {
+    "upstream_repo": "LedgerHQ/app-bitcoin",
+    "upstream_commit": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "turbo_lean_branch": "feat/freestanding-flat-ptr-loops",
+    "turbo_lean_commit": "b9524d8059476935730c16afab0e18501ff80b49",
+    "measurement_host": {
+      "environment": "unspecified",
+      "same_host_reference_and_lean": true
+    },
+    "targets": {
+      "nanosp": "thumbv8m.main-none-eabi (cortex-m35p+nodsp, API_LEVEL 27)",
+      "nanox": "thumbv6m-none-eabi (cortex-m3, API_LEVEL 22)"
+    },
+    "compiler": "Debian clang 21.1.8 + ld.lld 21.1.8 + arm-none-eabi-gcc sysroot"
+  },
+  "storage_ram_stack": {
+    "nanosp_mainnet": {
+      "reference": {
+        "load_flash_bytes": 91231,
+        "text_code_bytes": 83206,
+        "rodata_bytes": 5082,
+        "map_input_code_bytes": 83138,
+        "map_input_rodata_bytes": 7108,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6376,
+        "total_static_ram_bytes": 6376,
+        "elf_unstripped_bytes": 247136,
+        "elf_stripped_bytes": 158004,
+        "apdu_bytes": 190165,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30364,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 9224,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 222
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 89695,
+        "text_code_bytes": 82032,
+        "rodata_bytes": 4956,
+        "map_input_code_bytes": 81960,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 247680,
+        "elf_stripped_bytes": 156468,
+        "apdu_bytes": 186974,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 29898,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 124,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      },
+      "lean_sameflags": {
+        "load_flash_bytes": 90719,
+        "text_code_bytes": 82984,
+        "rodata_bytes": 4956,
+        "map_input_code_bytes": 82912,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 247864,
+        "elf_stripped_bytes": 157492,
+        "apdu_bytes": 189107,
+        "has_qsort": false,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30236,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 124,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanox_mainnet": {
+      "reference": {
+        "load_flash_bytes": 91231,
+        "text_code_bytes": 83582,
+        "rodata_bytes": 5082,
+        "map_input_code_bytes": 83512,
+        "map_input_rodata_bytes": 7108,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4212,
+        "total_static_ram_bytes": 4212,
+        "elf_unstripped_bytes": 247456,
+        "elf_stripped_bytes": 158000,
+        "apdu_bytes": 190165,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30460,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8712,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 220
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 90463,
+        "text_code_bytes": 83086,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 83016,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247772,
+        "elf_stripped_bytes": 157232,
+        "apdu_bytes": 188561,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30205,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      },
+      "lean_sameflags": {
+        "load_flash_bytes": 91487,
+        "text_code_bytes": 84038,
+        "rodata_bytes": 4958,
+        "map_input_code_bytes": 83968,
+        "map_input_rodata_bytes": 6983,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247956,
+        "elf_stripped_bytes": 158256,
+        "apdu_bytes": 190694,
+        "has_qsort": false,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30543,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanosp_testnet": {
+      "reference": {
+        "load_flash_bytes": 91236,
+        "text_code_bytes": 83182,
+        "rodata_bytes": 5090,
+        "map_input_code_bytes": 83114,
+        "map_input_rodata_bytes": 7118,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6376,
+        "total_static_ram_bytes": 6376,
+        "elf_unstripped_bytes": 247144,
+        "elf_stripped_bytes": 158016,
+        "apdu_bytes": 190185,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30364,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 9224,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 223
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 89700,
+        "text_code_bytes": 82008,
+        "rodata_bytes": 4968,
+        "map_input_code_bytes": 81936,
+        "map_input_rodata_bytes": 6993,
+        "data_bytes": 0,
+        "bss_ram_bytes": 6232,
+        "total_static_ram_bytes": 6232,
+        "elf_unstripped_bytes": 247688,
+        "elf_stripped_bytes": 156480,
+        "apdu_bytes": 186994,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 12496,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 29898,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 12496,
+              "own_frame_bytes": 8672,
+              "arm_thumb_insns": 319
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8968,
+              "own_frame_bytes": 2464,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 1680,
+              "own_frame_bytes": 32,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 197
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 124,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    },
+    "nanox_testnet": {
+      "reference": {
+        "load_flash_bytes": 91236,
+        "text_code_bytes": 83558,
+        "rodata_bytes": 5090,
+        "map_input_code_bytes": 83488,
+        "map_input_rodata_bytes": 7118,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4212,
+        "total_static_ram_bytes": 4212,
+        "elf_unstripped_bytes": 247464,
+        "elf_stripped_bytes": 158012,
+        "apdu_bytes": 190185,
+        "has_qsort": true,
+        "has_udivmoddi4": true,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30460,
+          "has_recursive_qsort": true,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8712,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 343
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 968,
+              "own_frame_bytes": 400,
+              "arm_thumb_insns": 221
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 272
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 268,
+              "own_frame_bytes": 88,
+              "arm_thumb_insns": 99
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 39
+            }
+          }
+        }
+      },
+      "lean_opt": {
+        "load_flash_bytes": 90468,
+        "text_code_bytes": 83062,
+        "rodata_bytes": 4966,
+        "map_input_code_bytes": 82992,
+        "map_input_rodata_bytes": 6993,
+        "data_bytes": 0,
+        "bss_ram_bytes": 4068,
+        "total_static_ram_bytes": 4068,
+        "elf_unstripped_bytes": 247780,
+        "elf_stripped_bytes": 157244,
+        "apdu_bytes": 188581,
+        "has_qsort": false,
+        "has_udivmoddi4": false,
+        "stack_and_insns": {
+          "worst_case_stack_bytes": 11248,
+          "worst_case_root": "handler_sign_psbt",
+          "worst_case_call_chain_depth": 10,
+          "total_arm_thumb_insns": 30205,
+          "has_recursive_qsort": false,
+          "handlers": {
+            "main": {
+              "max_stack_bytes": 1032,
+              "own_frame_bytes": 8,
+              "arm_thumb_insns": 12
+            },
+            "handler_sign_psbt": {
+              "max_stack_bytes": 11248,
+              "own_frame_bytes": 7424,
+              "arm_thumb_insns": 316
+            },
+            "handler_register_wallet": {
+              "max_stack_bytes": 8456,
+              "own_frame_bytes": 1952,
+              "arm_thumb_insns": 347
+            },
+            "handler_get_wallet_address": {
+              "max_stack_bytes": 3624,
+              "own_frame_bytes": 1976,
+              "arm_thumb_insns": 231
+            },
+            "handler_get_extended_pubkey": {
+              "max_stack_bytes": 976,
+              "own_frame_bytes": 408,
+              "arm_thumb_insns": 196
+            },
+            "handler_sign_message": {
+              "max_stack_bytes": 1992,
+              "own_frame_bytes": 1400,
+              "arm_thumb_insns": 277
+            },
+            "format_sats_amount": {
+              "max_stack_bytes": 132,
+              "own_frame_bytes": 40,
+              "arm_thumb_insns": 34
+            },
+            "merkle_get_ith_direction": {
+              "max_stack_bytes": 20,
+              "own_frame_bytes": 20,
+              "arm_thumb_insns": 57
+            }
+          }
+        }
+      }
+    }
+  },
+  "x86_64_rdtscp_hotspots": {
+    "sink": 2572458000,
+    "format_sats_amount": {
+      "ops": 200000,
+      "ref_cycles": 122546890,
+      "lean_cycles": 22431280,
+      "ref_ns": 34042118,
+      "lean_ns": 6231341,
+      "speedup_cycles": 5.463
+    },
+    "merkle_get_ith_direction_256": {
+      "ops": 409600,
+      "ref_cycles": 31181086,
+      "lean_cycles": 39798912,
+      "ref_ns": 8662536,
+      "lean_ns": 11056458,
+      "speedup_cycles": 0.783
+    },
+    "bip32_pubkey_export_check": {
+      "ops": 800000,
+      "ref_cycles": 20586778,
+      "lean_cycles": 16672066,
+      "ref_ns": 5719560,
+      "lean_ns": 4632171,
+      "speedup_cycles": 1.235
+    },
+    "musig2_keysort_5pks": {
+      "ops": 200000,
+      "ref_cycles": 102821236,
+      "lean_cycles": 235077236,
+      "ref_ns": 28562478,
+      "lean_ns": 65301436,
+      "speedup_cycles": 0.437
+    },
+    "segwit_program_check": {
+      "ops": 800000,
+      "ref_cycles": 7184882,
+      "lean_cycles": 11934406,
+      "ref_ns": 1996115,
+      "lean_ns": 3315495,
+      "speedup_cycles": 0.602
+    },
+    "aggregate_hotspot_suite": {
+      "ref_cycles": 284320872,
+      "lean_cycles": 325913900,
+      "speedup_cycles": 0.872
+    }
+  },
+  "host_unit_test_workloads": {
+    "test_display_utils": {
+      "ref_min_ms": 1.519,
+      "lean_min_ms": 1.435,
+      "ref_median_ms": 1.669,
+      "lean_median_ms": 1.554,
+      "speedup_median": 1.074
+    },
+    "test_get_merkle_leaf_index": {
+      "ref_min_ms": 31.171,
+      "lean_min_ms": 20.631,
+      "ref_median_ms": 34.022,
+      "lean_median_ms": 21.356,
+      "speedup_median": 1.593
+    },
+    "test_musig": {
+      "ref_min_ms": 77.454,
+      "lean_min_ms": 72.161,
+      "ref_median_ms": 99.733,
+      "lean_median_ms": 99.584,
+      "speedup_median": 1.001
+    },
+    "test_wallet": {
+      "ref_min_ms": 4.77,
+      "lean_min_ms": 3.076,
+      "ref_median_ms": 5.507,
+      "lean_median_ms": 3.577,
+      "speedup_median": 1.54
+    },
+    "test_register_wallet": {
+      "ref_min_ms": 99.077,
+      "lean_min_ms": 76.911,
+      "ref_median_ms": 118.179,
+      "lean_median_ms": 99.92,
+      "speedup_median": 1.183
+    },
+    "test_get_wallet_address": {
+      "ref_min_ms": 80.319,
+      "lean_min_ms": 66.913,
+      "ref_median_ms": 103.06,
+      "lean_median_ms": 86.781,
+      "speedup_median": 1.188
+    },
+    "test_get_extended_pubkey": {
+      "ref_min_ms": 231.999,
+      "lean_min_ms": 240.502,
+      "ref_median_ms": 274.125,
+      "lean_median_ms": 253.828,
+      "speedup_median": 1.08
+    },
+    "test_psbt_fields": {
+      "ref_min_ms": 69.39,
+      "lean_min_ms": 56.266,
+      "ref_median_ms": 72.467,
+      "lean_median_ms": 60.148,
+      "speedup_median": 1.205
+    }
+  },
+  "speculos_apdu_latency_ms": {
+    "nanosp": {
+      "GET_VERSION": {
+        "rounds": 26,
+        "ref_min_ms": 1.866,
+        "lean_min_ms": 2.56,
+        "delta_min_ms": 0.694,
+        "speedup_min": 0.7289,
+        "ref_median_ms": 2.331,
+        "lean_median_ms": 2.788,
+        "delta_median_ms": 0.457,
+        "speedup_median": 0.8361
+      },
+      "GET_MASTER_FINGERPRINT": {
+        "rounds": 22,
+        "ref_min_ms": 31.169,
+        "lean_min_ms": 33.657,
+        "delta_min_ms": 2.488,
+        "speedup_min": 0.9261,
+        "ref_median_ms": 33.882,
+        "lean_median_ms": 37.156,
+        "delta_median_ms": 3.274,
+        "speedup_median": 0.9119
+      },
+      "GET_EXTENDED_PUBKEY": {
+        "rounds": 18,
+        "ref_min_ms": 60.455,
+        "lean_min_ms": 64.185,
+        "delta_min_ms": 3.73,
+        "speedup_min": 0.9419,
+        "ref_median_ms": 64.77,
+        "lean_median_ms": 69.673,
+        "delta_median_ms": 4.903,
+        "speedup_median": 0.9296
+      },
+      "GET_WALLET_ADDRESS": {
+        "rounds": 14,
+        "ref_min_ms": 208.662,
+        "lean_min_ms": 227.645,
+        "delta_min_ms": 18.983,
+        "speedup_min": 0.9166,
+        "ref_median_ms": 230.715,
+        "lean_median_ms": 236.673,
+        "delta_median_ms": 5.958,
+        "speedup_median": 0.9748
+      },
+      "REGISTER_WALLET": {
+        "rounds": 10,
+        "ref_min_ms": 1364.462,
+        "lean_min_ms": 1455.238,
+        "delta_min_ms": 90.776,
+        "speedup_min": 0.9376,
+        "ref_median_ms": 1568.562,
+        "lean_median_ms": 1525.039,
+        "delta_median_ms": -43.523,
+        "speedup_median": 1.0285
+      },
+      "SIGN_PSBT_TR_3IN": {
+        "rounds": 8,
+        "ref_min_ms": 2596.802,
+        "lean_min_ms": 2429.755,
+        "delta_min_ms": -167.047,
+        "speedup_min": 1.0688,
+        "ref_median_ms": 3308.156,
+        "lean_median_ms": 2912.53,
+        "delta_median_ms": -395.626,
+        "speedup_median": 1.1358
+      },
+      "SIGN_PSBT_WSH3OF5_3IN": {
+        "rounds": 6,
+        "ref_min_ms": 7230.509,
+        "lean_min_ms": 7360.302,
+        "delta_min_ms": 129.793,
+        "speedup_min": 0.9824,
+        "ref_median_ms": 8706.171,
+        "lean_median_ms": 8203.392,
+        "delta_median_ms": -502.779,
+        "speedup_median": 1.0613
+      }
+    },
+    "nanox": {
+      "GET_VERSION": {
+        "rounds": 26,
+        "ref_min_ms": 1.932,
+        "lean_min_ms": 2.482,
+        "delta_min_ms": 0.55,
+        "speedup_min": 0.7784,
+        "ref_median_ms": 2.043,
+        "lean_median_ms": 2.58,
+        "delta_median_ms": 0.537,
+        "speedup_median": 0.7919
+      },
+      "GET_MASTER_FINGERPRINT": {
+        "rounds": 22,
+        "ref_min_ms": 31.233,
+        "lean_min_ms": 33.388,
+        "delta_min_ms": 2.155,
+        "speedup_min": 0.9355,
+        "ref_median_ms": 32.167,
+        "lean_median_ms": 42.578,
+        "delta_median_ms": 10.411,
+        "speedup_median": 0.7555
+      },
+      "GET_EXTENDED_PUBKEY": {
+        "rounds": 18,
+        "ref_min_ms": 60.305,
+        "lean_min_ms": 63.36,
+        "delta_min_ms": 3.055,
+        "speedup_min": 0.9518,
+        "ref_median_ms": 62.242,
+        "lean_median_ms": 67.613,
+        "delta_median_ms": 5.371,
+        "speedup_median": 0.9206
+      },
+      "GET_WALLET_ADDRESS": {
+        "rounds": 14,
+        "ref_min_ms": 214.497,
+        "lean_min_ms": 222.412,
+        "delta_min_ms": 7.915,
+        "speedup_min": 0.9644,
+        "ref_median_ms": 216.358,
+        "lean_median_ms": 231.76,
+        "delta_median_ms": 15.402,
+        "speedup_median": 0.9335
+      },
+      "REGISTER_WALLET": {
+        "rounds": 10,
+        "ref_min_ms": 1362.366,
+        "lean_min_ms": 1443.174,
+        "delta_min_ms": 80.808,
+        "speedup_min": 0.944,
+        "ref_median_ms": 1385.25,
+        "lean_median_ms": 1584.956,
+        "delta_median_ms": 199.706,
+        "speedup_median": 0.874
+      },
+      "SIGN_PSBT_TR_3IN": {
+        "rounds": 8,
+        "ref_min_ms": 2315.42,
+        "lean_min_ms": 2631.307,
+        "delta_min_ms": 315.887,
+        "speedup_min": 0.88,
+        "ref_median_ms": 2537.255,
+        "lean_median_ms": 2797.147,
+        "delta_median_ms": 259.892,
+        "speedup_median": 0.9071
+      },
+      "SIGN_PSBT_WSH3OF5_3IN": {
+        "rounds": 6,
+        "ref_min_ms": 6805.412,
+        "lean_min_ms": 7413.174,
+        "delta_min_ms": 607.762,
+        "speedup_min": 0.918,
+        "ref_median_ms": 10168.386,
+        "lean_median_ms": 8064.053,
+        "delta_median_ms": -2104.333,
+        "speedup_median": 1.261
+      }
+    }
+  }
+}

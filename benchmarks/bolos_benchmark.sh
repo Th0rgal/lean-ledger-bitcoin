@@ -28,14 +28,33 @@ REF_APP="${REF_APP:-${W4_ROOT}/app-bitcoin-ref}"
 LEAN_APP="${LEAN_APP:-${W4_ROOT}/app-bitcoin-lean}"
 REF_ART="${REF_ART:-${W4_ROOT}/ref-artifacts}"
 LEAN_ART="${LEAN_ART:-${W4_ROOT}/lean-artifacts}"
-OUT_JSON="${REPO_ROOT}/benchmarks/bolos_results.json"
+OUT_JSON="${OUT_JSON:-${REPO_ROOT}/benchmarks/bolos_results.json}"
 
 NSP_SDK="${HUB}/dev-tools-rootfs/opt/nanosplus-secure-sdk"
 NX_SDK="${HUB}/dev-tools-rootfs/opt/nanox-secure-sdk"
 
 SKIP_REBUILD=0
-if [ "${1:-}" = "--skip-rebuild" ]; then
-  SKIP_REBUILD=1
+HOTSPOTS_ONLY=0
+for arg in "$@"; do
+  case "${arg}" in
+    --skip-rebuild) SKIP_REBUILD=1 ;;
+    --hotspots-only) HOTSPOTS_ONLY=1; SKIP_REBUILD=1 ;;
+  esac
+done
+
+CLANG_BIN=""
+for c in clang-21 /usr/lib/llvm-18/bin/clang clang; do
+  if command -v "${c}" >/dev/null 2>&1; then
+    CLANG_BIN="$(command -v "${c}")"
+    break
+  elif [ -x "${c}" ]; then
+    CLANG_BIN="${c}"
+    break
+  fi
+done
+if [ -z "${CLANG_BIN}" ]; then
+  echo "[bolos-bench] ERROR: clang not found" >&2
+  exit 1
 fi
 
 build_app_variant() {
@@ -49,7 +68,9 @@ build_app_variant() {
   cp "${app_dir}/debug/app.asm" "${out_dir}/app.asm"
 }
 
-if [ "${SKIP_REBUILD}" -eq 0 ]; then
+if [ "${HOTSPOTS_ONLY}" -eq 1 ]; then
+  :
+elif [ "${SKIP_REBUILD}" -eq 0 ]; then
   echo "[bolos-bench] 1/5 Emitting freestanding Lean LTO bundle..."
   "${REPO_ROOT}/scripts/build-freestanding.sh" >/dev/null
   cp "${REPO_ROOT}/ffi/bolos/build/lto/"* "${LEAN_APP}/src/lean_kernels/"
@@ -76,7 +97,7 @@ fi
 
 echo "[bolos-bench] 3/5 Running x86_64 LTO rdtscp hotspot microbenchmarks..."
 HOTSPOT_BIN="/tmp/w4_bench_bolos_hotspots_$$"
-clang-21 -O2 -flto -march=x86-64 -Wno-override-module \
+"${CLANG_BIN}" -O2 -flto -march=x86-64 -Wno-override-module \
   -I"${REPO_ROOT}/ffi/bolos/build/lto" \
   "${REPO_ROOT}/ffi/bolos/bench_bolos_hotspots.c" \
   "${REPO_ROOT}/ffi/bolos/build/lto/liblean_ledger_bitcoin_host.ll" \
@@ -84,10 +105,15 @@ clang-21 -O2 -flto -march=x86-64 -Wno-override-module \
 HOTSPOT_JSON="$(taskset -c 0 "${HOTSPOT_BIN}")"
 rm -f "${HOTSPOT_BIN}"
 
+if [ "${HOTSPOTS_ONLY}" -eq 1 ]; then
+  printf '%s\n' "${HOTSPOT_JSON}"
+  exit 0
+fi
+
 echo "[bolos-bench] 4/5 Collecting storage, RAM, stack, ARM instruction counts & host C suite timings..."
 echo "[bolos-bench] 5/5 Measuring interleaved Speculos APDU wall-clock latencies on Nano S+ & Nano X..."
 
-export REPO_ROOT REF_APP LEAN_APP REF_ART LEAN_ART OUT_JSON HOTSPOT_JSON
+export REPO_ROOT REF_APP LEAN_APP REF_ART LEAN_ART REF_UNIT_ART LEAN_UNIT_ART OUT_JSON HOTSPOT_JSON
 python3 - << 'PY'
 import hashlib, hmac, json, os, re, statistics, subprocess, sys, time
 
@@ -319,8 +345,8 @@ UNIT_BINS = [
 ]
 
 host_unit_suites = {}
-ref_ut_dir = os.path.join(REF_ART, "unit-tests-build")
-lean_ut_dir = os.path.join(LEAN_ART, "unit-tests-build")
+ref_ut_dir = os.environ.get("REF_UNIT_ART", os.path.join(REF_ART, "unit-tests-build"))
+lean_ut_dir = os.environ.get("LEAN_UNIT_ART", os.path.join(LEAN_ART, "unit-tests-build"))
 if os.path.isdir(ref_ut_dir) and os.path.isdir(lean_ut_dir):
     for b in UNIT_BINS:
         rb = os.path.join(ref_ut_dir, b)
@@ -496,11 +522,15 @@ out_payload = {
     "metadata": {
         "upstream_repo": "LedgerHQ/app-bitcoin",
         "upstream_commit": "f010982d3050e02813cd7129bebd68cf2d1f2099",
-        "turbo_lean_branch": "feat/ledger-32bit-llvm-opt",
-        "turbo_lean_commit": "6eea5eaddb445b243cc45c13cb4096c87a251430",
+        "turbo_lean_branch": "feat/freestanding-flat-ptr-loops",
+        "turbo_lean_commit": "b9524d8059476935730c16afab0e18501ff80b49",
+        "measurement_host": {
+            "environment": os.environ.get("BENCHMARK_HOST_CLASS", "unspecified"),
+            "same_host_reference_and_lean": True,
+        },
         "targets": {
             "nanosp": "thumbv8m.main-none-eabi (cortex-m35p+nodsp, API_LEVEL 27)",
-            "nanox": "thumbv6m-none-eabi (cortex-m3, API_LEVEL 22)",
+            "nanox": "thumbv6m-none-eabi (cortex-m3, runtime API must be verified from ELF and QEMU; historical T7 runtime API 27)",
         },
         "compiler": "Debian clang 21.1.8 + ld.lld 21.1.8 + arm-none-eabi-gcc sysroot",
     },

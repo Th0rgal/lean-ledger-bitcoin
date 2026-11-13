@@ -80,62 +80,19 @@ __attribute__((noinline)) void ref_format_sats_amount(const char *coin_name,
              coin_name);
 }
 
-static inline __attribute__((always_inline)) size_t lean_write_u32_dec(char *dst, uint32_t v) {
-    char rev[10];
-    size_t len = 0;
-    do {
-        rev[len++] = (char) ('0' + (v % 10U));
-        v /= 10U;
-    } while (v != 0U);
-    for (size_t i = 0; i < len; i++) {
-        dst[i] = rev[len - 1U - i];
-    }
-    return len;
-}
-
 __attribute__((noinline)) void lean_format_sats_amount(const char *coin_name,
                                                        uint64_t amount,
                                                        char out[static MAX_AMOUNT_LENGTH + 1]) {
-    uint64_t integral_part = llb_sats_div_1e8(amount);
-    uint32_t fractional_part = llb_sats_mod_1e8(amount);
-    size_t pos = 0;
-
-    if (integral_part >= UINT64_C(100000000)) {
-        uint32_t hi = (uint32_t) llb_sats_div_1e8(integral_part);
-        uint32_t lo = llb_sats_mod_1e8(integral_part);
-        pos += lean_write_u32_dec(out + pos, hi);
-        for (int i = 7; i >= 0; i--) {
-            out[pos + (size_t) i] = (char) ('0' + (lo % 10U));
-            lo /= 10U;
-        }
-        pos += 8U;
-    } else {
-        pos += lean_write_u32_dec(out + pos, (uint32_t) integral_part);
+    size_t ticker_len = strlen(coin_name);
+    if (ticker_len > MAX_AMOUNT_LENGTH) {
+        ticker_len = MAX_AMOUNT_LENGTH;
     }
-
-    if (fractional_part != 0U) {
-        out[pos++] = '.';
-        char frac[8];
-        uint32_t rem = fractional_part;
-        for (int i = 7; i >= 0; i--) {
-            frac[i] = (char) ('0' + (rem % 10U));
-            rem /= 10U;
-        }
-        size_t frac_len = 8U;
-        while (frac_len > 1U && frac[frac_len - 1U] == '0') {
-            frac_len--;
-        }
-        memcpy(out + pos, frac, frac_len);
-        pos += frac_len;
-    }
-
-    out[pos++] = ' ';
-    size_t max_rem = (MAX_AMOUNT_LENGTH + 1U) - pos - 1U;
-    size_t ticker_len = 0;
-    while (ticker_len < max_rem && coin_name[ticker_len] != '\0') {
-        out[pos++] = coin_name[ticker_len++];
-    }
-    out[pos] = '\0';
+    (void) llb_format_sats_ascii(amount,
+                                 (const uint8_t *) coin_name,
+                                 (uint32_t) ticker_len,
+                                 0U,
+                                 (uint8_t *) out,
+                                 MAX_AMOUNT_LENGTH + 1U);
 }
 
 // ============================================================================
@@ -268,29 +225,14 @@ __attribute__((noinline)) bool ref_is_path_safe_for_pubkey_export(const uint32_t
 
 __attribute__((noinline)) bool lean_is_path_safe_for_pubkey_export(const uint32_t bip32_path[],
                                                                    size_t bip32_path_len) {
-    uint32_t s0 = bip32_path_len > 0 ? bip32_path[0] : 0;
-    uint32_t s1 = bip32_path_len > 1 ? bip32_path[1] : 0;
-    uint32_t s2 = bip32_path_len > 2 ? bip32_path[2] : 0;
-    uint32_t s3 = bip32_path_len > 3 ? bip32_path[3] : 0;
-    uint8_t tail_all_unhardened = 1;
-    size_t tail_start = (llb_bip32_unharden(s0) == 48U) ? 4U : 3U;
-    for (size_t i = tail_start; i < bip32_path_len; i++) {
-        if (llb_bip32_is_hardened(bip32_path[i])) {
-            tail_all_unhardened = 0;
-            break;
-        }
+    if (bip32_path_len > 255U) {
+        return false;
     }
-    return llb_bip32_pubkey_export_prefix_ok(s0,
-                                             s1,
-                                             s2,
-                                             s3,
-                                             (uint8_t) bip32_path_len,
-                                             BIP44_COIN_TYPE,
-                                             tail_all_unhardened) != 0;
+    return llb_bip32_check_export_path(bip32_path, (uint8_t) bip32_path_len, BIP44_COIN_TYPE) != 0U;
 }
 
 // ============================================================================
-// 4. MuSig2 KeySort (BIP-327): Reference libc qsort vs Lean/inline insertion
+// 4. MuSig2 KeySort (BIP-327): Reference libc qsort vs Lean constant-stack sort
 // ============================================================================
 typedef uint8_t plain_pk_t[33];
 
@@ -303,16 +245,7 @@ __attribute__((noinline)) void ref_musig_keysort(plain_pk_t keys[], size_t n_key
 }
 
 __attribute__((noinline)) void lean_musig_keysort(plain_pk_t keys[], size_t n_keys) {
-    for (size_t i = 1; i < n_keys; i++) {
-        plain_pk_t cur;
-        memcpy(cur, keys[i], sizeof(plain_pk_t));
-        size_t j = i;
-        while (j > 0 && memcmp(keys[j - 1], cur, sizeof(plain_pk_t)) > 0) {
-            memcpy(keys[j], keys[j - 1], sizeof(plain_pk_t));
-            j--;
-        }
-        memcpy(keys[j], cur, sizeof(plain_pk_t));
-    }
+    llb_sort_fixed_bytes((uint8_t *) keys, (uint32_t) n_keys, sizeof(plain_pk_t));
 }
 
 int main(void) {

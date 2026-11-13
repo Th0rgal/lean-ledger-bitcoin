@@ -120,10 +120,12 @@ fn lean_optimized_hotpath_step(seed: u64) -> usize {
     // Zero-copy borrowed slice (matching our optimized `analyze.rs`)
     let out_script_ref: &[u8] = black_box(&p2pkh[..]);
 
-    // Lean checked subtraction + stack-buffer amount formatting (`display.rs`)
+    // Lean checked subtraction + division-free Lean `llb_format_sats_ascii` (`display.rs`)
     let fee = llb_vanadium_ffi::checked_sub_sats(sats_in, sats_out).unwrap_or(0);
     let mut amt_buf = [0u8; 40];
-    let amt_len = format_amount_stack(fee, "TEST", &mut amt_buf);
+    let amt_len = llb_vanadium_ffi::format_sats_ascii(fee, "TEST", true, &mut amt_buf)
+        .map(|s| s.len())
+        .unwrap_or_else(|| format_amount_stack(fee, "TEST", &mut amt_buf));
 
     black_box(out_script_ref.len() + amt_len + (amt_buf[0] as usize & 0))
 }
@@ -159,6 +161,22 @@ fn run_kernel_batch_lean(iters: u64) -> u64 {
         if llb_vanadium_ffi::sighash_type_valid(sh) && llb_vanadium_ffi::taproot_sighash_valid(tsh)
         {
             acc = acc.wrapping_add(8);
+        }
+        // Option 2 freestanding buffer/loop kernels (`SPEC_ABI.md`)
+        let spk = [0x00u8, 0x14, (i & 0xff) as u8, 0xaa];
+        if llb_vanadium_ffi::check_dual_utxo(a, &spk, a, &spk) {
+            acc = acc.wrapping_add(16);
+        }
+        if llb_vanadium_ffi::miniscript_check_postfix(&[0x04], false, true, true) {
+            acc = acc.wrapping_add(32);
+        }
+        let st = llb_vanadium_ffi::psbt_locktime_step(
+            llb_vanadium_ffi::psbt_locktime_init(),
+            Some(850_000),
+            None,
+        );
+        if llb_vanadium_ffi::psbt_locktime_finalize(st, 0) == Some(850_000) {
+            acc = acc.wrapping_add(64);
         }
     }
     acc
@@ -216,7 +234,7 @@ fn main() {
     let ref_ops_s = (iters as f64) / (med_ref as f64 / 1e9);
     let lean_ops_s = (iters as f64) / (med_lean as f64 / 1e9);
     let speedup = (med_ref as f64) / (med_lean as f64);
-    let kern_checks = iters * 8;
+    let kern_checks = iters * 11;
     let kern_mops_s = (kern_checks as f64) / (med_kern as f64 / 1e9) / 1e6;
 
     println!(
