@@ -1,0 +1,992 @@
+{
+  "analyzer": {
+    "path": "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/benchmarks/bolos_benchmark.sh",
+    "sha256": "a64e92d2277212ed3672b6a7a29763d64ddd9257c77cde04a0d0ea8f66e75b72"
+  },
+  "artifacts": {
+    "lean": {
+      "nanosp-mainnet": {
+        "apdu_sha256": "966fd32f901323ede877bc3de4b3b1da04fc2ef4f7b8a443549eab9666920765",
+        "asm_sha256": "96240eadc3d277701178ead835da9a265d308ef4c83d8debedce8b1b1f28448a",
+        "elf_sha256": "fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56",
+        "map_sha256": "3d36fa8297fba9967627ad633b47ea51e4416bb1745369d8ca063f224e7457e3",
+        "metrics": {
+          "apdu_bytes": 186974,
+          "bss_ram_bytes": 6232,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 156468,
+          "elf_unstripped_bytes": 247068,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 89695,
+          "map_input_code_bytes": 81734,
+          "map_input_rodata_bytes": 6983,
+          "rodata_bytes": 4956,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 124,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 197,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8968,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 319,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 29819,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 81804,
+          "total_static_ram_bytes": 6232
+        }
+      },
+      "nanosp-mainnet-sameflags": {
+        "apdu_sha256": "d5468d8dd7b560ce22ca66c1c21775c12b5ac77e3ac73ee7e8290e5c18be06b8",
+        "asm_sha256": "37cf5d7842ea0e7b64f0b2eeeb676fde6bf228f7cb83eda6d12a920b80041ab5",
+        "elf_sha256": "4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46",
+        "map_sha256": "d757100cb547b693a8b6294e608096f6f59af3deb0b657594eaa65dd5d41e820",
+        "metrics": {
+          "apdu_bytes": 189107,
+          "bss_ram_bytes": 6232,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 157492,
+          "elf_unstripped_bytes": 247252,
+          "has_qsort": false,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 90719,
+          "map_input_code_bytes": 82686,
+          "map_input_rodata_bytes": 6983,
+          "rodata_bytes": 4956,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 124,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 197,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8968,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 319,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 30157,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 82756,
+          "total_static_ram_bytes": 6232
+        }
+      },
+      "nanosp-testnet": {
+        "apdu_sha256": "fbb5e7075d7909c6c8bb6f72975ebf9944601bcd96fad9667a3278dc4c3fbd70",
+        "asm_sha256": "6da2d48291c058a474ca0d31431856bf283bf6c2d98baf6fa961316eeaa2de03",
+        "elf_sha256": "f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b",
+        "map_sha256": "15c78791c1ff2a948efcb7abc4f9c872df6f594abab40dbf325f44382c864949",
+        "metrics": {
+          "apdu_bytes": 186994,
+          "bss_ram_bytes": 6232,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 156480,
+          "elf_unstripped_bytes": 247076,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 89700,
+          "map_input_code_bytes": 81710,
+          "map_input_rodata_bytes": 6993,
+          "rodata_bytes": 4968,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 124,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 197,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8968,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 319,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 29819,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 81780,
+          "total_static_ram_bytes": 6232
+        }
+      },
+      "nanosp-testnet-perf": {
+        "apdu_sha256": "1bea53755791920df42d894d911c3de9cdb97bccdf3355cb3b9e47ac7e045bc3",
+        "asm_sha256": "4befa69404ed790e0dad750ff278182e76038078ca0bfd64d92180845dbeaf4e",
+        "elf_sha256": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+        "map_sha256": "5b592824d0f9382de8ee327b3566e42f369782b7746bbf26a2faa02c98c70a28",
+        "metrics": {
+          "apdu_bytes": 168872,
+          "bss_ram_bytes": 6200,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 147776,
+          "elf_unstripped_bytes": 242308,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 80996,
+          "map_input_code_bytes": 74582,
+          "map_input_rodata_bytes": 5706,
+          "rodata_bytes": 3670,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 124,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 142,
+                "max_stack_bytes": 944,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 341,
+                "max_stack_bytes": 8968,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 245,
+                "max_stack_bytes": 1968,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 295,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1008,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 27407,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 74650,
+          "total_static_ram_bytes": 6200
+        }
+      },
+      "nanox-mainnet": {
+        "apdu_sha256": "4a7cb0fca173a9b76bd4c37189e61a7557ea91fd8cafa18a1b2109b6b817336b",
+        "asm_sha256": "fcfb62e5be063caa802f5fc3e47b0eb9e88a9f2b7cee599fbe5c952552e5fd63",
+        "elf_sha256": "6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b",
+        "map_sha256": "12fdb437c3f2db7b7600b6619d0bd32559b571444e9b3b88eb0a84eafced55e2",
+        "metrics": {
+          "apdu_bytes": 188032,
+          "bss_ram_bytes": 4068,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 156976,
+          "elf_unstripped_bytes": 247352,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 90207,
+          "map_input_code_bytes": 82744,
+          "map_input_rodata_bytes": 6983,
+          "rodata_bytes": 4956,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 140,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 196,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8456,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 316,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 30116,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 82816,
+          "total_static_ram_bytes": 4068
+        }
+      },
+      "nanox-mainnet-sameflags": {
+        "apdu_sha256": "81c5c011b445814963768c0703ab6852417c202004c8fb7090fb89e459c4deb4",
+        "asm_sha256": "297e535c30492c69e13068dfae8d13a5bfce8f0b55c8c77fc29d51d2411142eb",
+        "elf_sha256": "b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32",
+        "map_sha256": "6ff1813228291520ae1c6e9ad742bebe2860cdd5f186fcdd792db7e9e91f04c5",
+        "metrics": {
+          "apdu_bytes": 190165,
+          "bss_ram_bytes": 4068,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 158000,
+          "elf_unstripped_bytes": 247536,
+          "has_qsort": false,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 91231,
+          "map_input_code_bytes": 83696,
+          "map_input_rodata_bytes": 6983,
+          "rodata_bytes": 4956,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 140,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 196,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8456,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 316,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 30454,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 83768,
+          "total_static_ram_bytes": 4068
+        }
+      },
+      "nanox-testnet": {
+        "apdu_sha256": "9b1dd64a234b00e76be14a74b5cfea8208eb14a8c7a6c5a5b6e675dea4f54a6f",
+        "asm_sha256": "54c1f98228f57dc9c6f2bf6bc95273c888a46ce28f10b6067186c005040389cc",
+        "elf_sha256": "f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff",
+        "map_sha256": "a80de3c790a059fdbe44cd696482bd3899929c0eb26f76132bc7c13a46f90c4c",
+        "metrics": {
+          "apdu_bytes": 188052,
+          "bss_ram_bytes": 4068,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 156988,
+          "elf_unstripped_bytes": 247360,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 90212,
+          "map_input_code_bytes": 82720,
+          "map_input_rodata_bytes": 6993,
+          "rodata_bytes": 4968,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 140,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 196,
+                "max_stack_bytes": 976,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 347,
+                "max_stack_bytes": 8456,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 277,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 316,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 30116,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 82792,
+          "total_static_ram_bytes": 4068
+        }
+      },
+      "nanox-testnet-perf": {
+        "apdu_sha256": "695f98f6587b7f7de6626862548f3875bec2b783a37aaebac86bff0c82cc2c3b",
+        "asm_sha256": "6a75d8c9d5fe4da18af8bf001d1ba24ed0c216e55c9a42a04b8cf8825dd87be7",
+        "elf_sha256": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+        "map_sha256": "ad15d641a75f2d0398c9e9ae0c9bcf8cfb99f8677902990711cca0879eb6a9e1",
+        "metrics": {
+          "apdu_bytes": 170459,
+          "bss_ram_bytes": 4036,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 148540,
+          "elf_unstripped_bytes": 242268,
+          "has_qsort": false,
+          "has_udivmoddi4": false,
+          "load_flash_bytes": 81764,
+          "map_input_code_bytes": 75418,
+          "map_input_rodata_bytes": 5706,
+          "rodata_bytes": 3668,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 31,
+                "max_stack_bytes": 140,
+                "own_frame_bytes": 40
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 142,
+                "max_stack_bytes": 944,
+                "own_frame_bytes": 408
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 341,
+                "max_stack_bytes": 8456,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 245,
+                "max_stack_bytes": 1968,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 292,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1008,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 57,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": false,
+            "total_arm_thumb_insns": 27690,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 75488,
+          "total_static_ram_bytes": 4036
+        }
+      }
+    },
+    "ref": {
+      "nanosp-mainnet": {
+        "apdu_sha256": "754143f65b9ecd394c0ed85ba3f0e9eaf212d12a21fd6260f21af68fa97b1f44",
+        "asm_sha256": "1f32bffca1a25b4c02acbbe27cba5a3c55ee0adeb32f834c0d7363321e0a9b01",
+        "elf_sha256": "3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef",
+        "map_sha256": "bc939add079292e2a8f82670fd8641b5a590279627348c2cda5f20e2528e3d5f",
+        "metrics": {
+          "apdu_bytes": 190165,
+          "bss_ram_bytes": 6376,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 158004,
+          "elf_unstripped_bytes": 247136,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 91231,
+          "map_input_code_bytes": 83138,
+          "map_input_rodata_bytes": 7108,
+          "rodata_bytes": 5082,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 222,
+                "max_stack_bytes": 968,
+                "own_frame_bytes": 400
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 343,
+                "max_stack_bytes": 9224,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 272,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 319,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 30364,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 83206,
+          "total_static_ram_bytes": 6376
+        }
+      },
+      "nanosp-testnet": {
+        "apdu_sha256": "6bca80e1167c2ef887f0157ebdba48e16ce04aab802e12f0181b5ac2308ea7fc",
+        "asm_sha256": "909fb79af56f41a5861bc2bb7fe577d060bc5e8d529996accb5a4529f8fa7a9f",
+        "elf_sha256": "6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66",
+        "map_sha256": "87a12bb5f93e397270bd884d8b8071b238d67dbc93d031bbbefdcfa8ba53c7bf",
+        "metrics": {
+          "apdu_bytes": 190185,
+          "bss_ram_bytes": 6376,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 158016,
+          "elf_unstripped_bytes": 247144,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 91236,
+          "map_input_code_bytes": 83114,
+          "map_input_rodata_bytes": 7118,
+          "rodata_bytes": 5090,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 223,
+                "max_stack_bytes": 968,
+                "own_frame_bytes": 400
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 343,
+                "max_stack_bytes": 9224,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 272,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 319,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 30364,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 83182,
+          "total_static_ram_bytes": 6376
+        }
+      },
+      "nanosp-testnet-perf": {
+        "apdu_sha256": "bd3dfae2d26f0d5c29ded7b229d137cf80dd0ce52ca860c87871774e3fccc858",
+        "asm_sha256": "f123008c7d0a8a25616d38b9ec55683becf6d44607b966f56a6cdbc5ecaa3751",
+        "elf_sha256": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+        "map_sha256": "0f231aa989052115fe872540909d72e2dbe4752d5938466e5f81b45511a4aecb",
+        "metrics": {
+          "apdu_bytes": 173138,
+          "bss_ram_bytes": 6200,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 149824,
+          "elf_unstripped_bytes": 242192,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 83044,
+          "map_input_code_bytes": 76032,
+          "map_input_rodata_bytes": 5844,
+          "rodata_bytes": 3810,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 928,
+                "own_frame_bytes": 392
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 1680,
+                "own_frame_bytes": 32
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 342,
+                "max_stack_bytes": 9224,
+                "own_frame_bytes": 2464
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 246,
+                "max_stack_bytes": 1960,
+                "own_frame_bytes": 1392
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 295,
+                "max_stack_bytes": 12496,
+                "own_frame_bytes": 8672
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1008,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 27974,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 12496
+          },
+          "text_code_bytes": 76098,
+          "total_static_ram_bytes": 6200
+        }
+      },
+      "nanox-mainnet": {
+        "apdu_sha256": "76cedb5006dc7015889515f0ea5b35061079c049ec0676eb8a6f52b17c9744a8",
+        "asm_sha256": "a9216f4d0a1db366bbd7f3adfa8d5a6ffd6dd41526bd199b3426af9f397e0d0f",
+        "elf_sha256": "df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4",
+        "map_sha256": "3b0af7b848cac0c707d9fe2c8d2d3d2964aea0b7e7a43d5884400c635d8d1466",
+        "metrics": {
+          "apdu_bytes": 190165,
+          "bss_ram_bytes": 4212,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 158000,
+          "elf_unstripped_bytes": 247456,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 91231,
+          "map_input_code_bytes": 83512,
+          "map_input_rodata_bytes": 7108,
+          "rodata_bytes": 5082,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 220,
+                "max_stack_bytes": 968,
+                "own_frame_bytes": 400
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 343,
+                "max_stack_bytes": 8712,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 272,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 316,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 30460,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 83582,
+          "total_static_ram_bytes": 4212
+        }
+      },
+      "nanox-testnet": {
+        "apdu_sha256": "042b334663886ab8e2f53b4e89f4bd70a6d00543303ef47e07d774c81bcc5f43",
+        "asm_sha256": "8156916f328eceed9ab8f04e19138fbc4e6e3138e78b68fe438968f8a9faa652",
+        "elf_sha256": "f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a",
+        "map_sha256": "d8ec1472a64c95971ae801649d68d26ff22e9f119e0802f1e2dd9793b5938b59",
+        "metrics": {
+          "apdu_bytes": 190185,
+          "bss_ram_bytes": 4212,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 158012,
+          "elf_unstripped_bytes": 247464,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 91236,
+          "map_input_code_bytes": 83488,
+          "map_input_rodata_bytes": 7118,
+          "rodata_bytes": 5090,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 221,
+                "max_stack_bytes": 968,
+                "own_frame_bytes": 400
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 231,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 343,
+                "max_stack_bytes": 8712,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 272,
+                "max_stack_bytes": 1992,
+                "own_frame_bytes": 1400
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 316,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1032,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 30460,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 83558,
+          "total_static_ram_bytes": 4212
+        }
+      },
+      "nanox-testnet-perf": {
+        "apdu_sha256": "5e0d7a9a3b2f74285a68dd911c39d590bef1a0426fb02ceb648200d8600d2a12",
+        "asm_sha256": "6cf61d2c971151408c8bf4d1a488292bd1ba58b76303289b5a4387a9c926bd41",
+        "elf_sha256": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+        "map_sha256": "9092b2913acc11e0e504f9ede32684b0c1644654a428caa0df4a112e04cd18f4",
+        "metrics": {
+          "apdu_bytes": 172063,
+          "bss_ram_bytes": 4036,
+          "data_bytes": 0,
+          "elf_stripped_bytes": 149308,
+          "elf_unstripped_bytes": 242192,
+          "has_qsort": true,
+          "has_udivmoddi4": true,
+          "load_flash_bytes": 82532,
+          "map_input_code_bytes": 76240,
+          "map_input_rodata_bytes": 5844,
+          "rodata_bytes": 3812,
+          "stack_and_insns": {
+            "handlers": {
+              "format_sats_amount": {
+                "arm_thumb_insns": 99,
+                "max_stack_bytes": 268,
+                "own_frame_bytes": 88
+              },
+              "handler_get_extended_pubkey": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 928,
+                "own_frame_bytes": 392
+              },
+              "handler_get_wallet_address": {
+                "arm_thumb_insns": 176,
+                "max_stack_bytes": 3624,
+                "own_frame_bytes": 1976
+              },
+              "handler_register_wallet": {
+                "arm_thumb_insns": 342,
+                "max_stack_bytes": 8712,
+                "own_frame_bytes": 1952
+              },
+              "handler_sign_message": {
+                "arm_thumb_insns": 246,
+                "max_stack_bytes": 1960,
+                "own_frame_bytes": 1392
+              },
+              "handler_sign_psbt": {
+                "arm_thumb_insns": 292,
+                "max_stack_bytes": 11248,
+                "own_frame_bytes": 7424
+              },
+              "main": {
+                "arm_thumb_insns": 12,
+                "max_stack_bytes": 1008,
+                "own_frame_bytes": 8
+              },
+              "merkle_get_ith_direction": {
+                "arm_thumb_insns": 39,
+                "max_stack_bytes": 20,
+                "own_frame_bytes": 20
+              }
+            },
+            "has_recursive_qsort": true,
+            "total_arm_thumb_insns": 28057,
+            "worst_case_call_chain_depth": 10,
+            "worst_case_root": "handler_sign_psbt",
+            "worst_case_stack_bytes": 11248
+          },
+          "text_code_bytes": 76308,
+          "total_static_ram_bytes": 4036
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "vm_work_dir": "/var/lib/orb-node/work/b1",
+  "lean_ledger_bitcoin": {
+    "head": "e3e815562d68a04c5d7ab56b06e408a8fd361e38",
+    "expected": "e3e815562d68a04c5d7ab56b06e408a8fd361e38",
+    "status_after_kernel_build": "",
+    "kernel_source_sha256": "16587abcdec54fa448b4bb31707a6a3ed733858711c09199320a85c9ae276b47",
+    "bolos_patch_sha256": "d88e07a1f8ec8600156e9aa00cc6c681e88c9296b16349dd2724807dae9a0541"
+  },
+  "turbo_lean": {
+    "head": "8c3503fa0df74fafcd7a3b91e4319606985b7198",
+    "status": "",
+    "lean_native_sha256": "18915339e45afb6b05c38e2972947061fe36efbfd5063274f674d1577a91a797"
+  },
+  "reference_tree": {
+    "path": "/var/lib/orb-node/work/b1/src/app-bitcoin",
+    "head": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "expected": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "tree": "b302ce52f1ea5262bdcd19c54551384b3a6b8e3b",
+    "status": ""
+  },
+  "lean_tree": {
+    "path": "/var/lib/orb-node/work/b1/src/app-bitcoin-lean",
+    "head": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+    "status": [
+      "M Makefile",
+      " M src/common/locktime.h",
+      " M src/common/merkle.c",
+      " M src/common/script.c",
+      " M src/common/segwit_addr.c",
+      " M src/common/sighash.h",
+      " M src/common/wallet.c",
+      " M src/handler/get_extended_pubkey.c",
+      " M src/handler/lib/policy.c",
+      " M src/handler/register_wallet.c",
+      " M src/handler/sign_message.c",
+      " M src/handler/sign_psbt/init_global_state.c",
+      " M src/handler/sign_psbt/musig_signing.c",
+      " M src/handler/sign_psbt/preprocess_inputs.c",
+      " M src/handler/sign_psbt/preprocess_outputs.c",
+      " M src/musig/musig.h",
+      " M src/swap/bip32_path.c",
+      " M src/ui/display.h",
+      " M src/ui/display_nbgl.c",
+      " M src/ui/display_utils.c",
+      " M unit-tests/CMakeLists.txt",
+      "?? src/lean_kernels/",
+      "?? unit-tests/test_lean_bolos_kernels.c"
+    ],
+    "kernel_bundle_sha256": {
+      "liblean_ledger_bitcoin.h": "824bd4f7242a0636af41235dc9ce5b15163d4365745a8b855a950c4eaaa1bf31",
+      "liblean_ledger_bitcoin_host.ll": "d9d6a356035e91d3f2d3b25eb71f6364c864f1794272c792ffbd011cf78b40c8",
+      "liblean_ledger_bitcoin_ilp32.h": "c448d41e59a78ad0e5605f7938b44e0e81141aa5574155bd396849c69ee0e321",
+      "liblean_ledger_bitcoin_lp64.h": "64a6d700499d966aef17da891c1f5ca68011c8ad9aa064c9f865173647884186",
+      "liblean_ledger_bitcoin_thumbv6m.ll": "87298e4d4f56e92811d6c0edd5f16406dc82184158fad72a2dcf2a09dc785b6c",
+      "liblean_ledger_bitcoin_thumbv8m.main.ll": "2289bb0bba810342b971a64a2a654241409b00418b77db02076d5d4159f97759"
+    }
+  },
+  "build_path_shared_by_both_trees": "/var/lib/orb-node/work/b1/slot/app-bitcoin",
+  "make": "BOLOS_SDK=<hub>/dev-tools-rootfs/opt/<sdk>-secure-sdk make -j8 COIN=<coin> DEBUG=0 [AUTOAPPROVE_FOR_PERF_TESTS=1 | LLB_KEEP_UPSTREAM_DEFINES=1]",
+  "compiler": "Debian clang version 21.1.8 (++20251221033036+2078da43e25a-1~exp1~20251221153213.50)",
+  "linker": "Debian LLD 21.1.8 (compatible with GNU linkers)",
+  "kernel_ir_fresh_vs_shipped": {
+    "thumbv6m": {
+      "fresh_sha256": "bea9e4fedc183a54d2b8b26546eb4be975dccc45f56ba2f9761d727beeca32df",
+      "shipped_in_patch_sha256": "87298e4d4f56e92811d6c0edd5f16406dc82184158fad72a2dcf2a09dc785b6c",
+      "line_count_equal": true,
+      "differing_line_indexes": [
+        0
+      ],
+      "only_module_id_line_differs": true
+    },
+    "thumbv8m.main": {
+      "fresh_sha256": "fa7b4625d019b326964d9a40b5f72877b02a9aeec6088d612cacdcb9acb72f87",
+      "shipped_in_patch_sha256": "2289bb0bba810342b971a64a2a654241409b00418b77db02076d5d4159f97759",
+      "line_count_equal": true,
+      "differing_line_indexes": [
+        0
+      ],
+      "only_module_id_line_differs": true
+    }
+  },
+  "artifacts": {
+    "ref": {
+      "nanosp-mainnet": {
+        "app.elf": "3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef",
+        "app.apdu": "754143f65b9ecd394c0ed85ba3f0e9eaf212d12a21fd6260f21af68fa97b1f44",
+        "app.map": "bc939add079292e2a8f82670fd8641b5a590279627348c2cda5f20e2528e3d5f",
+        "app.asm": "1f32bffca1a25b4c02acbbe27cba5a3c55ee0adeb32f834c0d7363321e0a9b01",
+        "rebuild_app_elf_sha256": "3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef",
+        "rebuild_identical": true
+      },
+      "nanosp-testnet": {
+        "app.elf": "6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66",
+        "app.apdu": "6bca80e1167c2ef887f0157ebdba48e16ce04aab802e12f0181b5ac2308ea7fc",
+        "app.map": "87a12bb5f93e397270bd884d8b8071b238d67dbc93d031bbbefdcfa8ba53c7bf",
+        "app.asm": "909fb79af56f41a5861bc2bb7fe577d060bc5e8d529996accb5a4529f8fa7a9f",
+        "rebuild_app_elf_sha256": "6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66",
+        "rebuild_identical": true
+      },
+      "nanosp-testnet-perf": {
+        "app.elf": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+        "app.apdu": "bd3dfae2d26f0d5c29ded7b229d137cf80dd0ce52ca860c87871774e3fccc858",
+        "app.map": "0f231aa989052115fe872540909d72e2dbe4752d5938466e5f81b45511a4aecb",
+        "app.asm": "f123008c7d0a8a25616d38b9ec55683becf6d44607b966f56a6cdbc5ecaa3751",
+        "rebuild_app_elf_sha256": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+        "rebuild_identical": true
+      },
+      "nanox-mainnet": {
+        "app.elf": "df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4",
+        "app.apdu": "76cedb5006dc7015889515f0ea5b35061079c049ec0676eb8a6f52b17c9744a8",
+        "app.map": "3b0af7b848cac0c707d9fe2c8d2d3d2964aea0b7e7a43d5884400c635d8d1466",
+        "app.asm": "a9216f4d0a1db366bbd7f3adfa8d5a6ffd6dd41526bd199b3426af9f397e0d0f",
+        "rebuild_app_elf_sha256": "df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4",
+        "rebuild_identical": true
+      },
+      "nanox-testnet": {
+        "app.elf": "f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a",
+        "app.apdu": "042b334663886ab8e2f53b4e89f4bd70a6d00543303ef47e07d774c81bcc5f43",
+        "app.map": "d8ec1472a64c95971ae801649d68d26ff22e9f119e0802f1e2dd9793b5938b59",
+        "app.asm": "8156916f328eceed9ab8f04e19138fbc4e6e3138e78b68fe438968f8a9faa652",
+        "rebuild_app_elf_sha256": "f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a",
+        "rebuild_identical": true
+      },
+      "nanox-testnet-perf": {
+        "app.elf": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+        "app.apdu": "5e0d7a9a3b2f74285a68dd911c39d590bef1a0426fb02ceb648200d8600d2a12",
+        "app.map": "9092b2913acc11e0e504f9ede32684b0c1644654a428caa0df4a112e04cd18f4",
+        "app.asm": "6cf61d2c971151408c8bf4d1a488292bd1ba58b76303289b5a4387a9c926bd41",
+        "rebuild_app_elf_sha256": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+        "rebuild_identical": true
+      }
+    },
+    "lean": {
+      "nanosp-mainnet": {
+        "app.elf": "fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56",
+        "app.apdu": "966fd32f901323ede877bc3de4b3b1da04fc2ef4f7b8a443549eab9666920765",
+        "app.map": "3d36fa8297fba9967627ad633b47ea51e4416bb1745369d8ca063f224e7457e3",
+        "app.asm": "96240eadc3d277701178ead835da9a265d308ef4c83d8debedce8b1b1f28448a",
+        "rebuild_app_elf_sha256": "fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56",
+        "rebuild_identical": true
+      },
+      "nanosp-mainnet-sameflags": {
+        "app.elf": "4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46",
+        "app.apdu": "d5468d8dd7b560ce22ca66c1c21775c12b5ac77e3ac73ee7e8290e5c18be06b8",
+        "app.map": "d757100cb547b693a8b6294e608096f6f59af3deb0b657594eaa65dd5d41e820",
+        "app.asm": "37cf5d7842ea0e7b64f0b2eeeb676fde6bf228f7cb83eda6d12a920b80041ab5",
+        "rebuild_app_elf_sha256": "4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46",
+        "rebuild_identical": true
+      },
+      "nanosp-testnet": {
+        "app.elf": "f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b",
+        "app.apdu": "fbb5e7075d7909c6c8bb6f72975ebf9944601bcd96fad9667a3278dc4c3fbd70",
+        "app.map": "15c78791c1ff2a948efcb7abc4f9c872df6f594abab40dbf325f44382c864949",
+        "app.asm": "6da2d48291c058a474ca0d31431856bf283bf6c2d98baf6fa961316eeaa2de03",
+        "rebuild_app_elf_sha256": "f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b",
+        "rebuild_identical": true
+      },
+      "nanosp-testnet-perf": {
+        "app.elf": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+        "app.apdu": "1bea53755791920df42d894d911c3de9cdb97bccdf3355cb3b9e47ac7e045bc3",
+        "app.map": "5b592824d0f9382de8ee327b3566e42f369782b7746bbf26a2faa02c98c70a28",
+        "app.asm": "4befa69404ed790e0dad750ff278182e76038078ca0bfd64d92180845dbeaf4e",
+        "rebuild_app_elf_sha256": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+        "rebuild_identical": true
+      },
+      "nanox-mainnet": {
+        "app.elf": "6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b",
+        "app.apdu": "4a7cb0fca173a9b76bd4c37189e61a7557ea91fd8cafa18a1b2109b6b817336b",
+        "app.map": "12fdb437c3f2db7b7600b6619d0bd32559b571444e9b3b88eb0a84eafced55e2",
+        "app.asm": "fcfb62e5be063caa802f5fc3e47b0eb9e88a9f2b7cee599fbe5c952552e5fd63",
+        "rebuild_app_elf_sha256": "6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b",
+        "rebuild_identical": true
+      },
+      "nanox-mainnet-sameflags": {
+        "app.elf": "b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32",
+        "app.apdu": "81c5c011b445814963768c0703ab6852417c202004c8fb7090fb89e459c4deb4",
+        "app.map": "6ff1813228291520ae1c6e9ad742bebe2860cdd5f186fcdd792db7e9e91f04c5",
+        "app.asm": "297e535c30492c69e13068dfae8d13a5bfce8f0b55c8c77fc29d51d2411142eb",
+        "rebuild_app_elf_sha256": "b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32",
+        "rebuild_identical": true
+      },
+      "nanox-testnet": {
+        "app.elf": "f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff",
+        "app.apdu": "9b1dd64a234b00e76be14a74b5cfea8208eb14a8c7a6c5a5b6e675dea4f54a6f",
+        "app.map": "a80de3c790a059fdbe44cd696482bd3899929c0eb26f76132bc7c13a46f90c4c",
+        "app.asm": "54c1f98228f57dc9c6f2bf6bc95273c888a46ce28f10b6067186c005040389cc",
+        "rebuild_app_elf_sha256": "f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff",
+        "rebuild_identical": true
+      },
+      "nanox-testnet-perf": {
+        "app.elf": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+        "app.apdu": "695f98f6587b7f7de6626862548f3875bec2b783a37aaebac86bff0c82cc2c3b",
+        "app.map": "ad15d641a75f2d0398c9e9ae0c9bcf8cfb99f8677902990711cca0879eb6a9e1",
+        "app.asm": "6a75d8c9d5fe4da18af8bf001d1ba24ed0c216e55c9a42a04b8cf8825dd87be7",
+        "rebuild_app_elf_sha256": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+        "rebuild_identical": true
+      }
+    }
+  }
+}

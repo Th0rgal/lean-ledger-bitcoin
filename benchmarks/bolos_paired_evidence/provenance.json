@@ -1,0 +1,38 @@
+{
+  "host": {
+    "environment": "dedicated Boat managed VM, size large (8 vCPU / 16 GiB RAM)",
+    "vm_node_id": "managed-dd0186c2-01f1-410a-9be8-1c49fb0dd3a4",
+    "vm_image": "orb-snap-health-manager-ledger-hub-warm-v1-eevr",
+    "builds_sizes_and_latencies_on_this_same_vm": true
+  },
+  "targets": {
+    "nanosp": "Nano S+, app built with -mcpu=cortex-m35p+nodsp, kernel IR triple thumbv8m.main-none-eabi",
+    "nanox": "Nano X, app built with -mcpu=cortex-m3, kernel IR triple thumbv6m-none-eabi"
+  },
+  "commands": [
+    "bash b1_build.sh   # both trees at one build path, every variant built twice",
+    "t7_abba.py prepare --baseline art/ref --candidate art/lean --client-root src/app-bitcoin --profile testnet-perf --output run1 --build-evidence build_evidence.json",
+    "bolos_paired.py metrics --art art --benchmark-script benchmarks/bolos_benchmark.sh --out elf_metrics.json",
+    "t7_abba.py run --output run1 --cycles 12 --cores 2,3 --wait-timeout 600 --max-load 2.0",
+    "bolos_paired.py report --evidence benchmarks/bolos_paired_evidence --out benchmarks/bolos_results.json"
+  ],
+  "scripts_sha256": {
+    "b1_build.sh": "a4e70039f0b6100fa7a39bd82410cc05237f578c2c53b061be0dbc185daf98cf",
+    "b1_run.sh": "17aabdb6d8e38ce667b542aa978b15692e734e5ea0ce758520cdb8f47f33d818",
+    "b1_pilot.sh": "00dda20f4f23ef575409250aecc1d5384396a1af1c258d0c1e18ffe026c071b0"
+  },
+  "report_script_before_run": {
+    "sha256": "1adbd77ced2be747b93b0d2f44b339b849b4d31cffb94de03c71a7d80571621d",
+    "recorded": "2026-11-13T21:23:55Z",
+    "run_start": "2026-11-13T21:23:56Z",
+    "run_end": "2026-11-13T21:59:30Z",
+    "attestation": "self-declared: written by b1_run.sh on the VM before the first launch, not by a third party"
+  },
+  "harvest_archive_sha256": "080bffb56606796ca8ec2a0c2376e06dae99c8c16bc0c0941a9fd8e4759e8ecb",
+  "limitations": [
+    "A 14-launch pilot of the same harness ran before the measured run to check that it starts and to size the run; its samples were discarded and were not compared between the two ELFs.",
+    "The hub Python environment lacked base58, which the upstream test_utils import; base58 2.1.1 was installed from PyPI into a side directory on the VM. It is client-side only and identical for both ELFs.",
+    "The x86_64 rdtscp hotspot table and the host unit-test timings of the previous file are not reproduced here: neither is a measurement of a device ELF.",
+    "The four frozen ELF binaries are not committed (the repository ignores *.elf). Their SHA-256 are in frozen_elfs and in manifest.json, and every build was reproduced bit for bit on the VM from the listed commits."
+  ]
+}

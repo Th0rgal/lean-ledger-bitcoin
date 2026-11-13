@@ -1,0 +1,45 @@
+start=2026-11-13T21:02:06Z LLB_REF=e3e815562d68a04c5d7ab56b06e408a8fd361e38 APP_REF=f010982d3050e02813cd7129bebd68cf2d1f2099
+[build-freestanding] [thumbv6m] symbols ok: exported=31, undefined=0, forbidden=0
+[build-freestanding] [thumbv6m] stack budget ok: worst frame 176 bytes < 1024 (12 KB Nano X stack)
+[build-freestanding] [thumbv8m.main] symbols ok: exported=31, undefined=0, forbidden=0
+[build-freestanding] [thumbv8m.main] stack budget ok: worst frame 136 bytes < 1024 (12 KB Nano X stack)
+[build-freestanding] [riscv32imac] symbols ok: exported=31, undefined=0, forbidden=0
+[build-freestanding] [riscv32imac] stack budget ok: worst frame 96 bytes < 1024 (12 KB Nano X stack)
+[build-freestanding] [x86_64] symbols ok: exported=31, undefined=0, forbidden=0
+[build-freestanding] [x86_64] stack budget ok: worst frame 296 bytes < 1024 (12 KB Nano X stack)
+[build-freestanding] [x86_64] symbols ok: exported=31, undefined=0, forbidden=0
+[build-freestanding] [x86_64] stack budget ok: worst frame 296 bytes < 1024 (12 KB Nano X stack)
+llb_status_after_build=[]
+ref_head=f010982d3050e02813cd7129bebd68cf2d1f2099 ref_tree=b302ce52f1ea5262bdcd19c54551384b3a6b8e3b ref_status=[]
+BUILT ref nanosp-mainnet pass=1 sha=3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef
+BUILT ref nanox-mainnet pass=1 sha=df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4
+BUILT ref nanosp-testnet pass=1 sha=6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66
+BUILT ref nanox-testnet pass=1 sha=f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a
+BUILT ref nanosp-testnet-perf pass=1 sha=965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3
+BUILT ref nanox-testnet-perf pass=1 sha=39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90
+BUILT ref nanosp-mainnet pass=2 sha=3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef
+BUILT ref nanox-mainnet pass=2 sha=df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4
+BUILT ref nanosp-testnet pass=2 sha=6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66
+BUILT ref nanox-testnet pass=2 sha=f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a
+BUILT ref nanosp-testnet-perf pass=2 sha=965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3
+BUILT ref nanox-testnet-perf pass=2 sha=39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90
+ref_status_after_build=[]
+lean_head=f010982d3050e02813cd7129bebd68cf2d1f2099 lean_changed_files=23
+BUILT lean nanosp-mainnet pass=1 sha=fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56
+BUILT lean nanox-mainnet pass=1 sha=6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b
+BUILT lean nanosp-testnet pass=1 sha=f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b
+BUILT lean nanox-testnet pass=1 sha=f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff
+BUILT lean nanosp-testnet-perf pass=1 sha=6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce
+BUILT lean nanox-testnet-perf pass=1 sha=73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52
+BUILT lean nanosp-mainnet-sameflags pass=1 sha=4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46
+BUILT lean nanox-mainnet-sameflags pass=1 sha=b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32
+BUILT lean nanosp-mainnet pass=2 sha=fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56
+BUILT lean nanox-mainnet pass=2 sha=6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b
+BUILT lean nanosp-testnet pass=2 sha=f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b
+BUILT lean nanox-testnet pass=2 sha=f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff
+BUILT lean nanosp-testnet-perf pass=2 sha=6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce
+BUILT lean nanox-testnet-perf pass=2 sha=73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52
+BUILT lean nanosp-mainnet-sameflags pass=2 sha=4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46
+BUILT lean nanox-mainnet-sameflags pass=2 sha=b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32
+evidence_rc=0 end=2026-11-13T21:05:11Z
+DONE

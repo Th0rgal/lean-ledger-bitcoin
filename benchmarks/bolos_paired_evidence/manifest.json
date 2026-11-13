@@ -1,0 +1,1035 @@
+{
+  "status": "experimental_nonvalidated",
+  "created_ns": 1794605035956027560,
+  "host": {
+    "hostname": "box-node-088efd491a3d7604",
+    "kernel": "6.8.0-117-generic",
+    "machine": "x86_64",
+    "boot_id": "1de85b63-e31b-47b4-adf5-fa2136b8a82f",
+    "affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "profile": "testnet-perf",
+  "artifacts": {
+    "A": {
+      "nanosp": {
+        "path": "/var/lib/orb-node/work/b1/run1/A-nanosp.elf",
+        "sha256": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+        "api": "27",
+        "elf_file_bytes": 242192,
+        "sections": {
+          "": {
+            "bytes": 0,
+            "flags": 0,
+            "type": "SHT_NULL"
+          },
+          ".text": {
+            "bytes": 83044,
+            "flags": 2097206,
+            "type": "SHT_PROGBITS"
+          },
+          ".data": {
+            "bytes": 0,
+            "flags": 2,
+            "type": "SHT_NOBITS"
+          },
+          ".bss": {
+            "bytes": 40960,
+            "flags": 3,
+            "type": "SHT_NOBITS"
+          },
+          "DEBUG": {
+            "bytes": 16,
+            "flags": 130,
+            "type": "SHT_NOBITS"
+          },
+          ".comment": {
+            "bytes": 112,
+            "flags": 48,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target": {
+            "bytes": 6,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_name": {
+            "bytes": 13,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_id": {
+            "bytes": 10,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_version": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.api_level": {
+            "bytes": 2,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_name": {
+            "bytes": 17,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_version": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_hash": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_graphics": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_flags": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          ".ARM.attributes": {
+            "bytes": 39,
+            "flags": 0,
+            "type": "SHT_ARM_ATTRIBUTES"
+          },
+          ".symtab": {
+            "bytes": 26176,
+            "flags": 0,
+            "type": "SHT_SYMTAB"
+          },
+          ".shstrtab": {
+            "bytes": 265,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          },
+          ".strtab": {
+            "bytes": 18067,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          }
+        },
+        "library": {
+          "path": "/var/lib/orb-node/work/caches/ledger-hub/venv-bolos/lib/python3.12/site-packages/speculos/sharedlib/nanosp-api-level-shared-27.elf",
+          "sha256": "b1d45758613c6aea3aede65e63625801088951e852146baefddf7a34c0fd12dc"
+        }
+      },
+      "nanox": {
+        "path": "/var/lib/orb-node/work/b1/run1/A-nanox.elf",
+        "sha256": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+        "api": "27",
+        "elf_file_bytes": 242192,
+        "sections": {
+          "": {
+            "bytes": 0,
+            "flags": 0,
+            "type": "SHT_NULL"
+          },
+          ".text": {
+            "bytes": 82532,
+            "flags": 2097206,
+            "type": "SHT_PROGBITS"
+          },
+          ".data": {
+            "bytes": 0,
+            "flags": 2,
+            "type": "SHT_NOBITS"
+          },
+          ".bss": {
+            "bytes": 28672,
+            "flags": 3,
+            "type": "SHT_NOBITS"
+          },
+          "DEBUG": {
+            "bytes": 16,
+            "flags": 130,
+            "type": "SHT_NOBITS"
+          },
+          ".comment": {
+            "bytes": 112,
+            "flags": 48,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_id": {
+            "bytes": 10,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_version": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.api_level": {
+            "bytes": 2,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_name": {
+            "bytes": 17,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_version": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_hash": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_graphics": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_flags": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          ".ARM.attributes": {
+            "bytes": 37,
+            "flags": 0,
+            "type": "SHT_ARM_ATTRIBUTES"
+          },
+          ".symtab": {
+            "bytes": 26192,
+            "flags": 0,
+            "type": "SHT_SYMTAB"
+          },
+          ".shstrtab": {
+            "bytes": 265,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          },
+          ".strtab": {
+            "bytes": 18054,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          }
+        },
+        "library": {
+          "path": "/var/lib/orb-node/work/caches/ledger-hub/venv-bolos/lib/python3.12/site-packages/speculos/sharedlib/nanox-api-level-shared-27.elf",
+          "sha256": "0ff0ba8e4f3011422d9c021c6ff9ee0c83b95537c955c48cfc69da28db54759a"
+        }
+      }
+    },
+    "B": {
+      "nanosp": {
+        "path": "/var/lib/orb-node/work/b1/run1/B-nanosp.elf",
+        "sha256": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+        "api": "27",
+        "elf_file_bytes": 242308,
+        "sections": {
+          "": {
+            "bytes": 0,
+            "flags": 0,
+            "type": "SHT_NULL"
+          },
+          ".text": {
+            "bytes": 80996,
+            "flags": 2097206,
+            "type": "SHT_PROGBITS"
+          },
+          ".data": {
+            "bytes": 0,
+            "flags": 2,
+            "type": "SHT_NOBITS"
+          },
+          ".bss": {
+            "bytes": 40960,
+            "flags": 3,
+            "type": "SHT_NOBITS"
+          },
+          "DEBUG": {
+            "bytes": 16,
+            "flags": 130,
+            "type": "SHT_NOBITS"
+          },
+          ".comment": {
+            "bytes": 112,
+            "flags": 48,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target": {
+            "bytes": 6,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_name": {
+            "bytes": 13,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_id": {
+            "bytes": 10,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_version": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.api_level": {
+            "bytes": 2,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_name": {
+            "bytes": 17,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_version": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_hash": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_graphics": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_flags": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          ".ARM.attributes": {
+            "bytes": 39,
+            "flags": 0,
+            "type": "SHT_ARM_ATTRIBUTES"
+          },
+          ".symtab": {
+            "bytes": 26224,
+            "flags": 0,
+            "type": "SHT_SYMTAB"
+          },
+          ".shstrtab": {
+            "bytes": 265,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          },
+          ".strtab": {
+            "bytes": 18132,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          }
+        },
+        "library": {
+          "path": "/var/lib/orb-node/work/caches/ledger-hub/venv-bolos/lib/python3.12/site-packages/speculos/sharedlib/nanosp-api-level-shared-27.elf",
+          "sha256": "b1d45758613c6aea3aede65e63625801088951e852146baefddf7a34c0fd12dc"
+        }
+      },
+      "nanox": {
+        "path": "/var/lib/orb-node/work/b1/run1/B-nanox.elf",
+        "sha256": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+        "api": "27",
+        "elf_file_bytes": 242268,
+        "sections": {
+          "": {
+            "bytes": 0,
+            "flags": 0,
+            "type": "SHT_NULL"
+          },
+          ".text": {
+            "bytes": 81764,
+            "flags": 2097206,
+            "type": "SHT_PROGBITS"
+          },
+          ".data": {
+            "bytes": 0,
+            "flags": 2,
+            "type": "SHT_NOBITS"
+          },
+          ".bss": {
+            "bytes": 28672,
+            "flags": 3,
+            "type": "SHT_NOBITS"
+          },
+          "DEBUG": {
+            "bytes": 16,
+            "flags": 130,
+            "type": "SHT_NOBITS"
+          },
+          ".comment": {
+            "bytes": 112,
+            "flags": 48,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.target_id": {
+            "bytes": 10,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_name": {
+            "bytes": 12,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_version": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.api_level": {
+            "bytes": 2,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_name": {
+            "bytes": 17,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_version": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_hash": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.sdk_graphics": {
+            "bytes": 4,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          "ledger.app_flags": {
+            "bytes": 5,
+            "flags": 2097152,
+            "type": "SHT_PROGBITS"
+          },
+          ".ARM.attributes": {
+            "bytes": 37,
+            "flags": 0,
+            "type": "SHT_ARM_ATTRIBUTES"
+          },
+          ".symtab": {
+            "bytes": 26208,
+            "flags": 0,
+            "type": "SHT_SYMTAB"
+          },
+          ".shstrtab": {
+            "bytes": 265,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          },
+          ".strtab": {
+            "bytes": 18113,
+            "flags": 0,
+            "type": "SHT_STRTAB"
+          }
+        },
+        "library": {
+          "path": "/var/lib/orb-node/work/caches/ledger-hub/venv-bolos/lib/python3.12/site-packages/speculos/sharedlib/nanox-api-level-shared-27.elf",
+          "sha256": "0ff0ba8e4f3011422d9c021c6ff9ee0c83b95537c955c48cfc69da28db54759a"
+        }
+      }
+    }
+  },
+  "tools": {
+    "clang-21": {
+      "path": "/var/lib/orb-node/work/caches/ledger-hub/dev-tools-rootfs/usr/lib/llvm-21/bin/clang-21",
+      "sha256": "6349abc605e082ae7900b3bb6bf70f3b5946af795e4cba647125834c6fd17d3f",
+      "version": "Debian clang version 21.1.8 (++20251221033036+2078da43e25a-1~exp1~20251221153213.50)"
+    },
+    "ld.lld": {
+      "path": "/var/lib/orb-node/work/caches/ledger-hub/dev-tools-rootfs/usr/lib/llvm-21/bin/ld.lld",
+      "sha256": "b7b003beb50e5bec675729cd6283ed308bc324b601e5fe79c1c97a664eb41f1e",
+      "version": "Debian LLD 21.1.8 (compatible with GNU linkers)"
+    },
+    "qemu-arm-static": {
+      "path": "/var/lib/orb-node/work/caches/ledger-hub/sysroot/usr/bin/qemu-arm-static",
+      "sha256": "47a63bcbdf3030cf42230a0521dae38ff9d62ba1268d5cafc7d8ccf7da7c761c",
+      "version": "qemu-arm version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)"
+    }
+  },
+  "source_snapshots_not_build_attestations": {
+    "lean-ledger-bitcoin": {
+      "head": "e3e815562d68a04c5d7ab56b06e408a8fd361e38",
+      "status": ""
+    },
+    "turbo-lean": {
+      "head": "8c3503fa0df74fafcd7a3b91e4319606985b7198",
+      "status": ""
+    },
+    "app-bitcoin": {
+      "head": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+      "status": ""
+    },
+    "vanadium": {
+      "head": "ace8e96982408959dea9e7fbc59ee36e8c54e645",
+      "status": "?? apps/bitcoin/client/speculos_stderr.log\n?? apps/bitcoin/client/speculos_stdout.log\n?? apps/bitcoin/client/vnd-test.log\n"
+    }
+  },
+  "kernel_ir_snapshots_not_build_attestations": {
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/host/liblean_ledger_bitcoin.ll": "4637df635b4d925181b02461105d782a830cffe9f2b541a992f30c59e748f529",
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/lto/liblean_ledger_bitcoin_host.ll": "7395358487ac1d6e87d0ee90a475133dd630715745694c0e01ec3e968c7cffed",
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/lto/liblean_ledger_bitcoin_thumbv6m.ll": "bea9e4fedc183a54d2b8b26546eb4be975dccc45f56ba2f9761d727beeca32df",
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/lto/liblean_ledger_bitcoin_thumbv8m.main.ll": "fa7b4625d019b326964d9a40b5f72877b02a9aeec6088d612cacdcb9acb72f87",
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/thumbv6m/liblean_ledger_bitcoin.ll": "95e7814b17288928d85510b4424ae9c75496b04f8a2b547564652db11906c4c3",
+    "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/ffi/bolos/build/thumbv8m.main/liblean_ledger_bitcoin.ll": "fe32f6fd103b52983398948f395cc490c3205fa0196d42de0fa3079c765d471b"
+  },
+  "build_evidence": {
+    "vm_work_dir": "/var/lib/orb-node/work/b1",
+    "lean_ledger_bitcoin": {
+      "head": "e3e815562d68a04c5d7ab56b06e408a8fd361e38",
+      "expected": "e3e815562d68a04c5d7ab56b06e408a8fd361e38",
+      "status_after_kernel_build": "",
+      "kernel_source_sha256": "16587abcdec54fa448b4bb31707a6a3ed733858711c09199320a85c9ae276b47",
+      "bolos_patch_sha256": "d88e07a1f8ec8600156e9aa00cc6c681e88c9296b16349dd2724807dae9a0541"
+    },
+    "turbo_lean": {
+      "head": "8c3503fa0df74fafcd7a3b91e4319606985b7198",
+      "status": "",
+      "lean_native_sha256": "18915339e45afb6b05c38e2972947061fe36efbfd5063274f674d1577a91a797"
+    },
+    "reference_tree": {
+      "path": "/var/lib/orb-node/work/b1/src/app-bitcoin",
+      "head": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+      "expected": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+      "tree": "b302ce52f1ea5262bdcd19c54551384b3a6b8e3b",
+      "status": ""
+    },
+    "lean_tree": {
+      "path": "/var/lib/orb-node/work/b1/src/app-bitcoin-lean",
+      "head": "f010982d3050e02813cd7129bebd68cf2d1f2099",
+      "status": [
+        "M Makefile",
+        " M src/common/locktime.h",
+        " M src/common/merkle.c",
+        " M src/common/script.c",
+        " M src/common/segwit_addr.c",
+        " M src/common/sighash.h",
+        " M src/common/wallet.c",
+        " M src/handler/get_extended_pubkey.c",
+        " M src/handler/lib/policy.c",
+        " M src/handler/register_wallet.c",
+        " M src/handler/sign_message.c",
+        " M src/handler/sign_psbt/init_global_state.c",
+        " M src/handler/sign_psbt/musig_signing.c",
+        " M src/handler/sign_psbt/preprocess_inputs.c",
+        " M src/handler/sign_psbt/preprocess_outputs.c",
+        " M src/musig/musig.h",
+        " M src/swap/bip32_path.c",
+        " M src/ui/display.h",
+        " M src/ui/display_nbgl.c",
+        " M src/ui/display_utils.c",
+        " M unit-tests/CMakeLists.txt",
+        "?? src/lean_kernels/",
+        "?? unit-tests/test_lean_bolos_kernels.c"
+      ],
+      "kernel_bundle_sha256": {
+        "liblean_ledger_bitcoin.h": "824bd4f7242a0636af41235dc9ce5b15163d4365745a8b855a950c4eaaa1bf31",
+        "liblean_ledger_bitcoin_host.ll": "d9d6a356035e91d3f2d3b25eb71f6364c864f1794272c792ffbd011cf78b40c8",
+        "liblean_ledger_bitcoin_ilp32.h": "c448d41e59a78ad0e5605f7938b44e0e81141aa5574155bd396849c69ee0e321",
+        "liblean_ledger_bitcoin_lp64.h": "64a6d700499d966aef17da891c1f5ca68011c8ad9aa064c9f865173647884186",
+        "liblean_ledger_bitcoin_thumbv6m.ll": "87298e4d4f56e92811d6c0edd5f16406dc82184158fad72a2dcf2a09dc785b6c",
+        "liblean_ledger_bitcoin_thumbv8m.main.ll": "2289bb0bba810342b971a64a2a654241409b00418b77db02076d5d4159f97759"
+      }
+    },
+    "build_path_shared_by_both_trees": "/var/lib/orb-node/work/b1/slot/app-bitcoin",
+    "make": "BOLOS_SDK=<hub>/dev-tools-rootfs/opt/<sdk>-secure-sdk make -j8 COIN=<coin> DEBUG=0 [AUTOAPPROVE_FOR_PERF_TESTS=1 | LLB_KEEP_UPSTREAM_DEFINES=1]",
+    "compiler": "Debian clang version 21.1.8 (++20251221033036+2078da43e25a-1~exp1~20251221153213.50)",
+    "linker": "Debian LLD 21.1.8 (compatible with GNU linkers)",
+    "kernel_ir_fresh_vs_shipped": {
+      "thumbv6m": {
+        "fresh_sha256": "bea9e4fedc183a54d2b8b26546eb4be975dccc45f56ba2f9761d727beeca32df",
+        "shipped_in_patch_sha256": "87298e4d4f56e92811d6c0edd5f16406dc82184158fad72a2dcf2a09dc785b6c",
+        "line_count_equal": true,
+        "differing_line_indexes": [
+          0
+        ],
+        "only_module_id_line_differs": true
+      },
+      "thumbv8m.main": {
+        "fresh_sha256": "fa7b4625d019b326964d9a40b5f72877b02a9aeec6088d612cacdcb9acb72f87",
+        "shipped_in_patch_sha256": "2289bb0bba810342b971a64a2a654241409b00418b77db02076d5d4159f97759",
+        "line_count_equal": true,
+        "differing_line_indexes": [
+          0
+        ],
+        "only_module_id_line_differs": true
+      }
+    },
+    "artifacts": {
+      "ref": {
+        "nanosp-mainnet": {
+          "app.elf": "3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef",
+          "app.apdu": "754143f65b9ecd394c0ed85ba3f0e9eaf212d12a21fd6260f21af68fa97b1f44",
+          "app.map": "bc939add079292e2a8f82670fd8641b5a590279627348c2cda5f20e2528e3d5f",
+          "app.asm": "1f32bffca1a25b4c02acbbe27cba5a3c55ee0adeb32f834c0d7363321e0a9b01",
+          "rebuild_app_elf_sha256": "3bd5bef777ac66a32924d0ec6d80ca2064b043f97df75d83462b7c5b3038ccef",
+          "rebuild_identical": true
+        },
+        "nanosp-testnet": {
+          "app.elf": "6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66",
+          "app.apdu": "6bca80e1167c2ef887f0157ebdba48e16ce04aab802e12f0181b5ac2308ea7fc",
+          "app.map": "87a12bb5f93e397270bd884d8b8071b238d67dbc93d031bbbefdcfa8ba53c7bf",
+          "app.asm": "909fb79af56f41a5861bc2bb7fe577d060bc5e8d529996accb5a4529f8fa7a9f",
+          "rebuild_app_elf_sha256": "6a3c677e90ea859fdadbad206b9a7f4da27689a906ae24a0d7c13eacaa8d2d66",
+          "rebuild_identical": true
+        },
+        "nanosp-testnet-perf": {
+          "app.elf": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+          "app.apdu": "bd3dfae2d26f0d5c29ded7b229d137cf80dd0ce52ca860c87871774e3fccc858",
+          "app.map": "0f231aa989052115fe872540909d72e2dbe4752d5938466e5f81b45511a4aecb",
+          "app.asm": "f123008c7d0a8a25616d38b9ec55683becf6d44607b966f56a6cdbc5ecaa3751",
+          "rebuild_app_elf_sha256": "965298d6bf85e289402febb60902f5c9cd0d8fd27647130ef5520f9d4de0e2f3",
+          "rebuild_identical": true
+        },
+        "nanox-mainnet": {
+          "app.elf": "df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4",
+          "app.apdu": "76cedb5006dc7015889515f0ea5b35061079c049ec0676eb8a6f52b17c9744a8",
+          "app.map": "3b0af7b848cac0c707d9fe2c8d2d3d2964aea0b7e7a43d5884400c635d8d1466",
+          "app.asm": "a9216f4d0a1db366bbd7f3adfa8d5a6ffd6dd41526bd199b3426af9f397e0d0f",
+          "rebuild_app_elf_sha256": "df424be5ccd8332061e266f352e56f4aad2592789295bfbb531ebf0a7b90bfb4",
+          "rebuild_identical": true
+        },
+        "nanox-testnet": {
+          "app.elf": "f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a",
+          "app.apdu": "042b334663886ab8e2f53b4e89f4bd70a6d00543303ef47e07d774c81bcc5f43",
+          "app.map": "d8ec1472a64c95971ae801649d68d26ff22e9f119e0802f1e2dd9793b5938b59",
+          "app.asm": "8156916f328eceed9ab8f04e19138fbc4e6e3138e78b68fe438968f8a9faa652",
+          "rebuild_app_elf_sha256": "f52304a6ebf7ce5d3b842edd1a66799b8f2550816e0f0a4c5badf8996a992d3a",
+          "rebuild_identical": true
+        },
+        "nanox-testnet-perf": {
+          "app.elf": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+          "app.apdu": "5e0d7a9a3b2f74285a68dd911c39d590bef1a0426fb02ceb648200d8600d2a12",
+          "app.map": "9092b2913acc11e0e504f9ede32684b0c1644654a428caa0df4a112e04cd18f4",
+          "app.asm": "6cf61d2c971151408c8bf4d1a488292bd1ba58b76303289b5a4387a9c926bd41",
+          "rebuild_app_elf_sha256": "39d065f21a73a398e7dd50f3919e7756d22272869a75a47f4720b1dd8213dd90",
+          "rebuild_identical": true
+        }
+      },
+      "lean": {
+        "nanosp-mainnet": {
+          "app.elf": "fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56",
+          "app.apdu": "966fd32f901323ede877bc3de4b3b1da04fc2ef4f7b8a443549eab9666920765",
+          "app.map": "3d36fa8297fba9967627ad633b47ea51e4416bb1745369d8ca063f224e7457e3",
+          "app.asm": "96240eadc3d277701178ead835da9a265d308ef4c83d8debedce8b1b1f28448a",
+          "rebuild_app_elf_sha256": "fdbae5d93c8be067d6b9a13709a67e3e66891352ab7d5278581e49bdddf42d56",
+          "rebuild_identical": true
+        },
+        "nanosp-mainnet-sameflags": {
+          "app.elf": "4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46",
+          "app.apdu": "d5468d8dd7b560ce22ca66c1c21775c12b5ac77e3ac73ee7e8290e5c18be06b8",
+          "app.map": "d757100cb547b693a8b6294e608096f6f59af3deb0b657594eaa65dd5d41e820",
+          "app.asm": "37cf5d7842ea0e7b64f0b2eeeb676fde6bf228f7cb83eda6d12a920b80041ab5",
+          "rebuild_app_elf_sha256": "4544f28df1e1cf588c57a5a48494fe2c09e6652f9ece814e0c302baa63c8fd46",
+          "rebuild_identical": true
+        },
+        "nanosp-testnet": {
+          "app.elf": "f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b",
+          "app.apdu": "fbb5e7075d7909c6c8bb6f72975ebf9944601bcd96fad9667a3278dc4c3fbd70",
+          "app.map": "15c78791c1ff2a948efcb7abc4f9c872df6f594abab40dbf325f44382c864949",
+          "app.asm": "6da2d48291c058a474ca0d31431856bf283bf6c2d98baf6fa961316eeaa2de03",
+          "rebuild_app_elf_sha256": "f70adbac3c33d7b242e00b3b8e024da9b9408e3841de44321d8d59d57ac6858b",
+          "rebuild_identical": true
+        },
+        "nanosp-testnet-perf": {
+          "app.elf": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+          "app.apdu": "1bea53755791920df42d894d911c3de9cdb97bccdf3355cb3b9e47ac7e045bc3",
+          "app.map": "5b592824d0f9382de8ee327b3566e42f369782b7746bbf26a2faa02c98c70a28",
+          "app.asm": "4befa69404ed790e0dad750ff278182e76038078ca0bfd64d92180845dbeaf4e",
+          "rebuild_app_elf_sha256": "6d4758ca1de76879fa39259c3fd0d4fe3853b36a334b06a7899348fc308618ce",
+          "rebuild_identical": true
+        },
+        "nanox-mainnet": {
+          "app.elf": "6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b",
+          "app.apdu": "4a7cb0fca173a9b76bd4c37189e61a7557ea91fd8cafa18a1b2109b6b817336b",
+          "app.map": "12fdb437c3f2db7b7600b6619d0bd32559b571444e9b3b88eb0a84eafced55e2",
+          "app.asm": "fcfb62e5be063caa802f5fc3e47b0eb9e88a9f2b7cee599fbe5c952552e5fd63",
+          "rebuild_app_elf_sha256": "6331d52de899967e017fc8d541c562c83225733fa51e7941ea9138762dfac63b",
+          "rebuild_identical": true
+        },
+        "nanox-mainnet-sameflags": {
+          "app.elf": "b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32",
+          "app.apdu": "81c5c011b445814963768c0703ab6852417c202004c8fb7090fb89e459c4deb4",
+          "app.map": "6ff1813228291520ae1c6e9ad742bebe2860cdd5f186fcdd792db7e9e91f04c5",
+          "app.asm": "297e535c30492c69e13068dfae8d13a5bfce8f0b55c8c77fc29d51d2411142eb",
+          "rebuild_app_elf_sha256": "b035051bb174446d98c6daa23d6b5056711a353dfd8ecfa7bdf9ac438e02fc32",
+          "rebuild_identical": true
+        },
+        "nanox-testnet": {
+          "app.elf": "f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff",
+          "app.apdu": "9b1dd64a234b00e76be14a74b5cfea8208eb14a8c7a6c5a5b6e675dea4f54a6f",
+          "app.map": "a80de3c790a059fdbe44cd696482bd3899929c0eb26f76132bc7c13a46f90c4c",
+          "app.asm": "54c1f98228f57dc9c6f2bf6bc95273c888a46ce28f10b6067186c005040389cc",
+          "rebuild_app_elf_sha256": "f26377ce3fc1ac8fc4c1e45ceb3676aa2b1af9c1793271856d091153a10cc2ff",
+          "rebuild_identical": true
+        },
+        "nanox-testnet-perf": {
+          "app.elf": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+          "app.apdu": "695f98f6587b7f7de6626862548f3875bec2b783a37aaebac86bff0c82cc2c3b",
+          "app.map": "ad15d641a75f2d0398c9e9ae0c9bcf8cfb99f8677902990711cca0879eb6a9e1",
+          "app.asm": "6a75d8c9d5fe4da18af8bf001d1ba24ed0c216e55c9a42a04b8cf8825dd87be7",
+          "rebuild_app_elf_sha256": "73e3250e225c654a2d41bc90d6eaa748e40ef866363965bdbadaded80dd17f52",
+          "rebuild_identical": true
+        }
+      }
+    }
+  },
+  "defines": [
+    "AUTOAPPROVE_FOR_PERF_TESTS=1"
+  ],
+  "cpu_model": [
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor",
+    "model name\t: AMD Ryzen 9 9950X 16-Core Processor"
+  ],
+  "governors": {},
+  "pip_freeze": [
+    "aniso8601==10.0.1",
+    "annotated-types==0.8.0",
+    "asn1crypto==1.5.1",
+    "attrs==26.1.0",
+    "base58==2.1.1",
+    "bip32==5.0.0",
+    "bip_utils==2.12.3",
+    "bitarray==3.12.3",
+    "bleak==3.1.0",
+    "blinker==1.9.0",
+    "cbor2==6.2.1",
+    "certifi==2026.10.23",
+    "cffi==2.1.1",
+    "charset-normalizer==3.5.2",
+    "click==8.5.1",
+    "coincurve==20.0.0",
+    "construct==2.10.70",
+    "cryptography==50.0.2",
+    "dbus-fast==5.2.0",
+    "ecdsa==0.19.2",
+    "ECPy==1.2.5",
+    "ed25519-blake2b-fork==1.4.2",
+    "embit==0.7.0",
+    "Flask==2.3.3",
+    "flask-cors==6.0.5",
+    "Flask-RESTful==0.3.10",
+    "future==1.0.0",
+    "hidapi==0.15.0",
+    "idna==3.20",
+    "iniconfig==2.3.1",
+    "itsdangerous==2.2.0",
+    "Jinja2==3.1.6",
+    "jsonschema==4.26.0",
+    "jsonschema-specifications==2025.9.1",
+    "-e git+https://github.com/LedgerHQ/app-bitcoin.git@f010982d3050e02813cd7129bebd68cf2d1f2099#egg=ledger_bitcoin&subdirectory=bitcoin_client",
+    "ledgerblue==0.1.58",
+    "ledgercomm==1.2.1",
+    "ledgered==0.17.0",
+    "libusb1==3.4.0",
+    "MarkupSafe==3.0.4",
+    "mnemonic==0.21",
+    "ndeflib==0.3.3",
+    "nfcpy==1.0.4",
+    "packaging==26.3",
+    "pillow==12.3.0",
+    "pluggy==1.7.0",
+    "protobuf==5.29.6",
+    "py==1.11.0",
+    "py-sr25519-bindings==0.2.4",
+    "pycparser==3.12",
+    "pycryptodome==3.24.1",
+    "pycryptodomex==3.24.2",
+    "pydantic==2.14.3",
+    "pydantic_core==2.50.4",
+    "pyDes==2.0.1",
+    "pyelftools==0.33",
+    "pygame==2.6.1",
+    "PyGithub==2.10.0",
+    "Pygments==2.21.0",
+    "PyJWT==2.15.1",
+    "PyNaCl==1.6.2",
+    "PyQt6==6.12.0",
+    "PyQt6-Qt6==6.12.0",
+    "PyQt6_sip==13.13.0",
+    "pyserial==3.5",
+    "pytest==6.2.5",
+    "pytest-timeout==2.2.0",
+    "python-gnupg==0.5.7",
+    "python-u2flib-host==3.0.3",
+    "pytoniq-core-fork==0.1.48",
+    "pytz==2026.6",
+    "ragger==1.48.0",
+    "referencing==0.37.0",
+    "requests==2.34.2",
+    "rpds-py==2026.9.1",
+    "six==1.17.0",
+    "speculos==0.27.4",
+    "toml==0.10.2",
+    "tomli==2.5.0",
+    "typing-inspection==0.4.5",
+    "typing_extensions==4.16.0",
+    "urllib3==2.8.0",
+    "websocket-client==1.9.2",
+    "Werkzeug==3.1.9",
+    "x25519==0.0.2"
+  ],
+  "pip_freeze_limitation": null,
+  "installed_distributions": [
+    "ECPy==1.2.5",
+    "Flask-RESTful==0.3.10",
+    "Flask==2.3.3",
+    "Jinja2==3.1.6",
+    "MarkupSafe==3.0.4",
+    "PyGithub==2.10.0",
+    "PyJWT==2.15.1",
+    "PyNaCl==1.6.2",
+    "PyQt6-Qt6==6.12.0",
+    "PyQt6==6.12.0",
+    "PyQt6_sip==13.13.0",
+    "Pygments==2.21.0",
+    "Werkzeug==3.1.9",
+    "aniso8601==10.0.1",
+    "annotated-types==0.8.0",
+    "asn1crypto==1.5.1",
+    "attrs==26.1.0",
+    "base58==2.1.1",
+    "bip32==5.0.0",
+    "bip_utils==2.12.3",
+    "bitarray==3.12.3",
+    "bleak==3.1.0",
+    "blinker==1.9.0",
+    "cbor2==6.2.1",
+    "certifi==2026.10.23",
+    "cffi==2.1.1",
+    "charset-normalizer==3.5.2",
+    "click==8.5.1",
+    "coincurve==20.0.0",
+    "construct==2.10.70",
+    "cryptography==50.0.2",
+    "dbus-fast==5.2.0",
+    "ecdsa==0.19.2",
+    "ed25519-blake2b-fork==1.4.2",
+    "embit==0.7.0",
+    "flask-cors==6.0.5",
+    "future==1.0.0",
+    "hidapi==0.15.0",
+    "idna==3.20",
+    "iniconfig==2.3.1",
+    "itsdangerous==2.2.0",
+    "jsonschema-specifications==2025.9.1",
+    "jsonschema==4.26.0",
+    "ledger_bitcoin==0.4.2",
+    "ledgerblue==0.1.58",
+    "ledgercomm==1.2.1",
+    "ledgered==0.17.0",
+    "libusb1==3.4.0",
+    "mnemonic==0.21",
+    "ndeflib==0.3.3",
+    "nfcpy==1.0.4",
+    "packaging==26.3",
+    "pillow==12.3.0",
+    "pip==26.3",
+    "pluggy==1.7.0",
+    "protobuf==5.29.6",
+    "py-sr25519-bindings==0.2.4",
+    "py==1.11.0",
+    "pyDes==2.0.1",
+    "pycparser==3.12",
+    "pycryptodome==3.24.1",
+    "pycryptodomex==3.24.2",
+    "pydantic==2.14.3",
+    "pydantic_core==2.50.4",
+    "pyelftools==0.33",
+    "pygame==2.6.1",
+    "pyserial==3.5",
+    "pytest-timeout==2.2.0",
+    "pytest==6.2.5",
+    "python-gnupg==0.5.7",
+    "python-u2flib-host==3.0.3",
+    "pytoniq-core-fork==0.1.48",
+    "pytz==2026.6",
+    "ragger==1.48.0",
+    "referencing==0.37.0",
+    "requests==2.34.2",
+    "rpds-py==2026.9.1",
+    "six==1.17.0",
+    "speculos==0.27.4",
+    "toml==0.10.2",
+    "tomli==2.5.0",
+    "typing-inspection==0.4.5",
+    "typing_extensions==4.16.0",
+    "urllib3==2.8.0",
+    "websocket-client==1.9.2",
+    "x25519==0.0.2"
+  ],
+  "sampling_unit": "launch",
+  "stack_bytes": null,
+  "stack_limitation": "No stack attribution without ELF-hash-linked build evidence.",
+  "harness": {
+    "path": "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/benchmarks/t7_abba.py",
+    "sha256": "df826a158efea181585482f0449574eb491dcb9c77b3cd51250287b6d7c90529"
+  },
+  "workloads": {
+    "path": "/var/lib/orb-node/work/b1/src/lean-ledger-bitcoin/benchmarks/bolos_benchmark.sh",
+    "sha256": "a64e92d2277212ed3672b6a7a29763d64ddd9257c77cde04a0d0ea8f66e75b72"
+  },
+  "client_root": "/var/lib/orb-node/work/b1/src/app-bitcoin",
+  "client_python": {
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/__init__.py": "c6c838d15f0d244b66435a4f9d64587390aecab3b91de9561258b7467d9eb305",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/__init__.py": "2e6d9733458938136666c7dc3f16385566f4d9b374d51167a1e5aacac3ef66a3",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_base58.py": "592feb5cd585a1cab1c04aab332065edbc4fb608f6fba04e3eb047d248e90878",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/base.py": "7c0b75fa140abce6663fc879f811c69bc231099b962f968ed362ac1bfbe10461",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/base58.py": "9166fd6cec484bf1c14a4ca1dabc05a9cff1613a35598737945da0b5dec81d5f",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/bech32.py": "9ad80ea66ef64f7e2c8906175fdd5bc3ba19952fea6a356edd15cf693736ba3f",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/bip32.py": "584bbbd23c5e90791295ee688832510d0c1da82b932c5760472a2f6fb75cdaa2",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/compact.py": "558255ead2d0c05c8c2241de6906717cee946a31ee35a1c8d99d4a3e1bb50cd8",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/__init__.py": "4aa84fc0a3ed296e6dc2da33d5363444b1a5999883a0a8724caaf4acc16abe29",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/arguments.py": "fe63c13c243065d2aa2734b87ac9a62984855b55f073838128e4a3c14fa8efd1",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/base.py": "28f0a4f67943598e5cec7e108bb173c09dbc549828cfc4f5b448aaf5fbc9b8a1",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/checksum.py": "ce2f12172291964693395525bcff945ca2c13703e19343dc5a102765c75f8ef3",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/descriptor.py": "73ac3fc62ae4a69aabc3e158cf98be84d34bf0d60dfc472c880a6cad870cefb0",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/errors.py": "b168765207c4248fbe3abfca5c1117871f988452255b2d7d01db3fd73d84e589",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/miniscript.py": "89d241618d638a00c08f4a626d064967100fe273cce6a5f6b5fdd08e68f6e790",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/descriptor/taptree.py": "1a5dc80eedaaf07d3de85417e320de529cf9283aadc752f8b7d5874b38dea826",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/ec.py": "ae3b900f283fca5541d99816016c6514d37117d56135328bced688ba7f001973",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/hashes.py": "a0fbfa6dfd9c2db718a706e20b09bbf29d0ff120d8381f2db0477f8f169b9505",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/misc.py": "757a60036ad83147d7f169274835d666b423272d4f1ea4c8b0dc925329db6f89",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/networks.py": "d1ba1531c9bb5fb67e838b092a2f30153a8a3b135c61c4819ab20ea1339bd94b",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/script.py": "f35827d59a038ba9b0d11ab80697ae3f5913f6bf16d7c078b627180f5ef651e3",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/__init__.py": "23cccc8f03e645102b5d2722758ac955edda2a2b14b7d24eec17a28b71595c79",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/ctypes_secp256k1.py": "84649123015727ece98e5cc4712fda6039225ea1922b8040c0e062cc0545f898",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/key.py": "13a4ae1457eb97bad2de40030eccb8901ae542b575e279208ef8f4fd2bec27cd",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/py_ripemd160.py": "6f2b9dee7f1bdcb4374d104725f9a0ceb6af698614dd5da6333b73c8b25b6dd5",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/py_secp256k1.py": "8e8aa872354ad06b119d316179c43042a6776a193c1e5ef8c48bee4a81008e12",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_embit/util/secp256k1.py": "24030ea8e6a7606307288008f8eb9156e36e728bdd72c77b8b9b338f72dd9f97",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_script.py": "e805da6ba77774a04e6c7875f6ca4634ee6c618b965d7546d37c1156ed0bc9ba",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/_serialize.py": "040cdd3ca0ebf4fdff8784dbeb27d7a5772714fe829bd64aad5ad8bfc220a552",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/bip0327.py": "39fc63452a1ab3c0f6262d3fc3956f2657aa5b5260f8433f83c87304512d7694",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/__init__.py": "c66532426414107c998bd42995a5671235fa191a1d36d84f78689e5263a0773b",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/bitcoinTransaction.py": "53a7f02ab5b82995026f6951d6c55f5610300dbe3c86365d0a814a965e67ae71",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/bitcoinVarint.py": "be2fbf248a1ade9c4b984c336596e107ab2af7935e2aefa58ccd9b06934e0e2a",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/btchip.py": "d4a140a027f1685955a4919457019198ed8a2682f535db116f232ac614b7d5a0",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/btchipComm.py": "8409875ba119faec9982288caf57a12a2ad83b3a6fc9e38d82eb5e46ab64af02",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/btchipException.py": "4b7826c3ce10ba396346ee293bd63d425feea94747041ebc8ca1faeea08e59d8",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/btchipHelpers.py": "c085af543c5b0117f969415e103fb6895335dd2113e098a54460872c40d10c16",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/btchipUtils.py": "e871f1a9e4c9f78aa368cdbcf6b23b072b49536bf829d1c3870a72081d6c7e8c",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/btchip/ledgerWrapper.py": "d9b17848d62d699114562545e2e4de7a734f8a03951eb4bf7cf1c44801795001",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/client.py": "0408ac1f4ec54972967d095df6b24187de5f163defda46b2e458061aed6e69ca",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/client_base.py": "2eaaf333f0bac24b690a10b889301d29d4d447365585adeda171eb6fa7979355",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/client_command.py": "da3978d4e483588d62780614940a7b995480447ea49beb302708f1b81e44f627",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/client_legacy.py": "3e832ae9d58708b22847be24b949b271bed2de5b1dc5a386bd61461235557b46",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/command_builder.py": "910aaee4206b5000e70b3266e8c0e4745c03a7b8884467461b672e11e9c18051",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/common.py": "1bb5e2079c8659f4702cd248d4878c984fdff7c24aeb5e022935eff2f3768ffd",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/errors.py": "1a68c2b272e8a3728baad6b88415ee719dbe1ab095f4a03ca510750f2dddbb75",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/exception/__init__.py": "3e6ff7c4e337aeee8feae8f33196c5c3f8b7cce4609e1d42ff09bf3624dd8ff0",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/exception/device_exception.py": "1d4b98a4768b08817fde4e513616b0cc4722078cb433546936f9b8ac2512ff6d",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/exception/errors.py": "734a056ed07a8fac7ff3267d938f5e086ba839a928b0dc0c313f72a1eed72a10",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/key.py": "b552739cdb2ead03c6049dc0cde21b2def02262c9521223f770452e41ef735cb",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/merkle.py": "dd67d4a98e374a8094f1af38f446cbf67707112bfac430c78513daf966637be0",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/psbt.py": "4db051b9a5780daf96ea112751912ee69275f7b078605cf7dff2289d256d6863",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/ripemd.py": "4b28cb31381be692f0b1a8bf2eed44b985d8a82b5a1f36da22a2fdabd2fbb9b6",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/segwit_addr.py": "197d2208bc7e4b95e44aac45c34782eb356518a2ccd646a17ba770210bf8e6d5",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/transport.py": "69c79202e4a7550998b3618d919a218dcedbf74b855e4937403d452c0f99f535",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/tx.py": "42ee8983aa15cee6aedb976453e49e6da2cc80bb9ebcef24dcaa3ee3cf4e89f9",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/ledger_bitcoin/wallet.py": "67721f7bd9f1d3530574812d078a4a83d84027f224cde6bab238d1d26df0d236",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/conftest.py": "5c3ef482447e9c013c6647b7f8076a5c3e0840ed974a23646003c611d8cbf2c2",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_client_legacy.py": "cdfbf6b70980431120330d0f88114e8103ee9a8bf14f808c28743054c362047a",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_get_extended_pubkey_legacyapp.py": "3b2c378a3952d1ca60f99e86d159956fbd0071bd6ac6acac3f349b45600b426b",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_get_master_fingerprint_legacyapp.py": "bdc885c74512fdac1eaf42037f66092d875ed630e70fdcb28cedb006251ebe4a",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_get_wallet_address_legacyapp.py": "c87e4d6fefd4fce85a3ec881198baad4b57a402e9d8ffe97cca671887d2c1378",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_parse_stream_to_map.py": "d6e5fe55f6c8e2a9414b2228a7cc43ac832d184d8c3f307fd81685a86e09f939",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_psbt_generic_signed_message.py": "43bf2438ba5c09b2d5996363622ced233071552c64d8566c46431228d53d7b3a",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_psbt_musig2_session_id.py": "b38ac289e82c71e46a9ea2f973a6c0f1354f739e685cd9baf4ae4a419618e0f2",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_psbt_v0_v2_only_fields.py": "e658578e236b222853bfe449d768150615949000fe6d1bba9a1eefa067091069",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_ripemd160.py": "95462615f619bb5f9e8a601c96f3be8564f4ce150c4591b75b62d675dfd77285",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_sign_message_legacyapp.py": "7b4e62233f6a792b6c01ab9a7b300cc9433ff6923d588761898965c9e90a80a0",
+    "/var/lib/orb-node/work/b1/src/app-bitcoin/bitcoin_client/tests/test_sign_psbt_legacyapp.py": "bbbc0ea6d38fa4eec7ed22266899c0e73accf8117ae8f295c6a473d1c2fe9a6a"
+  },
+  "test_utils": {
+    "path": "/var/lib/orb-node/work/b1/src/app-bitcoin/test_utils/__init__.py",
+    "sha256": "3689920322dee2f0df1b66e68d2c40b7e3bfa7b73e71397af7c5c46983425f45"
+  },
+  "txmaker": {
+    "path": "/var/lib/orb-node/work/b1/src/app-bitcoin/test_utils/txmaker.py",
+    "sha256": "9f14bafd650d20a84397b6ff556b28dbb6000ed300633f3c299df6a2c044cc3a"
+  },
+  "speculos_version": "0.27.4",
+  "python": {
+    "path": "/var/lib/orb-node/work/caches/ledger-hub/venv-bolos/bin/python3",
+    "sha256": "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118"
+  },
+  "limitations": [
+    "Build profile is operator-declared, not independently reconstructed.",
+    "Shared-host timing is experimental; no zero-regression claim.",
+    "Wall time only; no executed-instruction, heap or stack inference.",
+    "Port probe releases the socket before launch; a bind race remains possible.",
+    "Before/after process snapshots cannot exclude transient mid-launch contention."
+  ],
+  "runtime_api_observed": false
+}
