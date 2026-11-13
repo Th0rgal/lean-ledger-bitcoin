@@ -1180,11 +1180,11 @@ def llbFormatSatsAscii (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt
     let hiLen := selU32 hiZero 0 (decLenU32 qHi)
     let loLen := selU32 hiZero (decLenU32 qLo) 8
     let intLen := hiLen + loLen
-    let pad := decide (padFrac8 ≠ 0)
-    let showFrac := bor pad (decide (frac ≠ 0))
+    let pad := bnot (decide (padFrac8 = 0))
+    let showFrac := bor pad (bnot (decide (frac = 0)))
     let fracLen := selU32 pad 8 (fracSigLen frac)
     let dotLen : UInt32 := showFrac.toUInt32
-    let hasTicker := decide (tickerLen ≠ 0)
+    let hasTicker := bnot (decide (tickerLen = 0))
     let spaceLen : UInt32 := hasTicker.toUInt32
     let total := intLen + dotLen + fracLen + spaceLen + tickerLen
     if decide (outCap ≤ total) then 0

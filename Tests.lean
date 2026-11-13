@@ -4,6 +4,7 @@ import BitcoinLedger
 import Tests.AxiomAudit
 import Tests.BolosDifferential
 import Tests.VanadiumDifferential
+import Tests.T7FormatSatsEquivalence
 
 namespace Tests
 
