@@ -219,7 +219,7 @@ index 0406925..d67abf4 100644
  }
 \ No newline at end of file
 diff --git a/src/common/sighash.h b/src/common/sighash.h
-index 4a7abc7..498f76e 100644
+index 4a7abc7..d6e727e 100644
 --- a/src/common/sighash.h
 +++ b/src/common/sighash.h
 @@ -5,6 +5,7 @@
@@ -230,7 +230,7 @@ index 4a7abc7..498f76e 100644
  
  /**
   * Classification result for a sighash type.
-@@ -36,17 +37,17 @@ typedef enum {
+@@ -36,17 +37,16 @@ typedef enum {
   * @return                The classification of the sighash type
   */
  static inline sighash_class_t classify_sighash(uint32_t sighash_type, int segwit_version) {
@@ -241,8 +241,7 @@ index 4a7abc7..498f76e 100644
      // SIGHASH_DEFAULT is only valid for Taproot (segwit v1+)
 -    if (((segwit_version > 0) && (sighash_type == SIGHASH_DEFAULT)) ||
 -        (sighash_type == SIGHASH_ALL)) {
-+    if (((segwit_version > 0) && (sh == SIGHASH_DEFAULT) && llb_taproot_sighash_valid(sh)) ||
-+        (sh == SIGHASH_ALL)) {
++    if (((segwit_version > 0) && (sh == SIGHASH_DEFAULT)) || (sh == SIGHASH_ALL)) {
          return SIGHASH_CLASS_SAFE;
      }
  
