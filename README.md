@@ -1,28 +1,56 @@
-# `lean-ledger-bitcoin`
+# lean-ledger-bitcoin
 
-Formally verified Ledger Bitcoin hardware wallet application in **pure Lean 4** (`leanprover/lean4:v4.35.0`), targeting both:
-- **Ledger BOLOS** (`LedgerHQ/app-bitcoin` `f010982` parity — 32-bit ARM `thumbv6m-none-eabi` Nano X & `thumbv8m.main-none-eabi` Nano S+ on Speculos)
-- **Ledger Vanadium** (`LedgerHQ/vanadium` `ace8e969` `apps/bitcoin` V-App parity — 32-bit RISC-V `riscv32imac-unknown-none-elf` on Speculos Ledger Flex)
+A small Lean 4 kernel that is compiled into Ledger's two Bitcoin apps and replaces some of
+their security checks:
 
-Compiled to freestanding 32-bit native code without `libleanrt.a` or dynamic heap allocation via [`Th0rgal/turbo-lean`](https://github.com/Th0rgal/turbo-lean).
+- the C app on BOLOS (`LedgerHQ/app-bitcoin@f010982d`, Nano S+ and Nano X, ARM Thumb);
+- the Rust app on Vanadium (`LedgerHQ/vanadium@ace8e969`, Flex, RV32IMAC).
 
-## Architecture & Formal Verification (`0 sorryAx`, `0 Classical.choice`)
+The apps stay C and Rust. Parsing, cryptography, display and transport are not Lean.
 
-1. **Minimal User-Facing Specification (`Spec/`, `801` LOC across 4 files)**:
-   - [`Spec.lean`](Spec.lean) (`147` LOC): Top-level end-to-end PSBT execution contract (`Spec.validEndToEndPsbtExecution`, `Spec.master_psbt_execution_security`) and non-vacuity witnesses.
-   - [`Spec/KeyPolicy.lean`](Spec/KeyPolicy.lean) (`250` LOC): BIP-32 path isolation, extended-pubkey silent-export policy, and BIP-388 wallet policy authorization.
-   - [`Spec/TransactionSafety.lean`](Spec/TransactionSafety.lean) (`232` LOC): `MAX_SATOSHIS` (`21,000,000 BTC`) conservation, dual-UTXO CVE-2020-14199 anti-spoofing, BIP-370 locktime consistency, and Ledger Swap lockdown.
-   - [`Spec/SessionSecurity.lean`](Spec/SessionSecurity.lean) (`172` LOC): Multi-step APDU/V-App session atomicity, universal user-consent gate, BIP-327 MuSig2 nonce anti-replay, and BIP-375 Silent Payment output verification.
-   - Design rationale: [`docs/spec-cards/001-minimal-user-facing-spec.md`](docs/spec-cards/001-minimal-user-facing-spec.md).
-2. **Protocol Mechanization (`InternalSpec/`, `20,435` LOC across 10 modules)**:
-   - Complete wire-format and consensus mechanization of BIP-32/39, BIP-143/340/341/342, BIP-174/370 PSBTv0/v2, BIP-379/388 Wallet Policies & Miniscript, BIP-327 MuSig2, BIP-352/374/375/392 Silent Payments, Merkleized host-memory protocol, and Ledger BOLOS/Vanadium state machines.
-3. **Executable Implementation & Freestanding Kernels (`BitcoinLedger/`, `Proofs/`)**:
-   - Constructive refinement proofs in [`Proofs/UserSpecRefinement.lean`](Proofs/UserSpecRefinement.lean) (`973` LOC) and [`Proofs/FreestandingKernels.lean`](Proofs/FreestandingKernels.lean) (`1,466` LOC) audited by [`Tests/AxiomAudit.lean`](Tests/AxiomAudit.lean) (`253` `Spec.*`, `6,564` `InternalSpec.*`, `937` `Proofs.*` declarations depending exclusively on `{propext, Quot.sound}`).
+## What to read
 
-## Benchmarks vs Unmodified Upstream Ledger Apps
+| File | What it is |
+| --- | --- |
+| [`Spec.lean`](Spec.lean) | What the compiled kernel guarantees: 12 statements, each "accepts exactly when" or an equality, written with natural numbers. Statements only. |
+| [`BitcoinLedger/FreestandingKernels.lean`](BitcoinLedger/FreestandingKernels.lean) | The kernel: the only Lean code that runs on the device. 45 exported functions, no imports. |
+| [`Proofs/KernelSpec.lean`](Proofs/KernelSpec.lean) | The proof of every statement of `Spec.lean` (`kernel_meets_spec`), with one accepted and one rejected input for each. |
+| [`scripts/check_kernel_spec.py`](scripts/check_kernel_spec.py) | Which exports have a statement, which do not and why, and which are called by neither app. |
 
-- **BOLOS (`LedgerHQ/app-bitcoin` `f010982`)**: [`docs/benchmarks/bolos-vs-reference.md`](docs/benchmarks/bolos-vs-reference.md) (`benchmarks/bolos_benchmark.sh`, `ffi/bolos/patches/app-bitcoin-lean-opt.patch`) — strictly smaller flash (`-1,536 B` Nano S+, `-1,280 B` Nano X; `-1,024 B` / `-512 B` even under identical upstream `DEFINES`), lower `.bss` static RAM (`-144 B`), zero recursion (`qsort` & `__aeabi_uldivmod` eliminated), `-635` / `-510` fewer ARM Thumb instructions, `1.641x` faster hotspot cycles (`6.566x` satoshi formatting), and faster Speculos APDU latencies.
-- **Vanadium (`LedgerHQ/vanadium` `ace8e969`)**: [`docs/benchmarks/vanadium-vs-reference.md`](docs/benchmarks/vanadium-vs-reference.md) (`benchmarks/vanadium_benchmark.sh`, `ffi/vanadium/patches/vanadium-bitcoin-lean-opt.patch`) — strictly smaller RV32IMAC `LOAD R E` flash (`-61,658 B` / `-20.15%`, crossing below `1,024` Merkle pages from depth `11` to `10`), `-49.77%` `LOAD RW` RAM, `-50.00%` stack, `39.91x` faster host hot-path kernels, `-22.52%` / `-25.12%` faster Speculos Flex E2E latency, and all 9 formal security fixes (`VND-BUG-001..009`).
-- **Live Speculos Simulator Screenshots**: [`docs/screenshots/`](docs/screenshots/) (`bolos-{dashboard,address,register-policy,sign-psbt}.png` on Nano S+ `128x64` + `vanadium-flex-{home,register,sign-tx}.png` on Ledger Flex `480x600`).
+`Spec.lean` currently covers 17 of the 45 exports. The other 28 are listed in
+`scripts/check_kernel_spec.py` with the reason. The main gaps:
 
-See [`plan.md`](plan.md) and [`WORKER.md`](WORKER.md) for architecture, specification rules, and verification gates.
+- **No memory model.** Functions that read or write a buffer (the Miniscript checker, both
+  sorts, the amount formatter, the dual-UTXO check, the CompactSize reader) have no
+  statement: in Lean their reads are placeholders and their writes are discarded, and
+  `turbo-lean` substitutes real loads and stores when compiling.
+- **Statements still phrased against the app model.** The locktime state machine, the
+  Merkle direction stepper and a few classifiers are proved equal to definitions in
+  `InternalSpec/` (see `Proofs/FreestandingKernels.lean`) and have not been restated here.
+- **Trusted, not proved:** `turbo-lean`'s extraction to LLVM IR, clang and lld, and the C
+  and Rust call sites. They are checked by differential tests only.
+
+## What is not part of the claim
+
+`InternalSpec/`, the other `BitcoinLedger/*` modules and the other `Proofs/*` files are a
+host-side Lean model of the two apps (state machine, PSBT validation, wallet policies) with
+its own theorems. It is used as a test oracle (`Tests/BolosDifferential.lean`,
+`Tests/VanadiumDifferential.lean`) and as the source of the reference definitions used in
+`Proofs/FreestandingKernels.lean`. It does not run on the device, and its theorems say
+nothing about the C and Rust code.
+
+## Checks
+
+```bash
+python3 scripts/check_kernel_spec.py   # coverage gate
+lake build Proofs                      # all proofs
+lake build Tests.AxiomAudit            # only propext and Quot.sound are allowed
+```
+
+## Integration and measurements
+
+- Patches: [`ffi/bolos/patches/`](ffi/bolos/patches/) and [`ffi/vanadium/patches/`](ffi/vanadium/patches/).
+  The BOLOS patch embeds the generated LLVM IR; about 1,150 of its lines are hand-written.
+- Kernel build: [`scripts/build-freestanding.sh`](scripts/build-freestanding.sh) (needs `turbo-lean`'s `lean-native` and clang).
+- Measurements: the JSON files in [`benchmarks/`](benchmarks/). Files named `*.experimental.json` are marked `experimental_nonvalidated`.
+- Upstream findings: [`docs/spec-cards/vanadium-upstream-bugs.md`](docs/spec-cards/vanadium-upstream-bugs.md).

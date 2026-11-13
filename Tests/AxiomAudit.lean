@@ -5,35 +5,37 @@ import Lean
 
 open Lean
 
+/-!
+Axiom audit. Fails the build if any declaration of the compiled kernel, of `Spec`, of
+`Proofs` or of `InternalSpec` depends on an axiom other than `propext` and `Quot.sound`
+(so no `sorryAx`, no `Classical.choice`, no `ofReduceBool`), and prints the axioms of the
+headline theorem `Proofs.KernelSpec.kernel_meets_spec`.
+-/
+
 #eval show CoreM Unit from do
   let env ← getEnv
-  let mut specCount := 0
-  let mut specThmCount := 0
-  let mut internalSpecCount := 0
-  let mut internalSpecThmCount := 0
-  let mut proofCount := 0
-  let mut proofThmCount := 0
+  let prefixes := ["BitcoinLedger.FreestandingKernels.", "Spec.", "Proofs.", "InternalSpec."]
+  let mut counts : Std.HashMap String (Nat × Nat) := {}
   let mut bad : List (Name × List Name) := []
   for (n, ci) in env.constants.map₁.toList do
     let s := n.toString
-    if (s.startsWith "Spec." || s.startsWith "InternalSpec." || s.startsWith "Proofs.") && !n.isInternal then
-      if s.startsWith "Spec." then
-        specCount := specCount + 1
-        if ci matches .thmInfo _ then specThmCount := specThmCount + 1
-      else if s.startsWith "InternalSpec." then
-        internalSpecCount := internalSpecCount + 1
-        if ci matches .thmInfo _ then internalSpecThmCount := internalSpecThmCount + 1
-      else
-        proofCount := proofCount + 1
-        if ci matches .thmInfo _ then proofThmCount := proofThmCount + 1
+    if n.isInternal then continue
+    match prefixes.find? (fun p => s.startsWith p) with
+    | none => pure ()
+    | some p =>
+      let (decls, thms) := counts.getD p (0, 0)
+      counts := counts.insert p (decls + 1, if ci matches .thmInfo _ then thms + 1 else thms)
       let axs ← collectAxioms n
-      let disallowed := axs.toList.filter fun ax =>
-        ax != ``propext && ax != ``Quot.sound
+      let disallowed := axs.toList.filter fun ax => ax != ``propext && ax != ``Quot.sound
       if !disallowed.isEmpty then
         bad := (n, disallowed) :: bad
-  IO.println s!"Audited {specCount} Spec.* ({specThmCount} thms), {internalSpecCount} InternalSpec.* ({internalSpecThmCount} thms), and {proofCount} Proofs.* ({proofThmCount} thms) declarations."
+  for p in prefixes do
+    let (decls, thms) := counts.getD p (0, 0)
+    IO.println s!"Audited {p}* : {decls} declarations, {thms} theorems"
+  let headline ← collectAxioms ``Proofs.KernelSpec.kernel_meets_spec
+  IO.println s!"Proofs.KernelSpec.kernel_meets_spec depends on axioms: {headline.toList}"
   if bad.isEmpty then
-    IO.println "PASS: 0 sorryAx, 0 ofReduceBool, 0 trustCompiler, 0 Classical.choice across all Spec.*, InternalSpec.*, and Proofs.* declarations!"
+    IO.println "PASS: 0 sorryAx, 0 ofReduceBool, 0 trustCompiler, 0 Classical.choice across the kernel, Spec.*, Proofs.* and InternalSpec.*"
   else
     for (n, axs) in bad do
       IO.println s!"FAIL: {n} uses disallowed axioms {axs}"
