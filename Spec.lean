@@ -1,147 +1,134 @@
-/-
-  Spec.lean — Minimal, Human-Auditable Top-Level Formal Specification of the Ledger Bitcoin App
+import BitcoinLedger.FreestandingKernels
 
-  A reviewer auditing the security contract of `lean-ledger-bitcoin` only needs to read `Spec.lean`
-  and its three orthogonal, non-overlapping domain modules (~450 LOC total):
-    1. `Spec.KeyPolicy`         — BIP-32 path depth bounds, silent xpub export whitelists, Wallet Policy
-                                  Proof-of-Registration & internal-key ownership, and receive/change separation.
-    2. `Spec.TransactionSafety` — Overflow-free satoshi value conservation (`≤ 21,000,000 BTC`), verified
-                                  change elision, BIP-322 / `SIGN_MESSAGE` isolation, and Swap exact-match locks.
-    3. `Spec.SessionSecurity`   — Universal UI user-consent gating before secret-derived emission, read-only
-                                  purity & atomic error rollback, MuSig2 single-use nonce anti-replay, and
-                                  Silent Payment (BIP-352/375) explicit `SIGHASH_ALL` & non-NUMS input rules.
+/-!
+# Spec — what the compiled kernel guarantees
 
-  All wire-level framing (BOLOS Merkleized APDUs, Vanadium CBOR, Base58Check, Bech32/Bech32m,
-  BIP-379 Miniscript ASTs, BIP-143/341/342 sighash serialization, BIP-327 KeyAgg, BIP-374 DLEQ)
-  resides in `InternalSpec/` and is machine-proved in `Proofs/UserSpecRefinement.lean` (together
-  with `BitcoinLedger/`) to refine this top-level `Spec` with `0 sorryAx` and `0 Classical.choice`.
+Every statement below is about a function of `BitcoinLedger.FreestandingKernels`, the
+module that `turbo-lean` compiles into the BOLOS and Vanadium apps. Nothing here refers
+to a model of the apps.
+
+Rules for this file:
+
+* statements only, written with natural numbers, so they can be read without knowing
+  the implementation;
+* each statement is an "accepts exactly when" or an equality, so an implementation that
+  always rejects (or always accepts) does not satisfy it;
+* each statement is proved in `Proofs/KernelSpec.lean`, next to one accepted and one
+  rejected concrete input.
+
+Exported functions that have no statement here yet are listed, with the reason, in
+`scripts/check_kernel_spec.py`.
 -/
-
-import Spec.KeyPolicy
-import Spec.TransactionSafety
-import Spec.SessionSecurity
 
 namespace Spec
 
-/-- Semantic version of the Ledger Bitcoin target specification. -/
-structure AppVersion where
-  major : UInt8
-  minor : UInt8
-  patch : UInt8
-  deriving Repr, DecidableEq, Inhabited
+open BitcoinLedger.FreestandingKernels
 
-/-- Pinned Ledger Bitcoin target specification version (`2.4.1`). -/
-def ledgerBitcoinTargetVersion : AppVersion :=
-  { major := 2, minor := 4, patch := 1 }
+/-- 21 million BTC, in satoshis. -/
+def maxMoney : Nat := 21000000 * 100000000
 
-/-- Top-level end-to-end transaction signing contract combining all three orthogonal specification domains:
-    A `SIGN_PSBT` execution on `platform` is user-spec-valid iff:
-    1. **Key & Policy Domain (`Spec.KeyPolicy`)**: The wallet policy is well-formed, owns at least one
-       device key, separates receive/change branches, and has valid Proof-of-Registration (or BOLOS default status),
-    2. **Transaction Accounting Domain (`Spec.TransactionSafety`)**: Input/output satoshi sums are `≤ 21M BTC`
-       without overflow, `inputs = externalRecipients + verifiedChange + fee` (unless BOLOS open sighash),
-       and if Swap mode is active, `satisfiesSwapContract` holds,
-    3. **Session, Consent, MuSig2 & Silent Payments Domain (`Spec.SessionSecurity`)**: Secret-derived outputs
-       are gated by explicit UI user approval (or Swap exact match), Silent Payment outputs enforce explicit
-       `SIGHASH_ALL` and eligible non-NUMS inputs, and session state transitions obey `respectsSessionAtomicity`. -/
-def validEndToEndPsbtExecution
-    (platform : Platform)
-    (policy : PolicySummary)
-    (hasPor validPorHmac porIsAllZeros : Bool)
-    (allowOpenSighashUnderflow hasInternalInput utxosConsistent : Bool)
-    (inputAmounts : List UInt64)
-    (outputs : List ReviewedOutput)
-    (reportedFee : Option UInt64)
-    (swapContractOpt : Option SwapContract)
-    (isBip322 hasExternalInputs : Bool)
-    (hasSpOutputs outputsModifiable hasEligibleNonNumsInput hasSegwitV2OrHigher allInputsExplicitSighashAll : Bool)
-    (swapAborted userApprovedOnScreen emitsSecretDerivedMaterial : Bool) : Bool :=
-  let inSwapMode := swapContractOpt.isSome
-  let validSwapMatch :=
-    match swapContractOpt with
-    | none => false
-    | some lock => satisfiesSwapContract lock isBip322 hasExternalInputs outputs reportedFee
-  canUseWalletPolicy platform inSwapMode policy hasPor validPorHmac porIsAllZeros &&
-  validTransactionAccounting allowOpenSighashUnderflow hasInternalInput utxosConsistent
-    inputAmounts outputs reportedFee &&
-  (match swapContractOpt with | none => true | some _ => validSwapMatch) &&
-  validSilentPaymentPsbtGate hasSpOutputs outputsModifiable hasEligibleNonNumsInput
-    hasSegwitV2OrHigher allInputsExplicitSighashAll &&
-  authorizedSecretEmission .signPsbtSigning inSwapMode swapAborted validSwapMatch
-    userApprovedOnScreen emitsSecretDerivedMaterial
+/-! ## Amounts -/
 
-/-- **Master User-Facing Security Theorem**:
-    Every `validEndToEndPsbtExecution` that emits secret-derived signing material (`emitsSecretDerivedMaterial = true`)
-    under closed sighashes (`allowOpenSighashUnderflow = false`) simultaneously guarantees:
-    1. Device internal-key ownership & receive/change non-collision (`0 < policy.nInternalKeys`),
-    2. Overflow-free satoshi conservation (`exactSatoshiSum inputAmounts = externalRecipientSum outputs + verifiedChangeSum outputs + fee`),
-    3. Explicit user UI approval OR an active, un-aborted Exchange `SwapContract` pinning the exact recipient, amount, and fee,
-    4. Silent Payment explicit `SIGHASH_ALL` & eligible-input enforcement whenever `hasSpOutputs = true`. -/
-theorem master_psbt_execution_security
-    (platform : Platform)
-    (policy : PolicySummary)
-    (hasPor validPorHmac porIsAllZeros : Bool)
-    (hasInternalInput utxosConsistent : Bool)
-    (inputAmounts : List UInt64)
-    (outputs : List ReviewedOutput)
-    (reportedFee : Option UInt64)
-    (swapContractOpt : Option SwapContract)
-    (isBip322 hasExternalInputs : Bool)
-    (hasSpOutputs outputsModifiable hasEligibleNonNumsInput hasSegwitV2OrHigher allInputsExplicitSighashAll : Bool)
-    (swapAborted userApprovedOnScreen : Bool)
-    (hExec : validEndToEndPsbtExecution platform policy hasPor validPorHmac porIsAllZeros
-               false hasInternalInput utxosConsistent inputAmounts outputs reportedFee
-               swapContractOpt isBip322 hasExternalInputs
-               hasSpOutputs outputsModifiable hasEligibleNonNumsInput hasSegwitV2OrHigher allInputsExplicitSighashAll
-               swapAborted userApprovedOnScreen true = true) :
-    0 < policy.nInternalKeys ∧
-    (∀ idxRx idxChg : UInt32,
-      (policy.receiveBranchStep, idxRx) ≠ (policy.changeBranchStep, idxChg)) ∧
-    (∃ fee : UInt64,
-      reportedFee = some fee ∧
-      exactSatoshiSum inputAmounts ≤ MAX_SATOSHIS ∧
-      exactSatoshiSum inputAmounts =
-        externalRecipientSum outputs + verifiedChangeSum outputs + fee.toNat) ∧
-    (userApprovedOnScreen = true ∨
-      ∃ lock : SwapContract,
-        swapContractOpt = some lock ∧
-        swapAborted = false ∧
-        satisfiesSwapContract lock isBip322 hasExternalInputs outputs reportedFee = true) ∧
-    (hasSpOutputs = true →
-      outputsModifiable = false ∧
-      hasEligibleNonNumsInput = true ∧
-      hasSegwitV2OrHigher = false ∧
-      allInputsExplicitSighashAll = true) := by
-  unfold validEndToEndPsbtExecution at hExec
-  dsimp only at hExec
-  simp only [Bool.and_eq_true] at hExec
-  rcases hExec with ⟨⟨⟨⟨hPol, hTx⟩, _hSwapGate⟩, hSp⟩, hConsent⟩
-  have hOwn := fun rx chg =>
-    authorized_policy_owns_key_and_separates_change platform swapContractOpt.isSome policy
-      hasPor validPorHmac porIsAllZeros rx chg hPol
-  have hNInt : 0 < policy.nInternalKeys := (hOwn 0 0).1
-  have hNoColl : ∀ rx chg : UInt32, (policy.receiveBranchStep, rx) ≠ (policy.changeBranchStep, chg) :=
-    fun rx chg => (hOwn rx chg).2
-  have hCons := closed_tx_conserves_satoshis hasInternalInput utxosConsistent inputAmounts outputs reportedFee hTx
-  have hUiOrSwap :
-      userApprovedOnScreen = true ∨
-        ∃ lock : SwapContract,
-          swapContractOpt = some lock ∧
-          swapAborted = false ∧
-          satisfiesSwapContract lock isBip322 hasExternalInputs outputs reportedFee = true := by
-    cases userApprovedOnScreen with
-    | true => exact Or.inl rfl
-    | false =>
-      have ⟨_, hLockSome, hNotAborted, hMatch⟩ :=
-        secret_emission_requires_consent_or_valid_swap .signPsbtSigning swapContractOpt.isSome swapAborted _ hConsent
-      cases swapContractOpt with
-      | none => simp at hLockSome
-      | some lock =>
-        exact Or.inr ⟨lock, rfl, hNotAborted, hMatch⟩
-  refine ⟨hNInt, hNoColl, hCons, hUiOrSwap, ?_⟩
-  intro hHasSp
-  subst hHasSp
-  exact silent_payment_enforces_sighash_all_and_eligible_input
-    outputsModifiable hasEligibleNonNumsInput hasSegwitV2OrHigher allInputsExplicitSighashAll hSp
+/-- An amount is accepted exactly when it is at most 21M BTC. -/
+def ValidAmount : Prop :=
+  ∀ a : UInt64, llbValidAmount a = true ↔ a.toNat ≤ maxMoney
+
+/-- A sum is accepted exactly when the true sum is at most 21M BTC, and then the
+    returned value is the true sum (no wrap-around). A rejected sum returns 0. -/
+def CheckedAdd : Prop :=
+  ∀ a b : UInt64,
+    (llbCheckedAddSatsOk a b = true ↔ a.toNat + b.toNat ≤ maxMoney) ∧
+    (llbCheckedAddSatsOk a b = true → (llbCheckedAddSatsVal a b).toNat = a.toNat + b.toNat) ∧
+    (llbCheckedAddSatsOk a b = false → llbCheckedAddSatsVal a b = 0)
+
+/-- A difference is accepted exactly when it does not go below zero and the minuend is
+    at most 21M BTC, and then the returned value is the true difference. A rejected
+    difference returns 0. -/
+def CheckedSub : Prop :=
+  ∀ a b : UInt64,
+    (llbCheckedSubSatsOk a b = true ↔ b.toNat ≤ a.toNat ∧ a.toNat ≤ maxMoney) ∧
+    (llbCheckedSubSatsOk a b = true → (llbCheckedSubSatsVal a b).toNat = a.toNat - b.toNat) ∧
+    (llbCheckedSubSatsOk a b = false → llbCheckedSubSatsVal a b = 0)
+
+/-- The division-free BTC / satoshi split is exact for every 64-bit amount. -/
+def SplitBtc : Prop :=
+  ∀ a : UInt64,
+    (llbSatsDiv1e8 a).toNat = a.toNat / 100000000 ∧
+    (llbSatsMod1e8 a).toNat = a.toNat % 100000000
+
+/-! ## BIP-32 path elements -/
+
+/-- A path element is hardened exactly when it is at least 2^31, and clearing the
+    hardened bit yields the index below 2^31. -/
+def HardenedBit : Prop :=
+  ∀ i : UInt32,
+    (llbBip32IsHardened i = true ↔ 2147483648 ≤ i.toNat) ∧
+    (llbBip32Unharden i).toNat = i.toNat % 2147483648
+
+/-- Path depth limits: at most 10 steps on BOLOS, at most 16 on Vanadium. -/
+def DepthLimits : Prop :=
+  ∀ d : UInt8,
+    (llbBip32BolosDepthOk d = true ↔ d.toNat ≤ 10) ∧
+    (llbBip32VanadiumDepthOk d = true ↔ d.toNat ≤ 16)
+
+/-! ## Script and signature-hash classification -/
+
+/-- BIP-141 / BIP-341 witness programs: version 0 needs a 20- or 32-byte program,
+    versions 1 to 16 need 2 to 40 bytes, anything else is rejected. -/
+def SegwitProgram : Prop :=
+  ∀ v len : UInt8,
+    llbSegwitProgramValid v len = true ↔
+      (v.toNat = 0 ∧ (len.toNat = 20 ∨ len.toNat = 32)) ∨
+      (1 ≤ v.toNat ∧ v.toNat ≤ 16 ∧ 2 ≤ len.toNat ∧ len.toNat ≤ 40)
+
+/-- A witness-version opcode decodes to its version: `OP_0` to 0, `OP_1`..`OP_16`
+    (0x51..0x60) to 1..16, anything else to the error value 255. -/
+def WitnessOpcode : Prop :=
+  ∀ op : UInt8,
+    (llbWitnessOpcodeToVersion op).toNat =
+      if op.toNat = 0 then 0
+      else if 81 ≤ op.toNat ∧ op.toNat ≤ 96 then op.toNat - 80
+      else 255
+
+/-- Legacy and SegWit v0 signature-hash types: exactly ALL, NONE, SINGLE (1, 2, 3),
+    each optionally with ANYONECANPAY (+128). -/
+def SighashType : Prop :=
+  ∀ s : UInt32,
+    llbSighashTypeValid s = true ↔
+      s.toNat ∈ [1, 2, 3, 129, 130, 131]
+
+/-- Taproot signature-hash types: the same six, plus DEFAULT (0). -/
+def TaprootSighashType : Prop :=
+  ∀ s : UInt8,
+    llbTaprootSighashValid s = true ↔
+      s.toNat ∈ [0, 1, 2, 3, 129, 130, 131]
+
+/-! ## CompactSize -/
+
+/-- A CompactSize prefix byte is accepted for a decoded value exactly when it is the
+    prefix of the shortest encoding of that value. -/
+def CompactSizeCanonical : Prop :=
+  ∀ (tag : UInt8) (v : UInt64),
+    llbVarIntPrefixIsCanonical tag v = true ↔
+      (v.toNat ≤ 252 ∧ tag.toNat = v.toNat) ∨
+      (253 ≤ v.toNat ∧ v.toNat ≤ 65535 ∧ tag.toNat = 253) ∨
+      (65536 ≤ v.toNat ∧ v.toNat ≤ 4294967295 ∧ tag.toNat = 254) ∨
+      (4294967296 ≤ v.toNat ∧ tag.toNat = 255)
+
+/-- The shortest CompactSize encoding of a value takes 1, 3, 5 or 9 bytes. -/
+def CompactSizeLength : Prop :=
+  ∀ v : UInt64,
+    (llbVarIntEncodedLen v).toNat =
+      if v.toNat ≤ 252 then 1
+      else if v.toNat ≤ 65535 then 3
+      else if v.toNat ≤ 4294967295 then 5
+      else 9
+
+/-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
+def KernelSpec : Prop :=
+  ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
+  HardenedBit ∧ DepthLimits ∧
+  SegwitProgram ∧ WitnessOpcode ∧ SighashType ∧ TaprootSighashType ∧
+  CompactSizeCanonical ∧ CompactSizeLength
 
 end Spec
