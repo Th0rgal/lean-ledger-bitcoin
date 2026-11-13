@@ -12,12 +12,12 @@ The apps stay C and Rust. Parsing, cryptography, display and transport are not L
 
 | File | What it is |
 | --- | --- |
-| [`Spec.lean`](Spec.lean) | What the compiled kernel guarantees: 12 statements, each "accepts exactly when" or an equality, written with natural numbers. Statements only. |
-| [`BitcoinLedger/FreestandingKernels.lean`](BitcoinLedger/FreestandingKernels.lean) | The kernel: the only Lean code that runs on the device. 45 exported functions, no imports. |
+| [`Spec.lean`](Spec.lean) | What the compiled kernel guarantees: 11 statements, each "accepts exactly when" or an equality, written with natural numbers. Statements only. |
+| [`BitcoinLedger/FreestandingKernels.lean`](BitcoinLedger/FreestandingKernels.lean) | The kernel: the only Lean code that runs on the device. 31 exported functions, each called by at least one app, no imports. |
 | [`Proofs/KernelSpec.lean`](Proofs/KernelSpec.lean) | The proof of every statement of `Spec.lean` (`kernel_meets_spec`), with one accepted and one rejected input for each. |
-| [`scripts/check_kernel_spec.py`](scripts/check_kernel_spec.py) | Which exports have a statement, which do not and why, and which are called by neither app. |
+| [`scripts/check_kernel_spec.py`](scripts/check_kernel_spec.py) | Which exports have a statement, which do not and why. It fails if an export is called by neither app. |
 
-`Spec.lean` currently covers 17 of the 45 exports. The other 28 are listed in
+`Spec.lean` currently covers 14 of the 31 exports. The other 17 are listed in
 `scripts/check_kernel_spec.py` with the reason. The main gaps:
 
 - **No memory model.** Functions that read or write a buffer (the Miniscript checker, both
