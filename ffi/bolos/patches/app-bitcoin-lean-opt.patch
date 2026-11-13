@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 55926e8..0149a67 100644
+index 55926e8..05e0f85 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -206,8 +206,33 @@ endif
@@ -15,7 +15,7 @@ index 55926e8..0149a67 100644
  include $(BOLOS_SDK)/Makefile.standard_app
  
 +# Drop unused `%ll` printf support unless LLB_KEEP_UPSTREAM_DEFINES=1 is set for same-flags control:
-+# format_sats_amount uses the verified Lean division-free kernels (`llb_sats_div_1e8`/`llb_sats_mod_1e8`)
++# format_sats_amount uses the verified Lean division-free formatter (`llb_format_sats_ascii`)
 +# and no source file in app-bitcoin uses `%lld`/`%llu`, saving os_printf.o + __aeabi_uldivmod.
 +LLB_KEEP_UPSTREAM_DEFINES ?= 0
 +ifeq ($(LLB_KEEP_UPSTREAM_DEFINES),0)
@@ -64,7 +64,7 @@ index f36c755..5b47219 100644
          return LOCKTIME_ERR_RANGE;
      }
 diff --git a/src/common/merkle.c b/src/common/merkle.c
-index 39608e0..01ba6e0 100644
+index 39608e0..2caf568 100644
 --- a/src/common/merkle.c
 +++ b/src/common/merkle.c
 @@ -28,6 +28,7 @@
@@ -81,7 +81,7 @@ index 39608e0..01ba6e0 100644
  
 -// TODO: make this O(log n), or possibly O(1). Currently O(log^2 n).
 +// O(log n) top-down Merkle direction descent backed by verified Lean freestanding kernels
-+// (`llb_merkle_advance_state` + `llb_merkle_state_dir`, replacing the O(log^2 n) ceil_lg loop).
++// (`llb_merkle_advance_state`, replacing the O(log^2 n) ceil_lg loop).
  int merkle_get_ith_direction(size_t size, size_t index, size_t i) {
      if (size <= 1 || index >= size) {
          return -1;
@@ -22911,10 +22911,10 @@ index d3e9250..9845da4 100644
  endif()
 diff --git a/unit-tests/test_lean_bolos_kernels.c b/unit-tests/test_lean_bolos_kernels.c
 new file mode 100644
-index 0000000..285f4b4
+index 0000000..ac90ecd
 --- /dev/null
 +++ b/unit-tests/test_lean_bolos_kernels.c
-@@ -0,0 +1,218 @@
+@@ -0,0 +1,216 @@
 +#include <stdarg.h>
 +#include <stddef.h>
 +#include <setjmp.h>
@@ -22965,9 +22965,6 @@ index 0000000..285f4b4
 +
 +    for (size_t i = 0; i < sizeof(samples) / sizeof(samples[0]); i++) {
 +        uint64_t x = samples[i];
-+        assert_int_equal(llb_sats_div_1e8(x), x / 100000000ULL);
-+        assert_int_equal(llb_sats_mod_1e8(x), (uint32_t) (x % 100000000ULL));
-+
 +        char actual[MAX_AMOUNT_LENGTH + 1] = {0};
 +        char expected[MAX_AMOUNT_LENGTH + 1] = {0};
 +        format_sats_amount("BTC", x, actual);
@@ -23032,8 +23029,12 @@ index 0000000..285f4b4
 +                        }
 +                    }
 +                    if (!stopped) {
-+                        uint8_t d = llb_merkle_state_dir(st);
-+                        got = (d == 0xFFU) ? -1 : (int) d;
++                        // Same reading as merkle_get_ith_direction: the size always shrinks on a
++                        // real step, and the index changes exactly on a right step.
++                        uint64_t next = llb_merkle_advance_state(st);
++                        if ((uint32_t) (next >> 32) != (uint32_t) (st >> 32)) {
++                            got = ((uint32_t) next != (uint32_t) st) ? 1 : 0;
++                        }
 +                    }
 +                }
 +                assert_int_equal(got, ref);
@@ -23093,16 +23094,13 @@ index 0000000..285f4b4
 +    assert_int_equal(llb_miniscript_after_ok(1U), 1);
 +    assert_int_equal(llb_miniscript_after_ok(500000000U), 1);
 +    assert_int_equal(llb_miniscript_after_ok(0U), 0);
-+    assert_int_equal(llb_miniscript_andor_branches_valid(0x64U, 0x67U, 0x68U), 1);
-+    assert_int_equal(llb_miniscript_andor_branches_valid(0x63U, 0x67U, 0x68U), 0);
 +
 +    uint8_t a[4] = {1, 2, 3, 4};
 +    uint8_t b[4] = {1, 2, 3, 4};
 +    uint8_t c[4] = {1, 2, 9, 4};
-+    assert_int_equal(llb_bytes_eq(a, b, 4), 1);
-+    assert_int_equal(llb_bytes_eq(a, c, 4), 0);
 +    assert_int_equal(llb_check_dual_utxo(100ULL, a, 4, 100ULL, b, 4), 1);
 +    assert_int_equal(llb_check_dual_utxo(100ULL, a, 4, 101ULL, b, 4), 0);
++    assert_int_equal(llb_check_dual_utxo(100ULL, a, 4, 100ULL, c, 4), 0);
 +
 +    uint8_t scratch[128] = {0};
 +    uint8_t ops[] = {0x00, 0x01, 0x10, 0x21};
