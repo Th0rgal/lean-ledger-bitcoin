@@ -703,13 +703,20 @@ if [[ -n "${TRACE_OUT_DIR:-}" ]]; then
   cp "$SAMEPROF_VAPP_PATH" "$TRACE_OUT_DIR/elfs/same_profile_lean.elf"
   cp "$VM_METRICS_BIN" "$TRACE_OUT_DIR/elfs/app-vanadium-live-metrics"
   cp "$WORK_TMP/driver/src/main.rs" "$TRACE_OUT_DIR/driver_main.rs"
+  # The client SDK builds the V-App manifest from the Cargo.toml next to the `target` directory
+  # of the ELF path: expose each frozen ELF under <variant>/target/, with its Cargo.toml.
+  for pair in reference:ref_auto lean_optimized:lean_auto same_profile_lean:sameprof_auto; do
+    mkdir -p "$TRACE_OUT_DIR/elfs/${pair%%:*}/target"
+    cp "$WORK_TMP/elfs/${pair##*:}/Cargo.toml" "$TRACE_OUT_DIR/elfs/${pair%%:*}/Cargo.toml"
+    ln -s "../../${pair%%:*}.elf" "$TRACE_OUT_DIR/elfs/${pair%%:*}/target/${pair%%:*}.elf"
+  done
   (cd "$TRACE_OUT_DIR/elfs" && sha256sum reference.elf lean_optimized.elf same_profile_lean.elf app-vanadium-live-metrics | tee SHA256SUMS)
   chmod a-w "$TRACE_OUT_DIR"/elfs/*
   echo "[trace] sign_transaction, $TRACE_RUNS runs per variant, VM counters sampled after every APDU exchange..."
   "$DRIVER_BIN" --trace "$TRACE_OUT_DIR/elfs/app-vanadium-live-metrics" "$TRACE_RUNS" "$TRACE_OUT_DIR" \
-    "reference=$TRACE_OUT_DIR/elfs/reference.elf" \
-    "lean_optimized=$TRACE_OUT_DIR/elfs/lean_optimized.elf" \
-    "same_profile_lean=$TRACE_OUT_DIR/elfs/same_profile_lean.elf"
+    "reference=$TRACE_OUT_DIR/elfs/reference/target/reference.elf" \
+    "lean_optimized=$TRACE_OUT_DIR/elfs/lean_optimized/target/lean_optimized.elf" \
+    "same_profile_lean=$TRACE_OUT_DIR/elfs/same_profile_lean/target/same_profile_lean.elf"
   (cd "$TRACE_OUT_DIR/elfs" && sha256sum --check --quiet SHA256SUMS)
   echo "[trace] Raw runs written to $TRACE_OUT_DIR; assemble with benchmarks/vanadium_trace.py"
   exit 0
