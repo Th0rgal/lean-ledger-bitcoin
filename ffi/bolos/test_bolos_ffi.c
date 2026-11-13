@@ -594,27 +594,16 @@ static void test_ui_review(void) {
 
 static void test_wave4_opt_kernels(void) {
   TEST_NOTE("test_wave4_opt_kernels");
-  /* Division-free satoshi split across 0, 1, 1 BTC, MAX_MONEY, UINT64_MAX */
-  TEST_CHECK(llb_sats_div_1e8(UINT64_C(0)) == UINT64_C(0));
-  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(0)) == UINT32_C(0));
-  TEST_CHECK(llb_sats_div_1e8(UINT64_C(99999999)) == UINT64_C(0));
-  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(99999999)) == UINT32_C(99999999));
-  TEST_CHECK(llb_sats_div_1e8(UINT64_C(100000000)) == UINT64_C(1));
-  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(100000000)) == UINT32_C(0));
-  TEST_CHECK(llb_sats_div_1e8(UINT64_C(2100000000000000)) == UINT64_C(21000000));
-  TEST_CHECK(llb_sats_mod_1e8(UINT64_C(2100000000000000)) == UINT32_C(0));
-  TEST_CHECK(llb_sats_div_1e8(UINT64_MAX) == UINT64_C(184467440737));
-  TEST_CHECK(llb_sats_mod_1e8(UINT64_MAX) == UINT32_C(9551615));
-
-  /* O(1)-step Merkle descent state & direction */
+  /* O(1)-step Merkle descent state: (size, index) packed as (size << 32) | index.
+     The direction is read like the app does: right iff the index changed. */
   uint64_t st = (UINT64_C(7) << 32) | UINT64_C(5);
-  TEST_CHECK(llb_merkle_state_dir(st) == 1); /* mask=4, 5>=4 -> right (size=3, idx=1) */
-  st = llb_merkle_advance_state(st);
-  TEST_CHECK(llb_merkle_state_dir(st) == 0); /* mask=2, 1<2 -> left (size=2, idx=1) */
-  st = llb_merkle_advance_state(st);
-  TEST_CHECK(llb_merkle_state_dir(st) == 1); /* mask=1, 1>=1 -> right (size=1, idx=0) */
-  st = llb_merkle_advance_state(st);
-  TEST_CHECK(llb_merkle_state_dir(st) == 0xFF); /* leaf */
+  st = llb_merkle_advance_state(st); /* mask=4, 5>=4 -> right */
+  TEST_CHECK(st == ((UINT64_C(3) << 32) | UINT64_C(1)));
+  st = llb_merkle_advance_state(st); /* mask=2, 1<2 -> left */
+  TEST_CHECK(st == ((UINT64_C(2) << 32) | UINT64_C(1)));
+  st = llb_merkle_advance_state(st); /* mask=1, 1>=1 -> right */
+  TEST_CHECK(st == ((UINT64_C(1) << 32) | UINT64_C(0)));
+  TEST_CHECK(llb_merkle_advance_state(st) == st); /* leaf: fixed point */
 
   /* BIP-32 pubkey export prefix safety, Bech32 final constant, wallet name char */
   TEST_CHECK(llb_bip32_pubkey_export_prefix_ok(
@@ -635,12 +624,6 @@ static void test_wave4_opt_kernels(void) {
 
 static void test_option2_flat_slice_kernels(void) {
   TEST_NOTE("test_option2_flat_slice_kernels");
-
-  /* Byte slice equality */
-  uint8_t b1[4] = {0x01, 0x02, 0x03, 0x04};
-  uint8_t b2[4] = {0x01, 0x02, 0x03, 0x05};
-  TEST_CHECK(llb_bytes_eq(b1, b1, 4) == 1);
-  TEST_CHECK(llb_bytes_eq(b1, b2, 4) == 0);
 
   /* Checked CompactSize reader */
   uint8_t vi1[1] = {252};
@@ -664,6 +647,13 @@ static void test_option2_flat_slice_kernels(void) {
   TEST_CHECK(alen == 14 && fs_memcmp(amt, "1.23450000 BTC", 15) == 0);
   alen = llb_format_sats_ascii(UINT64_C(100000000), NULL, 0, 0, (uint8_t *)amt, sizeof(amt));
   TEST_CHECK(alen == 1 && fs_memcmp(amt, "1", 2) == 0);
+  /* The BTC / satoshi split is no longer exported; exercise it through the formatter. */
+  alen = llb_format_sats_ascii(UINT64_C(99999999), NULL, 0, 0, (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 10 && fs_memcmp(amt, "0.99999999", 11) == 0);
+  alen = llb_format_sats_ascii(UINT64_C(2100000000000000), NULL, 0, 0, (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 8 && fs_memcmp(amt, "21000000", 9) == 0);
+  alen = llb_format_sats_ascii(UINT64_MAX, NULL, 0, 0, (uint8_t *)amt, sizeof(amt));
+  TEST_CHECK(alen == 21 && fs_memcmp(amt, "184467440737.09551615", 22) == 0);
 
   /* Full-path BIP-32 pubkey export safety */
   const uint32_t ok_path[5] = {0x80000054u, 0x80000000u, 0x80000000u, 0u, 7u};
@@ -671,7 +661,7 @@ static void test_option2_flat_slice_kernels(void) {
   TEST_CHECK(llb_bip32_check_export_path(ok_path, 5, 0) == 1);
   TEST_CHECK(llb_bip32_check_export_path(bad_tail, 5, 0) == 0);
 
-  /* PSBT locktime accumulator + batch determine + checked sats + dual UTXO */
+  /* PSBT locktime accumulator + checked sats + dual UTXO */
   uint64_t lt = llb_psbt_locktime_init();
   lt = llb_psbt_locktime_step(lt, 1, 800000u, 0, 0u);
   TEST_CHECK(lt != 0);
@@ -679,17 +669,12 @@ static void test_option2_flat_slice_kernels(void) {
   TEST_CHECK((fin >> 32) == 1 && (uint32_t)fin == 800000u);
   TEST_CHECK(llb_psbt_locktime_step(lt, 0, 0u, 1, 500000000u) == 0);
 
-  /* 2 inputs: input 0 has height=100, input 1 has height=250 (10 bytes/input) */
-  uint8_t lt_batch[20] = {
-      1, 100, 0, 0, 0, 0, 0, 0, 0, 0,
-      1, 250, 0, 0, 0, 0, 0, 0, 0, 0};
-  uint64_t det = llb_psbt_determine_locktime(lt_batch, 2, 42u);
+  /* 2 inputs with heights 100 and 250: the larger height wins over the fallback */
+  uint64_t lt2 = llb_psbt_locktime_step(llb_psbt_locktime_init(), 1, 100u, 0, 0u);
+  lt2 = llb_psbt_locktime_step(lt2, 1, 250u, 0, 0u);
+  uint64_t det = llb_psbt_locktime_finalize(lt2, 42u);
   TEST_CHECK((det >> 32) == 1 && (uint32_t)det == 250u);
 
-  uint8_t amounts_le[16] = {
-      0x64, 0, 0, 0, 0, 0, 0, 0,
-      0xC8, 0, 0, 0, 0, 0, 0, 0};
-  TEST_CHECK(llb_sum_amounts_le64(amounts_le, 2) == ((UINT64_C(1) << 63) | UINT64_C(300)));
   TEST_CHECK(llb_checked_add_sats_ok(UINT64_C(2100000000000000), 1u) == 0);
   TEST_CHECK(llb_checked_add_sats_val(100u, 200u) == 300u);
 
@@ -716,8 +701,6 @@ static void test_option2_flat_slice_kernels(void) {
   TEST_CHECK(llb_miniscript_older_ok(0u) == 0);
   TEST_CHECK(llb_miniscript_after_ok(800000u) == 1);
   TEST_CHECK(llb_miniscript_after_ok(0u) == 0);
-  TEST_CHECK(llb_miniscript_andor_branches_valid(0x64u, 0x67u, 0x68u) == 1);
-  TEST_CHECK(llb_miniscript_andor_branches_valid(0x63u, 0x67u, 0x68u) == 0);
   /* and_v(v:pk(A), older(144)) => [pk_k(0x02), c:(0x12), v:(0x15), older(0x06, 144 LE), and_v(0x20)] */
   uint8_t ms_ops[9] = {0x02, 0x12, 0x15, 0x06, 0x90, 0x00, 0x00, 0x00, 0x20};
   uint8_t ms_scratch[128];
