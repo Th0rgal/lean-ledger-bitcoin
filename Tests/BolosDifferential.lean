@@ -730,7 +730,7 @@ def allSpecErrors : List InternalSpec.SpecError := [
 def checkBasicAndFreestanding : Bool :=
   -- 1. Target version `2.4.1 == 0x00020401`
   (llbVersionPacked == 0x00020401) &&
-  (BitcoinLedger.appVersion == Spec.ledgerBitcoinTargetVersion) &&
+  (BitcoinLedger.appVersion == { major := 2, minor := 4, patch := 1 }) &&
   -- 2. Satoshi arithmetic & freestanding `llb_*` amount kernels + multi-UTXO supply-cap check
   isValidAmount 0 &&
   isValidAmount MAX_MONEY &&

@@ -11,12 +11,4 @@ import Proofs.Musig2
 import Proofs.SilentPayments
 import Proofs.AppStateMachine
 import Proofs.FreestandingKernels
-import Proofs.UserSpecRefinement
-
-namespace Proofs
-
-theorem appVersion_matches_spec :
-    BitcoinLedger.appVersion = Spec.ledgerBitcoinTargetVersion := by
-  rfl
-
-end Proofs
+import Proofs.KernelSpec

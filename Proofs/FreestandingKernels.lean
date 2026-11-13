@@ -16,7 +16,7 @@ namespace Proofs.FreestandingKernels
 /-!
 # `Proofs.FreestandingKernels` — Machine-Checked Refinement Proofs for Freestanding C99 Kernels
 
-Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`, `0 omega`) refinement theorems
+Constructive (`0 Classical.choice`, `0 sorryAx`, `0 native_decide`) refinement theorems
 proving that the `@[export llb_*]` scalar and buffer entrypoints in `BitcoinLedger.FreestandingKernels`
 refine the corresponding executable primitives in `BitcoinLedger.{Basic,Bip32,Script,Psbt,WalletPolicy}`
 and the normative specification in `InternalSpec.{Basic,Bip32,Script,Psbt,WalletPolicy,MerkleProtocol}`.

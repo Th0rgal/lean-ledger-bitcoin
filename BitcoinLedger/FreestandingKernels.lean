@@ -11,7 +11,8 @@ Compiler & ABI guarantees:
 - **Zero heap/runtime allocations** (`0` `malloc`/`free`/`lean_alloc_*`/`lean_inc`/`lean_dec`/`lean_box`)
 - **Zero undefined symbols** (pure fixed-width integer shifts, masks, additions, subtractions, and comparisons;
   no 64-bit `/` or `%` libgcc helpers on `ILP32`)
-- **Stack frames `< 1024` bytes** (all functions are non-recursive leaf scalar routines)
+- **Stack frames `< 1024` bytes** (the three loop combinators `forRange*` recurse on a fuel
+  argument in this source; `turbo-lean` lowers them to loops)
 - **Constructive equality/order** (`decide (...)` only, `0 Classical.choice`)
 -/
 
