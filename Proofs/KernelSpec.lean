@@ -194,13 +194,59 @@ theorem compactSizeCanonical : Spec.CompactSizeCanonical := by
         · intro h; exact Or.inr (Or.inr (Or.inr ⟨h, by omega⟩))
         · intro h; omega
 
+/-! ### Buffers -/
+
+private theorem u32_ofNat_toNat (i : UInt32) : UInt32.ofNat i.toNat = i := by
+  apply UInt32.toNat_inj.mp
+  rw [UInt32.toNat_ofNat', Nat.mod_eq_of_lt i.toNat_lt]
+
+/-- Two buffer prefixes are the same list exactly when they have the same length and the
+    same byte at every index below it. -/
+private theorem bytes_eq_iff (a b : ConstBytes) (n m : UInt32) :
+    Spec.bytes a n.toNat = Spec.bytes b m.toNat ↔
+      n = m ∧ ∀ i : UInt32, i < n → readU8 a i = readU8 b i := by
+  unfold Spec.bytes readU8
+  constructor
+  · intro h
+    have hlen : n.toNat = m.toNat := by
+      have := congrArg List.length h
+      simpa using this
+    refine ⟨UInt32.toNat_inj.mp hlen, ?_⟩
+    intro i hi
+    have hi' : i.toNat < n.toNat := UInt32.lt_iff_toNat_lt.mp hi
+    have hget := congrArg (fun l => l[i.toNat]?) h
+    simp only [List.getElem?_map, List.getElem?_range hi', List.getElem?_range (hlen ▸ hi'),
+      Option.map_some, Option.some.injEq, u32_ofNat_toNat] at hget
+    exact UInt8.toNat_inj.mp hget
+  · rintro ⟨rfl, h⟩
+    apply List.map_congr_left
+    intro i hi
+    have hi' : i < n.toNat := List.mem_range.mp hi
+    have hlt : UInt32.ofNat i < n := by
+      rw [UInt32.lt_iff_toNat_lt, UInt32.toNat_ofNat', Nat.mod_eq_of_lt (Nat.lt_trans hi' n.toNat_lt)]
+      exact hi'
+    rw [h _ hlt]
+
+theorem dualUtxo : Spec.DualUtxo := by
+  intro wAmt nAmt wSpk nSpk wLen nLen
+  rw [bytes_eq_iff]
+  unfold llbCheckDualUtxo
+  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true, validAmount wAmt,
+    Proofs.FreestandingKernels.llbBytesEq_iff, decide_eq_true_eq, decide_eq_true_eq, ← UInt64.toNat_inj]
+  constructor
+  · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩; exact ⟨h1, h2, h3, h4⟩
+  · rintro ⟨h1, h2, h3, h4⟩; exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
-   compactSizeCanonical⟩
+   compactSizeCanonical, dualUtxo⟩
 
 /-! ## One accepted and one rejected input per statement -/
+
+/-- A read-only byte buffer holding `l` (zero past its end). -/
+private def constBytes (l : List UInt8) : ConstBytes := ⟨fun i => l.getD i.toNat 0, ()⟩
 
 theorem witness_validAmount :
     llbValidAmount 2100000000000000 = true ∧ llbValidAmount 2100000000000001 = false := by decide
@@ -247,6 +293,13 @@ theorem witness_taprootSighashType :
 theorem witness_compactSize :
     llbVarIntPrefixIsCanonical 252 252 = true ∧ llbVarIntPrefixIsCanonical 253 253 = true ∧
     llbVarIntPrefixIsCanonical 253 252 = false ∧ llbVarIntPrefixIsCanonical 254 65535 = false := by
+  decide
+
+theorem witness_dualUtxo :
+    llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5000 (constBytes [0, 20, 7]) 3 = true ∧
+    llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5001 (constBytes [0, 20, 7]) 3 = false ∧
+    llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5000 (constBytes [0, 20, 8]) 3 = false ∧
+    llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5000 (constBytes [0, 20, 7]) 2 = false := by
   decide
 
 end Proofs.KernelSpec

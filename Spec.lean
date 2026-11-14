@@ -116,11 +116,32 @@ def CompactSizeCanonical : Prop :=
       (65536 ≤ v.toNat ∧ v.toNat ≤ 4294967295 ∧ tag.toNat = 254) ∨
       (4294967296 ≤ v.toNat ∧ tag.toNat = 255)
 
+/-! ## Buffers
+
+A buffer argument is a map from an index to the element stored there (see section 7 of the
+kernel). The statements below speak about the first `len` elements, as a list of numbers. -/
+
+/-- The first `len` bytes of a read-only buffer. -/
+def bytes (b : ConstBytes) (len : Nat) : List Nat :=
+  (List.range len).map fun i => (b.get (UInt32.ofNat i)).toNat
+
+/-! ## Dual UTXO (CVE-2020-14199) -/
+
+/-- The witness UTXO and the output of the non-witness UTXO are accepted exactly when the
+    amount is at most 21M BTC, both amounts are equal, and both scripts have the same
+    length and the same bytes. -/
+def DualUtxo : Prop :=
+  ∀ (witAmount nonWitAmount : UInt64) (witSpk nonWitSpk : ConstBytes) (witLen nonWitLen : UInt32),
+    llbCheckDualUtxo witAmount witSpk witLen nonWitAmount nonWitSpk nonWitLen = true ↔
+      witAmount.toNat ≤ maxMoney ∧ witAmount.toNat = nonWitAmount.toNat ∧
+      bytes witSpk witLen.toNat = bytes nonWitSpk nonWitLen.toNat
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
   HardenedBit ∧ DepthLimits ∧
   SegwitProgram ∧ WitnessOpcode ∧ SighashType ∧ TaprootSighashType ∧
-  CompactSizeCanonical
+  CompactSizeCanonical ∧
+  DualUtxo
 
 end Spec

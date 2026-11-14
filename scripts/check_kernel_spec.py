@@ -40,7 +40,6 @@ PENDING = {
     "llb_psbt_locktime_step": MODEL,
     "llb_psbt_locktime_finalize": MODEL,
     "llb_miniscript_check_postfix": BUFFER + "; only its combinators are proved",
-    "llb_check_dual_utxo": BUFFER,
     "llb_bip32_check_export_path": BUFFER,
     "llb_read_compact_size_checked": BUFFER,
     "llb_sort_fixed_bytes": BUFFER + "; no theorem at all",
