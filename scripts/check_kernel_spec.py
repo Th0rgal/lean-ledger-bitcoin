@@ -37,7 +37,6 @@ PENDING = {
     "llb_miniscript_after_ok": MODEL,
     "llb_miniscript_check_postfix": BUFFER + "; only its combinators are proved",
     "llb_sort_fixed_bytes": BUFFER + "; no theorem at all",
-    "llb_sort_u16": BUFFER + "; no theorem at all",
     "llb_format_sats_ascii": BUFFER + "; no theorem at all",
 }
 

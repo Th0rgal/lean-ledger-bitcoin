@@ -258,6 +258,20 @@ def PsbtLocktime : Prop :=
       | some v => 2 ^ 32 + v
       | none => 0
 
+/-! ## Sorts -/
+
+/-- The first `len` words of a buffer of 16-bit words. -/
+def u16s (b : MutU16s) (len : Nat) : List Nat :=
+  (List.range len).map fun i => (b.get (UInt32.ofNat i)).toNat
+
+/-- `llb_sort_u16` leaves the first `count` words in non-decreasing order, as a permutation
+    of what they were, and changes no word from `count` on. -/
+def SortU16 : Prop :=
+  ∀ (arr : MutU16s) (count : UInt32),
+    (u16s (llbSortU16 arr count) count.toNat).Pairwise (· ≤ ·) ∧
+    (u16s (llbSortU16 arr count) count.toNat).Perm (u16s arr count.toNat) ∧
+    ∀ i : UInt32, count.toNat ≤ i.toNat → (llbSortU16 arr count).get i = arr.get i
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -269,6 +283,7 @@ def KernelSpec : Prop :=
   Bip32ExportPath ∧
   MerkleSplit ∧
   MerkleStep ∧
-  PsbtLocktime
+  PsbtLocktime ∧
+  SortU16
 
 end Spec

@@ -1177,12 +1177,396 @@ theorem psbtLocktime : Spec.PsbtLocktime := by
 
 end Locktime
 
+/-! ### Sorts
+
+Insertion sort over a view `Nat → α` of a buffer, then the two kernel sorts as instances. -/
+
+private theorem foldl_range_inv {β : Type} (P : Nat → β → Prop) (f : β → Nat → β) (n : Nat) (init : β)
+    (h0 : P 0 init) (hs : ∀ k b, k < n → P k b → P (k + 1) (f b k)) :
+    P n ((List.range n).foldl f init) := by
+  induction n with
+  | zero => exact h0
+  | succ m ih =>
+    rw [List.range_succ, List.foldl_append]
+    exact hs m _ (Nat.lt_succ_self m) (ih (fun k b hk hp => hs k b (Nat.lt_succ_of_lt hk) hp))
+
+private def lst {α : Type} (f : Nat → α) (n : Nat) : List α := (List.range n).map f
+
+private theorem lst_succ {α : Type} (f : Nat → α) (n : Nat) : lst f (n + 1) = lst f n ++ [f n] := by
+  unfold lst; rw [List.range_succ, List.map_append]; rfl
+
+private theorem lst_congr {α : Type} (f g : Nat → α) (n : Nat) (h : ∀ i, i < n → f i = g i) :
+    lst f n = lst g n := by
+  induction n with
+  | zero => rfl
+  | succ m ih =>
+    rw [lst_succ, lst_succ, ih (fun i hi => h i (Nat.lt_succ_of_lt hi)), h m (Nat.lt_succ_self m)]
+
+private theorem swap_perm {α : Type} (f g : Nat → α) (j : Nat) (h1 : g j = f (j + 1)) (h2 : g (j + 1) = f j) :
+    ∀ n, j + 1 < n → (∀ i, i < n → i ≠ j → i ≠ j + 1 → g i = f i) → (lst g n).Perm (lst f n) := by
+  intro n
+  induction n with
+  | zero => intro h; exact absurd h (Nat.not_lt_zero _)
+  | succ m ih =>
+    intro hlt hrest
+    rw [lst_succ, lst_succ]
+    by_cases hm : j + 1 < m
+    · have n1 : m ≠ j := by omega
+      have n2 : m ≠ j + 1 := by omega
+      have e : g m = f m := hrest m (Nat.lt_succ_self m) n1 n2
+      rw [e]
+      exact List.Perm.append_right _ (ih hm (fun i hi => hrest i (Nat.lt_succ_of_lt hi)))
+    · have hm' : m = j + 1 := by omega
+      rw [hm', lst_succ, lst_succ, h1, h2,
+        lst_congr g f j (fun i hi => hrest i (by omega) (by omega) (by omega)),
+        List.append_assoc, List.append_assoc]
+      exact List.Perm.append_left _ (List.Perm.swap _ _ _)
+
+private theorem sorted_lst {α : Type} (le : α → α → Prop) (f : Nat → α) :
+    ∀ n, (∀ i i', i < i' → i' < n → le (f i) (f i')) → (lst f n).Pairwise le := by
+  intro n
+  induction n with
+  | zero => intro _; exact List.Pairwise.nil
+  | succ m ih =>
+    intro h
+    rw [lst_succ, List.pairwise_append]
+    refine ⟨ih (fun i i' h1 h2 => h i i' h1 (Nat.lt_succ_of_lt h2)), List.pairwise_singleton _ _, ?_⟩
+    intro a ha b hb
+    obtain ⟨i, hi, e⟩ := List.mem_map.mp ha
+    rw [List.mem_singleton.mp hb, ← e]
+    exact h i m (List.mem_range.mp hi) (Nat.lt_succ_self m)
+
+private theorem ins_step {α : Type} (le : α → α → Prop) (trans : ∀ a b c, le a b → le b c → le a c)
+    (total : ∀ a b, ¬ le a b → le b a) (f g : Nat → α) (s q : Nat) (hqs : q + 1 ≤ s)
+    (h1 : ∀ i i', i < i' → i' ≤ s → i ≠ q + 1 → i' ≠ q + 1 → le (f i) (f i'))
+    (h2 : ∀ i, q + 1 < i → i ≤ s → le (f (q + 1)) (f i))
+    (hg : (¬ le (f q) (f (q + 1)) ∧ g q = f (q + 1) ∧ g (q + 1) = f q ∧
+            ∀ i, i ≤ s → i ≠ q → i ≠ q + 1 → g i = f i) ∨
+          (le (f q) (f (q + 1)) ∧ ∀ i, i ≤ s → g i = f i)) :
+    (∀ i i', i < i' → i' ≤ s → i ≠ q → i' ≠ q → le (g i) (g i')) ∧
+    (∀ i, q < i → i ≤ s → le (g q) (g i)) := by
+  have qq : q ≠ q + 1 := Nat.ne_of_lt (Nat.lt_succ_self q)
+  have qs : q ≤ s := Nat.le_of_succ_le hqs
+  rcases hg with ⟨hn, e1, e2, er⟩ | ⟨hl, er⟩
+  · constructor
+    · intro i i' hii hi's hi hi'
+      by_cases c1 : i = q + 1
+      · have n1 : i' ≠ q + 1 := by omega
+        have l1 : q < i' := by omega
+        rw [c1, e2, er i' hi's hi' n1]
+        exact h1 q i' l1 hi's qq n1
+      · by_cases c2 : i' = q + 1
+        · have l1 : i < q := by omega
+          have l2 : i ≤ s := by omega
+          rw [c2, e2, er i l2 hi c1]
+          exact h1 i q l1 qs c1 qq
+        · have l2 : i ≤ s := by omega
+          rw [er i l2 hi c1, er i' hi's hi' c2]
+          exact h1 i i' hii hi's c1 c2
+    · intro i hi his
+      rw [e1]
+      by_cases c : i = q + 1
+      · rw [c, e2]; exact total _ _ hn
+      · have n1 : i ≠ q := by omega
+        have l1 : q + 1 < i := by omega
+        rw [er i his n1 c]; exact h2 i l1 his
+  · constructor
+    · intro i i' hii hi's hi hi'
+      have l2 : i ≤ s := by omega
+      rw [er i l2, er i' hi's]
+      by_cases c1 : i = q + 1
+      · have l1 : q + 1 < i' := by omega
+        rw [c1]; exact h2 i' l1 hi's
+      · by_cases c2 : i' = q + 1
+        · have l1 : i < q := by omega
+          rw [c2]
+          exact trans _ _ _ (h1 i q l1 qs c1 qq) hl
+        · exact h1 i i' hii hi's c1 c2
+    · intro i hi his
+      rw [er q qs, er i his]
+      by_cases c : i = q + 1
+      · rw [c]; exact hl
+      · exact h1 q i hi his qq c
+
+private theorem foldl_range_congr {β : Type} (f g : β → Nat → β) (n : Nat) (a : β)
+    (h : ∀ k b, k < n → f b k = g b k) : (List.range n).foldl f a = (List.range n).foldl g a := by
+  induction n with
+  | zero => rfl
+  | succ m ih =>
+    rw [List.range_succ, List.foldl_append, List.foldl_append,
+      ih (fun k b hk => h k b (Nat.lt_succ_of_lt hk))]
+    exact h m _ (Nat.lt_succ_self m)
+
+/-- One insertion pass: `step b q` compares positions `q` and `q + 1` and swaps them when
+    they are out of order. -/
+private theorem ins_pass {α β : Type} (le : α → α → Prop) (trans : ∀ a b c, le a b → le b c → le a c)
+    (total : ∀ a b, ¬ le a b → le b a) (view : β → Nat → α) (keep : β → β → Prop)
+    (keep_refl : ∀ b, keep b b) (keep_trans : ∀ a b c, keep a b → keep b c → keep a c)
+    (n : Nat) (step : β → Nat → β)
+    (hstep : ∀ b q, q + 1 < n → keep (step b q) b ∧
+      ((¬ le (view b q) (view b (q + 1)) ∧ view (step b q) q = view b (q + 1) ∧
+          view (step b q) (q + 1) = view b q ∧
+          ∀ i, i < n → i ≠ q → i ≠ q + 1 → view (step b q) i = view b i) ∨
+       (le (view b q) (view b (q + 1)) ∧ ∀ i, i < n → view (step b q) i = view b i)))
+    (s : Nat) (hsn : s < n) (a : β)
+    (hsorted : ∀ i i', i < i' → i' < s → le (view a i) (view a i')) :
+    (∀ i i', i < i' → i' ≤ s →
+      le (view ((List.range s).foldl (fun b k => step b (s - 1 - k)) a) i)
+         (view ((List.range s).foldl (fun b k => step b (s - 1 - k)) a) i')) ∧
+    (lst (view ((List.range s).foldl (fun b k => step b (s - 1 - k)) a)) n).Perm (lst (view a) n) ∧
+    keep ((List.range s).foldl (fun b k => step b (s - 1 - k)) a) a := by
+  have key := foldl_range_inv
+    (fun k (b : β) =>
+      (∀ i i', i < i' → i' ≤ s → i ≠ s - k → i' ≠ s - k → le (view b i) (view b i')) ∧
+      (∀ i, s - k < i → i ≤ s → le (view b (s - k)) (view b i)) ∧
+      (lst (view b) n).Perm (lst (view a) n) ∧ keep b a)
+    (fun (b : β) k => step b (s - 1 - k)) s a ?h0 ?hs
+  · obtain ⟨k1, k2, k3, k4⟩ := key
+    rw [Nat.sub_self] at k1 k2
+    refine ⟨?_, k3, k4⟩
+    intro i i' hii hi'
+    by_cases c : i = 0
+    · rw [c]; exact k2 i' (by omega) hi'
+    · exact k1 i i' hii hi' c (by omega)
+  case h0 =>
+    refine ⟨?_, ?_, List.Perm.refl _, keep_refl a⟩
+    · intro i i' hii hi' _ hne
+      exact hsorted i i' hii (by omega)
+    · intro i h1 h2; exfalso; omega
+  case hs =>
+    intro k b hk ⟨p1, p2, p3, p4⟩
+    have hq : s - k = (s - 1 - k) + 1 := by omega
+    generalize s - 1 - k = q at hq ⊢
+    rw [hq] at p1 p2
+    have hqs : q + 1 ≤ s := by omega
+    have hqn : q + 1 < n := by omega
+    have hq' : s - (k + 1) = q := by omega
+    have hin : ∀ i, i ≤ s → i < n := fun i hi => Nat.lt_of_le_of_lt hi hsn
+    rw [hq']
+    obtain ⟨hkeep, hcase⟩ := hstep b q hqn
+    rcases hcase with ⟨hn, e1, e2, er⟩ | ⟨hl, er⟩
+    · have st := ins_step le trans total (view b) (view (step b q)) s q hqs p1 p2
+        (Or.inl ⟨hn, e1, e2, fun i hi n1 n2 => er i (hin i hi) n1 n2⟩)
+      exact ⟨st.1, st.2, (swap_perm (view b) (view (step b q)) q e1 e2 n hqn
+        (fun i hi n1 n2 => er i hi n1 n2)).trans p3, keep_trans _ _ _ hkeep p4⟩
+    · have st := ins_step le trans total (view b) (view (step b q)) s q hqs p1 p2
+        (Or.inr ⟨hl, fun i hi => er i (hin i hi)⟩)
+      rw [lst_congr (view (step b q)) (view b) n er]
+      exact ⟨st.1, st.2, p3, keep_trans _ _ _ hkeep p4⟩
+
+/-- Insertion sort: pass `k` inserts position `k + 1` into the sorted prefix. -/
+private theorem ins_sort {α β : Type} (le : α → α → Prop) (trans : ∀ a b c, le a b → le b c → le a c)
+    (total : ∀ a b, ¬ le a b → le b a) (view : β → Nat → α) (keep : β → β → Prop)
+    (keep_refl : ∀ b, keep b b) (keep_trans : ∀ a b c, keep a b → keep b c → keep a c)
+    (n : Nat) (step : β → Nat → β)
+    (hstep : ∀ b q, q + 1 < n → keep (step b q) b ∧
+      ((¬ le (view b q) (view b (q + 1)) ∧ view (step b q) q = view b (q + 1) ∧
+          view (step b q) (q + 1) = view b q ∧
+          ∀ i, i < n → i ≠ q → i ≠ q + 1 → view (step b q) i = view b i) ∨
+       (le (view b q) (view b (q + 1)) ∧ ∀ i, i < n → view (step b q) i = view b i)))
+    (a : β) :
+    (lst (view ((List.range (n - 1)).foldl
+      (fun b k => (List.range (k + 1)).foldl (fun b k' => step b (k + 1 - 1 - k')) b) a)) n).Pairwise le ∧
+    (lst (view ((List.range (n - 1)).foldl
+      (fun b k => (List.range (k + 1)).foldl (fun b k' => step b (k + 1 - 1 - k')) b) a)) n).Perm
+        (lst (view a) n) ∧
+    keep ((List.range (n - 1)).foldl
+      (fun b k => (List.range (k + 1)).foldl (fun b k' => step b (k + 1 - 1 - k')) b) a) a := by
+  have key := foldl_range_inv
+    (fun k (b : β) =>
+      (∀ i i', i < i' → i' < k + 1 → le (view b i) (view b i')) ∧
+      (lst (view b) n).Perm (lst (view a) n) ∧ keep b a)
+    (fun (b : β) k => (List.range (k + 1)).foldl (fun b k' => step b (k + 1 - 1 - k')) b)
+    (n - 1) a ?h0 ?hs
+  · obtain ⟨k1, k2, k3⟩ := key
+    exact ⟨sorted_lst le _ n (fun i i' h1 h2 => k1 i i' h1 (by omega)), k2, k3⟩
+  case h0 =>
+    exact ⟨fun i i' h1 h2 => by exfalso; omega, List.Perm.refl _, keep_refl a⟩
+  case hs =>
+    intro k b hk ⟨p1, p2, p3⟩
+    obtain ⟨q1, q2, q3⟩ := ins_pass le trans total view keep keep_refl keep_trans n step hstep
+      (k + 1) (by omega) b (fun i i' h1 h2 => p1 i i' h1 h2)
+    exact ⟨fun i i' h1 h2 => q1 i i' h1 (by omega), q2.trans p2, keep_trans _ _ _ q3 p3⟩
+
+private theorem forRangeU16s_go_eq (step : UInt32 → MutU16s → MutU16s) (fuel : Nat) :
+    ∀ (cur : UInt32) (b : MutU16s), forRangeU16s.go step fuel cur b =
+      (List.range fuel).foldl (fun a k => step (cur + UInt32.ofNat k) a) b := by
+  induction fuel with
+  | zero => intro cur b; rfl
+  | succ fuel' ih =>
+    intro cur b
+    unfold forRangeU16s.go
+    rw [List.range_succ_eq_map, List.foldl_cons, List.foldl_map]
+    have h0 : cur + UInt32.ofNat 0 = cur := UInt32.add_zero cur
+    rw [h0, ih (cur + 1) (step cur b)]
+    have hfun :
+        (fun a k => step (cur + 1 + UInt32.ofNat k) a) =
+          (fun a k => step (cur + UInt32.ofNat (k + 1)) a) := by
+      funext a k
+      have hk : (1 : UInt32) + UInt32.ofNat k = UInt32.ofNat (k + 1) := by
+        rw [UInt32.ofNat_add, UInt32.add_comm]
+        rfl
+      rw [UInt32.add_assoc, hk]
+    rw [hfun]
+
+private theorem forRangeU16s_eq (lo hi : UInt32) (buf : MutU16s) (step : UInt32 → MutU16s → MutU16s) :
+    forRangeU16s lo hi buf step =
+      (List.range (hi.toNat - lo.toNat)).foldl (fun b k => step (lo + UInt32.ofNat k) b) buf := by
+  unfold forRangeU16s
+  by_cases h : lo < hi
+  · rw [decide_eq_true h]
+    simp only [↓reduceIte]
+    rw [forRangeU16s_go_eq, UInt32.toNat_sub_of_le _ _ (UInt32.le_iff_toNat_le.mpr
+      (Nat.le_of_lt (UInt32.lt_iff_toNat_lt.mp h)))]
+  · rw [decide_eq_false h]
+    have : hi.toNat - lo.toNat = 0 := by
+      have hnl : ¬ lo.toNat < hi.toNat := fun h' => h (UInt32.lt_iff_toNat_lt.mpr h')
+      omega
+    rw [this]; rfl
+
+private theorem ofNat_eq_iff (i : Nat) (hi : i < 4294967296) (j : UInt32) :
+    UInt32.ofNat i = j ↔ i = j.toNat := by
+  constructor
+  · intro h; rw [← h, UInt32.toNat_ofNat', Nat.mod_eq_of_lt hi]
+  · intro h; rw [h, u32_ofNat_toNat]
+
+private theorem ofNat_toNat_lt (i : Nat) (hi : i < 4294967296) : (UInt32.ofNat i).toNat = i := by
+  rw [UInt32.toNat_ofNat', Nat.mod_eq_of_lt hi]
+
+private theorem slot_toNat (k : Nat) (hk : k + 1 < 4294967296) : (1 + UInt32.ofNat k : UInt32).toNat = k + 1 := by
+  have e1 : (1 : UInt32).toNat = 1 := rfl
+  rw [UInt32.toNat_add, e1, ofNat_toNat_lt k (by omega), Nat.add_comm]
+  exact Nat.mod_eq_of_lt hk
+
+private theorem idx_eq (slot : UInt32) (k k' : Nat) (hs : slot.toNat = k + 1) (hk' : k' < k + 1) :
+    slot - 1 - (0 + UInt32.ofNat k') = UInt32.ofNat (k + 1 - 1 - k') := by
+  have hlt := slot.toNat_lt
+  apply UInt32.toNat_inj.mp
+  have hk2 : (0 + UInt32.ofNat k' : UInt32).toNat = k' := by
+    rw [UInt32.zero_add, ofNat_toNat_lt k' (by omega)]
+  have h1 : (1 : UInt32) ≤ slot := UInt32.le_iff_toNat_le.mpr (by rw [hs]; show 1 ≤ k + 1; omega)
+  have h1n : (slot - 1).toNat = k := by rw [UInt32.toNat_sub_of_le _ _ h1, hs]; rfl
+  have h2 : (0 + UInt32.ofNat k' : UInt32) ≤ slot - 1 :=
+    UInt32.le_iff_toNat_le.mpr (by rw [hk2, h1n]; omega)
+  rw [UInt32.toNat_sub_of_le _ _ h2, h1n, hk2, ofNat_toNat_lt _ (by omega)]
+  omega
+
+/-! ### `llb_sort_u16` -/
+
+private def fn16 (a : MutU16s) : Nat → Nat := fun i => (a.get (UInt32.ofNat i)).toNat
+
+/-- Compare-and-swap of words `j` and `j + 1`: the body of the kernel's private pass. -/
+private def cmpSwap16 (a : MutU16s) (j : UInt32) : MutU16s :=
+  let x := readMutU16 a j
+  let y := readMutU16 a (j + 1)
+  if decide (y < x) then
+    let a1 := writeU16 a j y
+    writeU16 a1 (j + 1) x
+  else a
+
+private theorem sortU16_unfold (arr : MutU16s) (count : UInt32) :
+    llbSortU16 arr count =
+      if decide (count ≤ 1) then arr
+      else forRangeU16s 1 count arr (fun slot a =>
+        forRangeU16s 0 slot a (fun k a => cmpSwap16 a (slot - 1 - k))) := rfl
+
+private theorem step16 (n : Nat) (hn : n ≤ 4294967296) (b : MutU16s) (q : Nat) (hq : q + 1 < n) :
+    (∀ i : UInt32, n ≤ i.toNat → (cmpSwap16 b (UInt32.ofNat q)).get i = b.get i) ∧
+    ((¬ fn16 b q ≤ fn16 b (q + 1) ∧ fn16 (cmpSwap16 b (UInt32.ofNat q)) q = fn16 b (q + 1) ∧
+        fn16 (cmpSwap16 b (UInt32.ofNat q)) (q + 1) = fn16 b q ∧
+        ∀ i, i < n → i ≠ q → i ≠ q + 1 → fn16 (cmpSwap16 b (UInt32.ofNat q)) i = fn16 b i) ∨
+     (fn16 b q ≤ fn16 b (q + 1) ∧ ∀ i, i < n → fn16 (cmpSwap16 b (UInt32.ofNat q)) i = fn16 b i)) := by
+  have hjn : (UInt32.ofNat q).toNat = q := ofNat_toNat_lt q (by omega)
+  generalize UInt32.ofNat q = j at hjn ⊢
+  have hj1 : (j + 1).toNat = q + 1 := by
+    have e1 : (1 : UInt32).toNat = 1 := rfl
+    rw [UInt32.toNat_add, hjn, e1]; exact Nat.mod_eq_of_lt (by omega)
+  have ej : UInt32.ofNat q = j := (ofNat_eq_iff q (by omega) j).mpr hjn.symm
+  have ej1 : UInt32.ofNat (q + 1) = j + 1 := (ofNat_eq_iff (q + 1) (by omega) (j + 1)).mpr hj1.symm
+  have fq : fn16 b q = (b.get j).toNat := by unfold fn16; rw [ej]
+  have fq1 : fn16 b (q + 1) = (b.get (j + 1)).toNat := by unfold fn16; rw [ej1]
+  have jne : j ≠ j + 1 := fun h => by
+    have := congrArg UInt32.toNat h
+    rw [hjn, hj1] at this; omega
+  unfold cmpSwap16
+  dsimp only
+  by_cases hlt' : readMutU16 b (j + 1) < readMutU16 b j
+  · rw [decide_eq_true hlt']
+    have hlt : b.get (j + 1) < b.get j := hlt'
+    simp only [↓reduceIte, readMutU16, writeU16]
+    have hltn := UInt16.lt_iff_toNat_lt.mp hlt
+    refine ⟨?_, Or.inl ⟨by rw [fq, fq1]; omega, ?_, ?_, ?_⟩⟩
+    · intro i hi
+      have m1 : ¬ i = j + 1 := fun h => by rw [h, hj1] at hi; omega
+      have m2 : ¬ i = j := fun h => by rw [h, hjn] at hi; omega
+      rw [ite_eq_right m1, ite_eq_right m2]
+    · show (if UInt32.ofNat q = j + 1 then b.get j else if UInt32.ofNat q = j then b.get (j + 1)
+        else b.get (UInt32.ofNat q)).toNat = _
+      rw [ej, ite_eq_right jne, ite_eq_left rfl, fq1]
+    · show (if UInt32.ofNat (q + 1) = j + 1 then b.get j else if UInt32.ofNat (q + 1) = j then b.get (j + 1)
+        else b.get (UInt32.ofNat (q + 1))).toNat = _
+      rw [ej1, ite_eq_left rfl, fq]
+    · intro i hi n1 n2
+      have hi' : i < 4294967296 := by omega
+      have m1 : ¬ UInt32.ofNat i = j + 1 := fun h => n2 (by
+        have := (ofNat_eq_iff i hi' (j + 1)).mp h; omega)
+      have m2 : ¬ UInt32.ofNat i = j := fun h => n1 (by
+        have := (ofNat_eq_iff i hi' j).mp h; omega)
+      show (if UInt32.ofNat i = j + 1 then b.get j else if UInt32.ofNat i = j then b.get (j + 1)
+        else b.get (UInt32.ofNat i)).toNat = _
+      rw [ite_eq_right m1, ite_eq_right m2]; rfl
+  · rw [decide_eq_false hlt']
+    have hlt : ¬ b.get (j + 1) < b.get j := hlt'
+    rw [ite_eq_right Bool.false_ne_true]
+    have hnl : ¬ (b.get (j + 1)).toNat < (b.get j).toNat :=
+      fun h => hlt (UInt16.lt_iff_toNat_lt.mpr h)
+    exact ⟨fun _ _ => rfl, Or.inr ⟨by rw [fq, fq1]; omega, fun _ _ => rfl⟩⟩
+
+theorem sortU16 : Spec.SortU16 := by
+  intro arr count
+  rw [sortU16_unfold]
+  have hc := count.toNat_lt
+  have e1 : (1 : UInt32).toNat = 1 := rfl
+  by_cases hle : count ≤ 1
+  · rw [decide_eq_true hle]
+    simp only [↓reduceIte]
+    have hn : count.toNat ≤ 1 := UInt32.le_iff_toNat_le.mp hle
+    refine ⟨?_, List.Perm.refl _, ?_⟩
+    · exact sorted_lst (fun x y : Nat => x ≤ y) (fn16 arr) count.toNat
+        (fun i i' h1 h2 => by exfalso; omega)
+    · exact fun _ _ => trivial
+  · rw [decide_eq_false hle]
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    rw [forRangeU16s_eq, e1]
+    generalize hnd : count.toNat = n at hc ⊢
+    have conv : (List.range (n - 1)).foldl (fun b k =>
+          forRangeU16s 0 (1 + UInt32.ofNat k) b
+            (fun k' a => cmpSwap16 a (1 + UInt32.ofNat k - 1 - k'))) arr =
+        (List.range (n - 1)).foldl (fun b k => (List.range (k + 1)).foldl
+          (fun b k' => cmpSwap16 b (UInt32.ofNat (k + 1 - 1 - k'))) b) arr := by
+      apply foldl_range_congr
+      intro k b hk
+      have hs := slot_toNat k (by omega)
+      have hz : (0 : UInt32).toNat = 0 := rfl
+      rw [forRangeU16s_eq, hs, hz, Nat.sub_zero]
+      apply foldl_range_congr
+      intro k' b' hk'
+      show cmpSwap16 b' (1 + UInt32.ofNat k - 1 - (0 + UInt32.ofNat k')) = _
+      rw [idx_eq _ k k' hs hk']
+    rw [conv]
+    obtain ⟨r1, r2, r3⟩ := ins_sort (fun x y : Nat => x ≤ y) (fun _ _ _ => Nat.le_trans)
+      (fun _ _ h => Nat.le_of_lt (Nat.lt_of_not_le h)) fn16
+      (fun b' b : MutU16s => ∀ i : UInt32, n ≤ i.toNat → b'.get i = b.get i)
+      (fun _ _ _ => rfl) (fun _ _ _ h1 h2 i hi => (h1 i hi).trans (h2 i hi))
+      n (fun b q => cmpSwap16 b (UInt32.ofNat q)) (step16 n (Nat.le_of_lt hc)) arr
+    exact ⟨r1, r2, r3⟩
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
    compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep,
-   psbtLocktime⟩
+   psbtLocktime, sortU16⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -1294,5 +1678,13 @@ theorem witness_psbtLocktime :
       (Spec.locktimeRun [(1, 100, 0, 0), (0, 0, 1, 600000000)]) 7 = 0 ∧
     llbPsbtLocktimeFinalize (Spec.locktimeRun [(1, 0, 0, 0)]) 7 = 0 ∧
     llbPsbtLocktimeFinalize (Spec.locktimeRun [(0, 0, 1, 499999999)]) 7 = 0 := by decide
+
+private def mutU16s (l : List UInt16) : MutU16s := ⟨fun i => l.getD i.toNat 0, ()⟩
+
+/-- Four words sorted; only the first three sorted, the fourth left alone; one word untouched. -/
+theorem witness_sortU16 :
+    Spec.u16s (llbSortU16 (mutU16s [3, 1, 2, 1]) 4) 4 = [1, 1, 2, 3] ∧
+    Spec.u16s (llbSortU16 (mutU16s [3, 1, 2, 0]) 3) 4 = [1, 2, 3, 0] ∧
+    Spec.u16s (llbSortU16 (mutU16s [5, 4]) 1) 2 = [5, 4] := by decide
 
 end Proofs.KernelSpec
