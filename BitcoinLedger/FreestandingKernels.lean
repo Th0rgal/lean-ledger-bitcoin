@@ -245,55 +245,68 @@ def llbWalletNameCharOk (c : UInt8) (isEdge : Bool) : Bool :=
   let lo : UInt8 := if isEdge then 0x21 else 0x20
   decide (lo ≤ c) && decide (c ≤ 0x7E)
 
-/-! ## 7. Option 2 Freestanding Zero-Copy Combinators (`SPEC_ABI.md` Section 1)
+/-! ## 7. Buffers and Bounded Loops (`SPEC_ABI.md` Section 1)
 
-Stub bodies deliberately depend on every parameter so Lean 4.35 LCNF `Phase.mono` never
-generates a `._redArg` wrapper that drops pointer parameters: every exported kernel below
-keeps its `ConstBytes` / `MutBytes` / `ConstU32s` / `MutU16s` argument (lowered to a raw
-`ptr` parameter by `turbo-lean`) live in its LCNF signature. On the host (Lean kernel /
-constructive proofs) the stubs model pure memory reads as `0` and writes as identity. -/
+A buffer is a value: a total map from an index to the element stored there. A read is an
+application, a write returns the updated buffer, and every kernel function that writes
+takes the buffer as an argument and returns the new one, so each write is visible in the
+function's result.
 
-/-- Read-only flat byte pointer (`const uint8_t*` in C99, `*const u8` in Rust). -/
+`turbo-lean` compiles this model to raw loads and stores through the caller's pointer.
+It accepts a function only when every mutable buffer value is used linearly (never read,
+written or passed again once it was given to a write, a buffer loop, or a function that
+returns it). Under that discipline the in-place store and the functional update agree. A
+returned buffer is the caller's own pointer, so it is absent from the C signature:
+`MutBytes` is `void` and `MutBytes × T` is `T`. The C caller supplies buffers that are
+valid at every index the function touches and a mutable buffer that overlaps no other
+buffer argument.
+
+The `tok : Unit` field carries no information. It keeps each buffer a two-field structure,
+so the Lean compiler does not replace the buffer type by its function field. -/
+
+/-- Read-only byte buffer (`const uint8_t*` in C99, `*const u8` in Rust). -/
 structure ConstBytes where
-  addr : USize
+  get : UInt32 → UInt8
+  tok : Unit
 
-/-- Mutable flat byte pointer (`uint8_t*` in C99, `*mut u8` in Rust). -/
+/-- Mutable byte buffer (`uint8_t*` in C99, `*mut u8` in Rust). -/
 structure MutBytes where
-  addr : USize
+  get : UInt32 → UInt8
+  tok : Unit
 
-/-- Read-only aligned 32-bit word pointer (`const uint32_t*` in C99, `*const u32` in Rust). -/
+/-- Read-only buffer of aligned 32-bit words (`const uint32_t*` in C99, `*const u32` in Rust). -/
 structure ConstU32s where
-  addr : USize
+  get : UInt32 → UInt32
+  tok : Unit
 
-/-- Mutable aligned 16-bit word pointer (`uint16_t*` in C99, `*mut u16` in Rust). -/
+/-- Mutable buffer of aligned 16-bit words (`uint16_t*` in C99, `*mut u16` in Rust). -/
 structure MutU16s where
-  addr : USize
+  get : UInt32 → UInt16
+  tok : Unit
 
-/-- Read byte at `idx` (`align 1`). Freestanding: `p.addr + idx` dereference;
-    host: pure stub depending on both parameters (models `0`). -/
+/-- Byte at `idx` (compiled to a load, `align 1`). -/
 @[noinline] def readU8 (p : ConstBytes) (idx : UInt32) : UInt8 :=
-  (p.addr.toUInt32 ^^^ idx).toUInt8
+  p.get idx
 
-/-- Read byte from mutable buffer at `idx` (`align 1`). -/
+/-- Byte at `idx` of a mutable buffer (compiled to a load, `align 1`). -/
 @[noinline] def readMutU8 (p : MutBytes) (idx : UInt32) : UInt8 :=
-  (p.addr.toUInt32 ^^^ idx).toUInt8
+  p.get idx
 
-/-- Write byte `val` into mutable buffer `p` at `idx` (`align 1`), returning `p` (linear
-    state token; host stub keeps `addr` depending on `idx`/`val`). -/
+/-- The buffer `p` with byte `idx` replaced by `val` (compiled to a store, `align 1`). -/
 @[noinline] def writeU8 (p : MutBytes) (idx : UInt32) (val : UInt8) : MutBytes :=
-  { addr := p.addr ^^^ idx.toUSize ^^^ val.toUSize }
+  { get := fun j => if j = idx then val else p.get j, tok := () }
 
-/-- Read aligned 32-bit word at `idx` (`align 4`). -/
+/-- 32-bit word at word index `idx` (compiled to a load, `align 4`). -/
 @[noinline] def readU32 (p : ConstU32s) (idx : UInt32) : UInt32 :=
-  p.addr.toUInt32 ^^^ idx
+  p.get idx
 
-/-- Read aligned 16-bit word from mutable buffer at `idx` (`align 2`). -/
+/-- 16-bit word at word index `idx` of a mutable buffer (compiled to a load, `align 2`). -/
 @[noinline] def readMutU16 (p : MutU16s) (idx : UInt32) : UInt16 :=
-  (p.addr.toUInt32 ^^^ idx).toUInt16
+  p.get idx
 
-/-- Write aligned 16-bit word `val` into mutable buffer `p` at `idx` (`align 2`), returning `p`. -/
+/-- The buffer `p` with word `idx` replaced by `val` (compiled to a store, `align 2`). -/
 @[noinline] def writeU16 (p : MutU16s) (idx : UInt32) (val : UInt16) : MutU16s :=
-  { addr := p.addr ^^^ idx.toUSize ^^^ val.toUSize }
+  { get := fun j => if j = idx then val else p.get j, tok := () }
 
 /-- Bounded non-recursive loop over `[lo, hi)` carrying `UInt64` state
     (`seqFor` in `turbo-lean` freestanding lowering, zero recursion, `O(1)` stack;
@@ -315,18 +328,47 @@ structure MutU16s where
     | fuel' + 1 => go fuel' (cur + 1) (step cur acc)
   if decide (lo < hi) then go count lo init else init
 
-/-- Bounded non-recursive unit-effect loop over `[lo, hi)` (the `1` / `fuel' + 2` match arms
-    keep `step` live in every non-empty case so `Phase.mono` never drops the closure). -/
-@[noinline] def forRangeUnit (lo hi : UInt32) (step : UInt32 → Unit) : Unit :=
+/-- Bounded non-recursive loop over `[lo, hi)` carrying a byte buffer. -/
+@[noinline] def forRangeBytes (lo hi : UInt32) (buf : MutBytes) (step : UInt32 → MutBytes → MutBytes) : MutBytes :=
   let count := (hi - lo).toNat
-  let rec go (fuel : Nat) (cur : UInt32) : Unit :=
+  let rec go (fuel : Nat) (cur : UInt32) (b : MutBytes) : MutBytes :=
     match fuel with
-    | 0 => ()
-    | 1 => step cur
-    | fuel' + 2 =>
-      let _ := step cur
-      go (fuel' + 1) (cur + 1)
-  if decide (lo < hi) then go count lo else ()
+    | 0 => b
+    | fuel' + 1 => go fuel' (cur + 1) (step cur b)
+  if decide (lo < hi) then go count lo buf else buf
+
+/-- Bounded non-recursive loop over `[lo, hi)` carrying a buffer of 16-bit words. -/
+@[noinline] def forRangeU16s (lo hi : UInt32) (buf : MutU16s) (step : UInt32 → MutU16s → MutU16s) : MutU16s :=
+  let count := (hi - lo).toNat
+  let rec go (fuel : Nat) (cur : UInt32) (b : MutU16s) : MutU16s :=
+    match fuel with
+    | 0 => b
+    | fuel' + 1 => go fuel' (cur + 1) (step cur b)
+  if decide (lo < hi) then go count lo buf else buf
+
+/-- Bounded non-recursive loop over `[lo, hi)` carrying a byte buffer and `UInt32` state. -/
+@[noinline] def forRangeBytesU32 (lo hi : UInt32) (buf : MutBytes) (init : UInt32)
+    (step : UInt32 → MutBytes → UInt32 → MutBytes × UInt32) : MutBytes × UInt32 :=
+  let count := (hi - lo).toNat
+  let rec go (fuel : Nat) (cur : UInt32) (b : MutBytes) (acc : UInt32) : MutBytes × UInt32 :=
+    match fuel with
+    | 0 => (b, acc)
+    | fuel' + 1 =>
+      let r := step cur b acc
+      go fuel' (cur + 1) r.1 r.2
+  if decide (lo < hi) then go count lo buf init else (buf, init)
+
+/-- Bounded non-recursive loop over `[lo, hi)` carrying a byte buffer and `UInt64` state. -/
+@[noinline] def forRangeBytesU64 (lo hi : UInt32) (buf : MutBytes) (init : UInt64)
+    (step : UInt32 → MutBytes → UInt64 → MutBytes × UInt64) : MutBytes × UInt64 :=
+  let count := (hi - lo).toNat
+  let rec go (fuel : Nat) (cur : UInt32) (b : MutBytes) (acc : UInt64) : MutBytes × UInt64 :=
+    match fuel with
+    | 0 => (b, acc)
+    | fuel' + 1 =>
+      let r := step cur b acc
+      go fuel' (cur + 1) r.1 r.2
+  if decide (lo < hi) then go count lo buf init else (buf, init)
 
 /-- Branchless Boolean helpers (`0` LCNF join points, constant-time scalar ops). -/
 def bnot (a : Bool) : Bool :=
@@ -421,11 +463,10 @@ private def msRead (scratch : MutBytes) (i : UInt32) : UInt16 :=
   let hi := readMutU8 scratch (i * 2 + 1)
   lo.toUInt16 ||| (hi.toUInt16 <<< 8)
 
-/-- Write packed node `i` into `scratch`. -/
-private def msWrite (scratch : MutBytes) (i : UInt32) (v : UInt16) : Unit :=
-  let _ := writeU8 scratch (i * 2) v.toUInt8
-  let _ := writeU8 scratch (i * 2 + 1) (v >>> 8).toUInt8
-  ()
+/-- `scratch` with packed node `i` replaced by `v`. -/
+private def msWrite (scratch : MutBytes) (i : UInt32) (v : UInt16) : MutBytes :=
+  let s := writeU8 scratch (i * 2) v.toUInt8
+  writeU8 s (i * 2 + 1) (v >>> 8).toUInt8
 
 /-- BIP-379 `timelockConflict(x, y)` on packed nodes: `(g_x ∧ h_y) ∨ (h_x ∧ g_y) ∨ (i_x ∧ j_y) ∨ (j_x ∧ i_y)`. -/
 def msConflict (x y : UInt16) : Bool :=
@@ -617,18 +658,15 @@ private def msStoreImm (st : UInt64) (byteIdx : UInt64) (b : UInt8) : UInt64 :=
   stored ||| ((byteIdx + 1) <<< 47)
 
 /-- Push packed node `node` at the current stack depth and bump the depth. -/
-private def msPush (scratch : MutBytes) (st : UInt64) (node : UInt16) : UInt64 :=
+private def msPush (scratch : MutBytes) (st : UInt64) (node : UInt16) : MutBytes × UInt64 :=
   let sp := msSp st
-  if decide (64 ≤ sp) then (1 : UInt64) <<< 63
-  else
-    let _w := msWrite scratch sp node
-    msWithSp st (sp + 1)
+  if decide (64 ≤ sp) then (scratch, (1 : UInt64) <<< 63)
+  else (msWrite scratch sp node, msWithSp st (sp + 1))
 
 /-- Overwrite the node at depth `sp - 1` (stack depth unchanged). -/
-private def msReplaceTop (scratch : MutBytes) (st : UInt64) (node : UInt16) : UInt64 :=
+private def msReplaceTop (scratch : MutBytes) (st : UInt64) (node : UInt16) : MutBytes × UInt64 :=
   let sp := msSp st
-  let _w := msWrite scratch (sp - 1) node
-  st
+  (msWrite scratch (sp - 1) node, st)
 
 /-- Fold one `thresh(k, ...)` child `v` (at index `idx`) into packed 64-bit accumulator `acc`.
     `acc` bits: `0..6` z, `7..13` o, `14..20` notS, `21..27` e, `28..34` m,
@@ -685,7 +723,7 @@ def msThreshPack (acc : UInt64) (k n : UInt32) : UInt16 :=
       (decide ((acc >>> 39) &&& 1 = 0))
 
 /-- Finish a 4-byte immediate (`older`, `after`, `multi`, `multi_a`, `thresh`). -/
-private def msFinishImm (scratch : MutBytes) (st : UInt64) (isTapscript : UInt8) : UInt64 :=
+private def msFinishImm (scratch : MutBytes) (st : UInt64) (isTapscript : UInt8) : MutBytes × UInt64 :=
   let op := ((st >>> 50) &&& 0x3F).toUInt32
   let imm := st &&& 0xFFFFFFFF
   let k16 := (imm &&& 0xFFFF).toUInt32
@@ -694,7 +732,7 @@ private def msFinishImm (scratch : MutBytes) (st : UInt64) (isTapscript : UInt8)
   if bor (decide (op = 6)) (decide (op = 7)) then
     let isOlder := decide (op = 6)
     let ok := selU16 isOlder (llbMiniscriptOlderOk imm.toUInt32).toUInt16 (llbMiniscriptAfterOk imm.toUInt32).toUInt16
-    if decide (ok = 0) then (1 : UInt64) <<< 63
+    if decide (ok = 0) then (scratch, (1 : UInt64) <<< 63)
     else
       let time := selU16 isOlder (decide ((imm &&& 0x00400000) ≠ 0)).toUInt16 (decide (500000000 ≤ imm)).toUInt16
       let tBool := decide (time ≠ 0)
@@ -709,31 +747,29 @@ private def msFinishImm (scratch : MutBytes) (st : UInt64) (isTapscript : UInt8)
     let ctxOk := decide (isMulti != tapscript)
     let nMax : UInt32 := selU32 isMulti 20 999
     let ok := band (band ctxOk (decide (1 ≤ k16))) (band (decide (k16 ≤ n16)) (decide (n16 ≤ nMax)))
-    if bnot ok then (1 : UInt64) <<< 63
+    if bnot ok then (scratch, (1 : UInt64) <<< 63)
     else msPush scratch cleared (msPack 0 false false isMulti true true true false true true false false false false true)
   else
     let sp := msSp st
     let ok := band (band (decide (1 ≤ k16)) (decide (k16 ≤ n16))) (band (decide (n16 ≤ sp)) (decide (n16 ≤ 64)))
-    if bnot ok then (1 : UInt64) <<< 63
+    if bnot ok then (scratch, (1 : UInt64) <<< 63)
     else
       let base := sp - n16
       let acc := forRangeU64 0 n16 0 (fun idx a => msThreshChild scratch base k16 idx a)
       let node := msThreshPack acc k16 n16
-      if msErr node then (1 : UInt64) <<< 63
-      else
-        let _w := msWrite scratch base node
-        msWithSp cleared (base + 1)
+      if msErr node then (scratch, (1 : UInt64) <<< 63)
+      else (msWrite scratch base node, msWithSp cleared (base + 1))
 
 /-- One opcode of the postfix Miniscript program. -/
-private def msStep (scratch : MutBytes) (isTapscript : UInt8) (ops : ConstBytes) (pos : UInt32) (st : UInt64) : UInt64 :=
-  if decide (st >>> 63 ≠ 0) then st
+private def msStep (scratch : MutBytes) (isTapscript : UInt8) (ops : ConstBytes) (pos : UInt32) (st : UInt64) : MutBytes × UInt64 :=
+  if decide (st >>> 63 ≠ 0) then (scratch, st)
   else
     let b := readU8 ops pos
     let pend := (st >>> 50) &&& 0x3F
     let got := (st >>> 47) &&& 7
     if decide (pend ≠ 0) then
       let st' := msStoreImm st got b
-      if decide (got + 1 ≥ 4) then msFinishImm scratch st' isTapscript else st'
+      if decide (got + 1 ≥ 4) then msFinishImm scratch st' isTapscript else (scratch, st')
     else if decide (b = 0x00) then msPush scratch st (msLeafB true false false true true true false true true)
     else if decide (b = 0x01) then msPush scratch st (msLeafB true false false false true false true false true)
     else if decide (b = 0x02) then msPush scratch st (msPack 2 false true true true true true false true true false false false false true)
@@ -743,49 +779,48 @@ private def msStep (scratch : MutBytes) (isTapscript : UInt8) (ops : ConstBytes)
     else if band (decide (0x08 ≤ b)) (decide (b ≤ 0x0B)) then
       msPush scratch st (msLeafB false true true true true false false false true)
     else if bor (bor (decide (b = 0x06)) (decide (b = 0x07))) (bor (bor (decide (b = 0x0C)) (decide (b = 0x0D))) (decide (b = 0x28))) then
-      msBeginImm st b
+      (scratch, msBeginImm st b)
     else if band (decide (0x10 ≤ b)) (decide (b ≤ 0x19)) then
-      if msSpLt st 1 then (1 : UInt64) <<< 63
+      if msSpLt st 1 then (scratch, (1 : UInt64) <<< 63)
       else
         let r := msApplyUnary b isTapscript (msRead scratch (msSp st - 1))
-        if msErr r then (1 : UInt64) <<< 63 else msReplaceTop scratch st r
+        if msErr r then (scratch, (1 : UInt64) <<< 63) else msReplaceTop scratch st r
     else if band (decide (0x20 ≤ b)) (decide (b ≤ 0x26)) then
-      if msSpLt st 2 then (1 : UInt64) <<< 63
+      if msSpLt st 2 then (scratch, (1 : UInt64) <<< 63)
       else
         let sp := msSp st
         let r := msApplyBinary b (msRead scratch (sp - 2)) (msRead scratch (sp - 1))
-        if msErr r then (1 : UInt64) <<< 63
-        else
-          let _w := msWrite scratch (sp - 2) r
-          msWithSp st (sp - 1)
+        if msErr r then (scratch, (1 : UInt64) <<< 63)
+        else (msWrite scratch (sp - 2) r, msWithSp st (sp - 1))
     else if decide (b = 0x27) then
-      if msSpLt st 3 then (1 : UInt64) <<< 63
+      if msSpLt st 3 then (scratch, (1 : UInt64) <<< 63)
       else
         let sp := msSp st
         let r := msApplyAndor (msRead scratch (sp - 3)) (msRead scratch (sp - 2)) (msRead scratch (sp - 1))
-        if msErr r then (1 : UInt64) <<< 63
-        else
-          let _w := msWrite scratch (sp - 3) r
-          msWithSp st (sp - 2)
-    else (1 : UInt64) <<< 63
+        if msErr r then (scratch, (1 : UInt64) <<< 63)
+        else (msWrite scratch (sp - 3) r, msWithSp st (sp - 2))
+    else (scratch, (1 : UInt64) <<< 63)
 
 /-- Full postfix BIP-379 / BIP-388 Miniscript typechecker over `ops[0..opsLen)` using
-    caller-supplied `scratch` (128 bytes = 64 × 2). Returns `1` iff the program is a valid
-    non-malleable (per `requireFlags`), signature-safe (per `requireFlags`), timelock-safe
-    `B`-rooted Miniscript. -/
+    caller-supplied `scratch` (128 bytes = 64 × 2). The second component is `true` iff the
+    program is a valid non-malleable (per `requireFlags`), signature-safe (per
+    `requireFlags`), timelock-safe `B`-rooted Miniscript; the first is `scratch` as the
+    typechecker left it. -/
 @[export llb_miniscript_check_postfix]
-def llbMiniscriptCheckPostfix (ops : ConstBytes) (opsLen : UInt32) (isTapscript : UInt8) (requireFlags : UInt8) (scratch : MutBytes) : Bool :=
-  if bor (decide (opsLen = 0)) (decide (512 < opsLen)) then false
+def llbMiniscriptCheckPostfix (ops : ConstBytes) (opsLen : UInt32) (isTapscript : UInt8) (requireFlags : UInt8) (scratch : MutBytes) : MutBytes × Bool :=
+  if bor (decide (opsLen = 0)) (decide (512 < opsLen)) then (scratch, false)
   else
-    let step := fun pos st => msStep scratch isTapscript ops pos st
-    let st := forRangeU64 0 opsLen 0 step
+    let step := fun pos s st => msStep s isTapscript ops pos st
+    let r := forRangeBytesU64 0 opsLen scratch 0 step
+    let done := r.1
+    let st := r.2
     let doneOk := band (decide (st >>> 63 = 0)) (band (decide (msSp st = 1)) (decide (((st >>> 50) &&& 0x3F) = 0)))
-    if bnot doneOk then false
+    if bnot doneOk then (done, false)
     else
-      let top := msRead scratch 0
+      let top := msRead done 0
       let reqM := bor (decide ((requireFlags &&& 1) = 0)) (msBit top MSB_M)
       let reqS := bor (decide ((requireFlags &&& 2) = 0)) (msBit top MSB_S)
-      band (band (decide ((top &&& 3) = 0)) (msBit top MSB_K)) (band reqM reqS)
+      (done, band (band (decide ((top &&& 3) = 0)) (msBit top MSB_K)) (band reqM reqS))
 
 /-! ## 10. BIP-370 PSBTv2 Locktime State Machine (VND-04)
 
@@ -927,46 +962,44 @@ private def recGreater (buf : MutBytes) (stride j : UInt32) : UInt64 :=
   let r := forRangeU64 0 stride 2 step
   if decide (r = 1) then 1 else 0
 
-/-- Swap records `j` and `j+1` of `stride` bytes in place. -/
-private def recSwap (buf : MutBytes) (stride j : UInt32) : Unit :=
-  forRangeUnit 0 stride (fun k =>
+/-- `buf` with records `j` and `j+1` of `stride` bytes swapped. -/
+private def recSwap (buf : MutBytes) (stride j : UInt32) : MutBytes :=
+  forRangeBytes 0 stride buf (fun k b =>
     let a := j * stride + k
-    let b := (j + 1) * stride + k
-    let x := readMutU8 buf a
-    let y := readMutU8 buf b
-    let _ := writeU8 buf a y
-    let _ := writeU8 buf b x
-    ())
+    let c := (j + 1) * stride + k
+    let x := readMutU8 b a
+    let y := readMutU8 b c
+    let b1 := writeU8 b a y
+    writeU8 b1 c x)
 
 /-- Bubble slot `slot` left by one insertion pass. -/
-private def sortBytesPass (buf : MutBytes) (stride slot : UInt32) : Unit :=
-  forRangeUnit 0 slot (fun k =>
+private def sortBytesPass (buf : MutBytes) (stride slot : UInt32) : MutBytes :=
+  forRangeBytes 0 slot buf (fun k b =>
     let j := slot - 1 - k
-    if decide (recGreater buf stride j = 1) then recSwap buf stride j else ())
+    if decide (recGreater b stride j = 1) then recSwap b stride j else b)
 
-/-- In-place lexicographic insertion sort of `count` records of `stride` bytes. -/
+/-- Lexicographic insertion sort of `count` records of `stride` bytes; returns the sorted buffer. -/
 @[export llb_sort_fixed_bytes]
-def llbSortFixedBytes (buf : MutBytes) (count stride : UInt32) : Unit :=
-  if decide (count ≤ 1) || decide (stride = 0) then ()
-  else forRangeUnit 1 count (fun slot => sortBytesPass buf stride slot)
+def llbSortFixedBytes (buf : MutBytes) (count stride : UInt32) : MutBytes :=
+  if decide (count ≤ 1) || decide (stride = 0) then buf
+  else forRangeBytes 1 count buf (fun slot b => sortBytesPass b stride slot)
 
 /-- One insertion pass over `UInt16` elements up to `slot`. -/
-private def sortU16Pass (arr : MutU16s) (slot : UInt32) : Unit :=
-  forRangeUnit 0 slot (fun k =>
+private def sortU16Pass (arr : MutU16s) (slot : UInt32) : MutU16s :=
+  forRangeU16s 0 slot arr (fun k a =>
     let j := slot - 1 - k
-    let x := readMutU16 arr j
-    let y := readMutU16 arr (j + 1)
+    let x := readMutU16 a j
+    let y := readMutU16 a (j + 1)
     if decide (y < x) then
-      let _ := writeU16 arr j y
-      let _ := writeU16 arr (j + 1) x
-      ()
-    else ())
+      let a1 := writeU16 a j y
+      writeU16 a1 (j + 1) x
+    else a)
 
-/-- In-place insertion sort of `count` `UInt16` values. -/
+/-- Insertion sort of `count` `UInt16` values; returns the sorted buffer. -/
 @[export llb_sort_u16]
-def llbSortU16 (arr : MutU16s) (count : UInt32) : Unit :=
-  if decide (count ≤ 1) then ()
-  else forRangeUnit 1 count (fun slot => sortU16Pass arr slot)
+def llbSortU16 (arr : MutU16s) (count : UInt32) : MutU16s :=
+  if decide (count ≤ 1) then arr
+  else forRangeU16s 1 count arr (fun slot a => sortU16Pass a slot)
 
 /-! ## 15. Division-Free ASCII Satoshi Formatter -/
 
@@ -989,15 +1022,13 @@ def decLenU32 (v : UInt32) : UInt32 :=
   let n := (r >>> 32).toUInt32
   if decide (n = 0) then 1 else n
 
-/-- Write the `len` decimal digits of `v` ending at `pos - 1`. -/
-private def emitDec (out : MutBytes) (pos v len : UInt32) : Unit :=
-  let step := fun k (cur : UInt32) =>
+/-- `out` with the `len` decimal digits of `v` written ending at `pos - 1`. -/
+private def emitDec (out : MutBytes) (pos v len : UInt32) : MutBytes :=
+  let step := fun k (b : MutBytes) (cur : UInt32) =>
     let atPos := pos - 1 - k
     let d := mod10U32 cur
-    let _ := writeU8 out atPos (0x30 + d.toUInt8)
-    div10U32 cur
-  let _ := forRangeU32 0 len v step
-  ()
+    (writeU8 b atPos (0x30 + d.toUInt8), div10U32 cur)
+  (forRangeBytesU32 0 len out v step).1
 
 /-- Significant fractional digits (`0` when `frac = 0`). -/
 def fracSigLen (frac : UInt32) : UInt32 :=
@@ -1009,24 +1040,21 @@ def fracSigLen (frac : UInt32) : UInt32 :=
   let r := forRangeU64 0 8 (frac.toUInt64) step
   selU32 (decide (frac = 0)) 0 ((8 : UInt32) - (r >>> 32).toUInt32)
 
-/-- Copy `ticker[0..tickerLen)` to `out[pos..]`. -/
-private def copyTicker (ticker : ConstBytes) (tickerLen : UInt32) (out : MutBytes) (pos : UInt32) : Unit :=
-  forRangeUnit 0 tickerLen (fun k =>
-    let _ := writeU8 out (pos + k) (readU8 ticker k)
-    ())
+/-- `out` with `ticker[0..tickerLen)` copied to `out[pos..]`. -/
+private def copyTicker (ticker : ConstBytes) (tickerLen : UInt32) (out : MutBytes) (pos : UInt32) : MutBytes :=
+  forRangeBytes 0 tickerLen out (fun k b => writeU8 b (pos + k) (readU8 ticker k))
 
-private def maybeWriteByte (cond : Bool) (out : MutBytes) (pos : UInt32) (val : UInt8) : Unit :=
-  if cond then
-    let _ := writeU8 out pos val
-    ()
-  else ()
+/-- `out` with byte `pos` replaced by `val` when `cond` holds, else `out`. -/
+private def maybeWriteByte (cond : Bool) (out : MutBytes) (pos : UInt32) (val : UInt8) : MutBytes :=
+  if cond then writeU8 out pos val else out
 
 /-- Format `amount` satoshis plus an optional ticker. `padFrac8 ≠ 0` keeps all 8 fractional
-    digits; `padFrac8 = 0` strips a trailing `.` and trailing fractional zeros. Returns the
-    number of bytes written excluding the terminating NUL, or `0` when `outCap` is too small. -/
+    digits; `padFrac8 = 0` strips a trailing `.` and trailing fractional zeros. Returns `out`
+    with the text and its terminating NUL written, and the number of bytes written excluding
+    the NUL; when `outCap` is too small it returns `out` unchanged and `0`. -/
 @[export llb_format_sats_ascii]
-def llbFormatSatsAscii (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt32) (padFrac8 : UInt8) (out : MutBytes) (outCap : UInt32) : UInt32 :=
-  if decide (256 < tickerLen) then 0
+def llbFormatSatsAscii (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt32) (padFrac8 : UInt8) (out : MutBytes) (outCap : UInt32) : MutBytes × UInt32 :=
+  if decide (256 < tickerLen) then (out, 0)
   else
     let q := llbSatsDiv1e8 amount
     let frac := llbSatsMod1e8 amount
@@ -1043,19 +1071,18 @@ def llbFormatSatsAscii (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt
     let hasTicker := bnot (decide (tickerLen = 0))
     let spaceLen : UInt32 := hasTicker.toUInt32
     let total := intLen + dotLen + fracLen + spaceLen + tickerLen
-    if decide (outCap ≤ total) then 0
+    if decide (outCap ≤ total) then (out, 0)
     else
-      let _ := emitDec out hiLen qHi hiLen
-      let _ := emitDec out (hiLen + loLen) qLo loLen
-      let _ := maybeWriteByte showFrac out intLen 0x2E
+      let o1 := emitDec out hiLen qHi hiLen
+      let o2 := emitDec o1 (hiLen + loLen) qLo loLen
+      let o3 := maybeWriteByte showFrac o2 intLen 0x2E
       let drop := selU32 pad 0 (8 - fracLen)
       let fracShown := forRangeU32 0 drop frac (fun _ cur => div10U32 cur)
       let emitFracLen := selU32 showFrac fracLen 0
-      let _ := emitDec out (intLen + 1 + emitFracLen) fracShown emitFracLen
-      let _ := maybeWriteByte hasTicker out (intLen + dotLen + fracLen) 0x20
-      let _ := copyTicker ticker tickerLen out (intLen + dotLen + fracLen + spaceLen)
-      let _ := writeU8 out total 0
-      total
+      let o4 := emitDec o3 (intLen + 1 + emitFracLen) fracShown emitFracLen
+      let o5 := maybeWriteByte hasTicker o4 (intLen + dotLen + fracLen) 0x20
+      let o6 := copyTicker ticker tickerLen o5 (intLen + dotLen + fracLen + spaceLen)
+      (writeU8 o6 total 0, total)
 
 #guard llbPsbtLocktimeInit == ((1 : UInt64) <<< 63)
 #guard llbPsbtLocktimeStep llbPsbtLocktimeInit 1 0 0 0 == 0
