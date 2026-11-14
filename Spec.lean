@@ -272,6 +272,28 @@ def SortU16 : Prop :=
     (u16s (llbSortU16 arr count) count.toNat).Perm (u16s arr count.toNat) ∧
     ∀ i : UInt32, count.toNat ≤ i.toNat → (llbSortU16 arr count).get i = arr.get i
 
+/-- `a` is before or equal to `b`, comparing byte by byte from the first byte. -/
+def lexLe : List Nat → List Nat → Prop
+  | [], _ => True
+  | _ :: _, [] => False
+  | x :: xs, y :: ys => x < y ∨ (x = y ∧ lexLe xs ys)
+
+/-- The first `count` records of `stride` bytes of a buffer. -/
+def records (b : MutBytes) (count stride : Nat) : List (List Nat) :=
+  (List.range count).map fun r =>
+    (List.range stride).map fun k => (b.get (UInt32.ofNat (r * stride + k))).toNat
+
+/-- `llb_sort_fixed_bytes` leaves the first `count` records of `stride` bytes in
+    lexicographic order, as a permutation of what they were, and changes no byte after
+    them. The records must fit in the 32-bit address space. -/
+def SortFixedBytes : Prop :=
+  ∀ (buf : MutBytes) (count stride : UInt32), count.toNat * stride.toNat ≤ 2 ^ 32 →
+    (records (llbSortFixedBytes buf count stride) count.toNat stride.toNat).Pairwise lexLe ∧
+    (records (llbSortFixedBytes buf count stride) count.toNat stride.toNat).Perm
+      (records buf count.toNat stride.toNat) ∧
+    ∀ i : UInt32, count.toNat * stride.toNat ≤ i.toNat →
+      (llbSortFixedBytes buf count stride).get i = buf.get i
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -284,6 +306,7 @@ def KernelSpec : Prop :=
   MerkleSplit ∧
   MerkleStep ∧
   PsbtLocktime ∧
-  SortU16
+  SortU16 ∧
+  SortFixedBytes
 
 end Spec

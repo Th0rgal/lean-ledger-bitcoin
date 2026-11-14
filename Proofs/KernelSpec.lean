@@ -10,8 +10,8 @@ one rejected concrete input per statement (so no statement holds for an empty re
 Some proofs reuse lemmas of `Proofs/FreestandingKernels.lean` that are themselves stated on
 the kernel functions: `llbSatsDiv1e8_eq` and `llbSatsMod1e8_eq` (`SplitBtc`), `llbBytesEq_iff`
 (`DualUtxo`), `bip32TailClear_iff` (`Bip32ExportPath`), `largestPow2LtU32_eq` (`MerkleSplit`) and
-`llbPsbtLocktime_eq_determineLocktime` (`PsbtLocktime`). Every other proof unfolds the kernel
-function directly.
+`llbPsbtLocktime_eq_determineLocktime` (`PsbtLocktime`) and `forRangeU64_eq_foldl`
+(`SortFixedBytes`). Every other proof unfolds the kernel function directly.
 -/
 
 namespace Proofs.KernelSpec
@@ -1561,12 +1561,411 @@ theorem sortU16 : Spec.SortU16 := by
       n (fun b q => cmpSwap16 b (UInt32.ofNat q)) (step16 n (Nat.le_of_lt hc)) arr
     exact ⟨r1, r2, r3⟩
 
+/-! ### `llb_sort_fixed_bytes` -/
+
+private theorem forRangeBytes_go_eq (step : UInt32 → MutBytes → MutBytes) (fuel : Nat) :
+    ∀ (cur : UInt32) (b : MutBytes), forRangeBytes.go step fuel cur b =
+      (List.range fuel).foldl (fun a k => step (cur + UInt32.ofNat k) a) b := by
+  induction fuel with
+  | zero => intro cur b; rfl
+  | succ fuel' ih =>
+    intro cur b
+    unfold forRangeBytes.go
+    rw [List.range_succ_eq_map, List.foldl_cons, List.foldl_map]
+    have h0 : cur + UInt32.ofNat 0 = cur := UInt32.add_zero cur
+    rw [h0, ih (cur + 1) (step cur b)]
+    have hfun :
+        (fun a k => step (cur + 1 + UInt32.ofNat k) a) =
+          (fun a k => step (cur + UInt32.ofNat (k + 1)) a) := by
+      funext a k
+      have hk : (1 : UInt32) + UInt32.ofNat k = UInt32.ofNat (k + 1) := by
+        rw [UInt32.ofNat_add, UInt32.add_comm]
+        rfl
+      rw [UInt32.add_assoc, hk]
+    rw [hfun]
+
+private theorem forRangeBytes_eq (lo hi : UInt32) (buf : MutBytes) (step : UInt32 → MutBytes → MutBytes) :
+    forRangeBytes lo hi buf step =
+      (List.range (hi.toNat - lo.toNat)).foldl (fun b k => step (lo + UInt32.ofNat k) b) buf := by
+  unfold forRangeBytes
+  by_cases h : lo < hi
+  · rw [decide_eq_true h]
+    simp only [↓reduceIte]
+    rw [forRangeBytes_go_eq, UInt32.toNat_sub_of_le _ _ (UInt32.le_iff_toNat_le.mpr
+      (Nat.le_of_lt (UInt32.lt_iff_toNat_lt.mp h)))]
+  · rw [decide_eq_false h]
+    have : hi.toNat - lo.toNat = 0 := by
+      have hnl : ¬ lo.toNat < hi.toNat := fun h' => h (UInt32.lt_iff_toNat_lt.mpr h')
+      omega
+    rw [this]; rfl
+
+
+private theorem forRangeU64_eq' (lo hi : UInt32) (init : UInt64) (step : UInt32 → UInt64 → UInt64) :
+    forRangeU64 lo hi init step =
+      (List.range (hi.toNat - lo.toNat)).foldl (fun acc k => step (lo + UInt32.ofNat k) acc) init := by
+  rw [Proofs.FreestandingKernels.forRangeU64_eq_foldl]
+  by_cases h : lo < hi
+  · rw [decide_eq_true h, ite_eq_left rfl, UInt32.toNat_sub_of_le _ _ (UInt32.le_iff_toNat_le.mpr
+      (Nat.le_of_lt (UInt32.lt_iff_toNat_lt.mp h)))]
+  · rw [decide_eq_false h, ite_eq_right Bool.false_ne_true]
+    have : hi.toNat - lo.toNat = 0 := by
+      have hnl : ¬ lo.toNat < hi.toNat := fun h' => h (UInt32.lt_iff_toNat_lt.mpr h')
+      omega
+    rw [this]; rfl
+
+private theorem lexLe_trans : ∀ a b c : List Nat, Spec.lexLe a b → Spec.lexLe b c → Spec.lexLe a c
+  | [], _, _, _, _ => trivial
+  | _ :: _, [], _, h, _ => h.elim
+  | _ :: _, _ :: _, [], _, h => h.elim
+  | x :: xs, y :: ys, z :: zs, h1, h2 => by
+    show x < z ∨ (x = z ∧ Spec.lexLe xs zs)
+    have h1' : x < y ∨ (x = y ∧ Spec.lexLe xs ys) := h1
+    have h2' : y < z ∨ (y = z ∧ Spec.lexLe ys zs) := h2
+    rcases h1' with h | ⟨e, h⟩
+    · rcases h2' with h' | ⟨e', _⟩
+      · exact Or.inl (Nat.lt_trans h h')
+      · exact Or.inl (e' ▸ h)
+    · rcases h2' with h' | ⟨e', h'⟩
+      · exact Or.inl (e ▸ h')
+      · exact Or.inr ⟨e.trans e', lexLe_trans xs ys zs h h'⟩
+
+private theorem lexLe_total : ∀ a b : List Nat, ¬ Spec.lexLe a b → Spec.lexLe b a
+  | [], _, h => (h trivial).elim
+  | _ :: _, [], _ => trivial
+  | x :: xs, y :: ys, h => by
+    show y < x ∨ (y = x ∧ Spec.lexLe ys xs)
+    have h' : ¬ (x < y ∨ (x = y ∧ Spec.lexLe xs ys)) := h
+    rcases Nat.lt_trichotomy x y with c | c | c
+    · exact (h' (Or.inl c)).elim
+    · exact Or.inr ⟨c.symm, lexLe_total xs ys (fun hh => h' (Or.inr ⟨c, hh⟩))⟩
+    · exact Or.inl c
+
+private def cmpNat (acc : UInt64) (p : Nat × Nat) : UInt64 :=
+  if decide (acc ≠ 2) then acc
+  else if decide (p.1 < p.2) then 0 else if decide (p.2 < p.1) then 1 else 2
+
+private theorem cmp_stuck (l : List (Nat × Nat)) (acc : UInt64) (h : acc ≠ 2) : l.foldl cmpNat acc = acc := by
+  induction l with
+  | nil => rfl
+  | cons p l ih =>
+    have e : cmpNat acc p = acc := by unfold cmpNat; rw [decide_eq_true h]; rfl
+    rw [List.foldl_cons, e]; exact ih
+
+private theorem cmp_fold : ∀ l : List (Nat × Nat),
+    (l.foldl cmpNat 2 = 1 → ¬ Spec.lexLe (l.map Prod.fst) (l.map Prod.snd)) ∧
+    (l.foldl cmpNat 2 ≠ 1 → Spec.lexLe (l.map Prod.fst) (l.map Prod.snd))
+  | [] => ⟨fun h => absurd h (by decide), fun _ => trivial⟩
+  | (x, y) :: l => by
+    rw [List.foldl_cons]
+    show (_ → ¬ (x < y ∨ (x = y ∧ Spec.lexLe (l.map Prod.fst) (l.map Prod.snd)))) ∧
+      (_ → (x < y ∨ (x = y ∧ Spec.lexLe (l.map Prod.fst) (l.map Prod.snd))))
+    rcases Nat.lt_trichotomy x y with c | c | c
+    · have e : cmpNat 2 (x, y) = 0 := by
+        show (if decide (x < y) = true then (0 : UInt64) else _) = 0
+        rw [decide_eq_true c]; rfl
+      rw [e, cmp_stuck l 0 (by decide)]
+      exact ⟨fun h => absurd h (by decide), fun _ => Or.inl c⟩
+    · have e : cmpNat 2 (x, y) = 2 := by
+        show (if decide (x < y) = true then (0 : UInt64) else
+          if decide (y < x) = true then 1 else 2) = 2
+        rw [decide_eq_false (by omega), decide_eq_false (by omega)]; rfl
+      rw [e]
+      refine ⟨fun h hh => ?_, fun h => Or.inr ⟨c, (cmp_fold l).2 h⟩⟩
+      rcases hh with h1 | ⟨_, h2⟩
+      · omega
+      · exact (cmp_fold l).1 h h2
+    · have e : cmpNat 2 (x, y) = 1 := by
+        show (if decide (x < y) = true then (0 : UInt64) else
+          if decide (y < x) = true then 1 else 2) = 1
+        rw [decide_eq_false (by omega), decide_eq_true c]; rfl
+      rw [e, cmp_stuck l 1 (by decide)]
+      refine ⟨fun _ hh => ?_, fun h => absurd rfl h⟩
+      rcases hh with h1 | ⟨h1, _⟩
+      · omega
+      · omega
+
+private def cmpLoop (buf : MutBytes) (stride j : UInt32) : UInt64 :=
+  forRangeU64 0 stride 2 (fun (k : UInt32) (acc : UInt64) =>
+    if decide (acc ≠ 2) then acc
+    else
+      let x := readMutU8 buf (j * stride + k)
+      let y := readMutU8 buf ((j + 1) * stride + k)
+      if decide (x < y) then 0 else if decide (y < x) then 1 else 2)
+
+private def swapRec (buf : MutBytes) (stride j : UInt32) : MutBytes :=
+  forRangeBytes 0 stride buf (fun k b =>
+    let a := j * stride + k
+    let c := (j + 1) * stride + k
+    let x := readMutU8 b a
+    let y := readMutU8 b c
+    let b1 := writeU8 b a y
+    writeU8 b1 c x)
+
+private def cmpSwapRec (b : MutBytes) (stride j : UInt32) : MutBytes :=
+  if decide ((if decide (cmpLoop b stride j = 1) then (1 : UInt64) else 0) = 1) then swapRec b stride j
+  else b
+
+private theorem sortFixed_unfold (buf : MutBytes) (count stride : UInt32) :
+    llbSortFixedBytes buf count stride =
+      if decide (count ≤ 1) || decide (stride = 0) then buf
+      else forRangeBytes 1 count buf (fun slot b =>
+        forRangeBytes 0 slot b (fun k b => cmpSwapRec b stride (slot - 1 - k))) := rfl
+
+private theorem cmpSwapRec_pos (b : MutBytes) (stride j : UInt32) (h : cmpLoop b stride j = 1) :
+    cmpSwapRec b stride j = swapRec b stride j := by
+  unfold cmpSwapRec; rw [decide_eq_true h]; rfl
+
+private theorem cmpSwapRec_neg (b : MutBytes) (stride j : UInt32) (h : cmpLoop b stride j ≠ 1) :
+    cmpSwapRec b stride j = b := by
+  unfold cmpSwapRec; rw [decide_eq_false h]; rfl
+
+private def viewB (m : Nat) (b : MutBytes) (r : Nat) : List Nat :=
+  lst (fun t => (b.get (UInt32.ofNat (r * m + t))).toNat) m
+
+private theorem view_eq (m : Nat) (b : MutBytes) (r : Nat) (idx : Nat → UInt32)
+    (h : ∀ t, t < m → (idx t).toNat = r * m + t) (hb : r * m + m ≤ 4294967296) :
+    viewB m b r = lst (fun t => (b.get (idx t)).toNat) m :=
+  lst_congr _ _ m (fun t ht => by
+    rw [(ofNat_eq_iff (r * m + t) (by omega) (idx t)).mpr (h t ht).symm])
+
+private theorem rec_idx (stride j : UInt32) (q t : Nat) (hj : j.toNat = q)
+    (h : q * stride.toNat + t < 4294967296) :
+    (j * stride + (0 + UInt32.ofNat t)).toNat = q * stride.toNat + t := by
+  have ht : t < 4294967296 := by omega
+  have hq : q * stride.toNat < 4294967296 := by omega
+  rw [UInt32.toNat_add, UInt32.toNat_mul, UInt32.zero_add, ofNat_toNat_lt t ht, hj,
+    Nat.mod_eq_of_lt hq]
+  exact Nat.mod_eq_of_lt h
+
+private theorem swap_loop (b0 : MutBytes) (m A : Nat) (ia ic : Nat → UInt32)
+    (hA : ∀ t, t < m → (ia t).toNat = A + t) (hC : ∀ t, t < m → (ic t).toNat = A + m + t)
+    (step : MutBytes → Nat → MutBytes)
+    (hstep : ∀ t b, t < m → step b t =
+      writeU8 (writeU8 b (ia t) (readMutU8 b (ic t))) (ic t) (readMutU8 b (ia t))) :
+    (∀ t, t < m → ((List.range m).foldl step b0).get (ia t) = b0.get (ic t)) ∧
+    (∀ t, t < m → ((List.range m).foldl step b0).get (ic t) = b0.get (ia t)) ∧
+    (∀ i : UInt32, i.toNat < A ∨ A + 2 * m ≤ i.toNat →
+      ((List.range m).foldl step b0).get i = b0.get i) := by
+  have ne_of : ∀ (u v : UInt32), u.toNat ≠ v.toNat → u ≠ v :=
+    fun u v h e => h (congrArg UInt32.toNat e)
+  have key := foldl_range_inv
+    (fun k (b : MutBytes) =>
+      (∀ t, t < k → b.get (ia t) = b0.get (ic t)) ∧
+      (∀ t, t < k → b.get (ic t) = b0.get (ia t)) ∧
+      (∀ i : UInt32, (∀ t, t < k → i ≠ ia t) → (∀ t, t < k → i ≠ ic t) → b.get i = b0.get i))
+    step m b0
+    ⟨fun t h => absurd h (Nat.not_lt_zero t), fun t h => absurd h (Nat.not_lt_zero t),
+      fun _ _ _ => rfl⟩ ?hs
+  · obtain ⟨k1, k2, k3⟩ := key
+    refine ⟨k1, k2, fun i hi => k3 i (fun t ht e => ?_) (fun t ht e => ?_)⟩
+    · have := hA t ht; rw [← e] at this; omega
+    · have := hC t ht; rw [← e] at this; omega
+  case hs =>
+    intro k b hk ⟨p1, p2, p3⟩
+    rw [hstep k b hk]
+    have gA := hA k hk
+    have gC := hC k hk
+    have ac : ia k ≠ ic k := ne_of _ _ (by omega)
+    have ra : b.get (ia k) = b0.get (ia k) :=
+      p3 _ (fun t ht => ne_of _ _ (by have := hA t (by omega); omega))
+        (fun t ht => ne_of _ _ (by have := hC t (by omega); omega))
+    have rc : b.get (ic k) = b0.get (ic k) :=
+      p3 _ (fun t ht => ne_of _ _ (by have := hA t (by omega); omega))
+        (fun t ht => ne_of _ _ (by have := hC t (by omega); omega))
+    have get' : ∀ i, (writeU8 (writeU8 b (ia k) (readMutU8 b (ic k))) (ic k)
+        (readMutU8 b (ia k))).get i =
+          if i = ic k then b.get (ia k) else if i = ia k then b.get (ic k) else b.get i :=
+      fun _ => rfl
+    refine ⟨?_, ?_, ?_⟩
+    · intro t ht
+      rw [get']
+      by_cases c : t = k
+      · rw [c, ite_eq_right ac, ite_eq_left rfl, rc]
+      · have n1 : ia t ≠ ic k := ne_of _ _ (by have := hA t (by omega); omega)
+        have n2 : ia t ≠ ia k := ne_of _ _ (by have := hA t (by omega); omega)
+        rw [ite_eq_right n1, ite_eq_right n2]; exact p1 t (by omega)
+    · intro t ht
+      rw [get']
+      by_cases c : t = k
+      · rw [c, ite_eq_left rfl, ra]
+      · have n1 : ic t ≠ ic k := ne_of _ _ (by have := hC t (by omega); omega)
+        have n2 : ic t ≠ ia k := ne_of _ _ (by have := hC t (by omega); omega)
+        rw [ite_eq_right n1, ite_eq_right n2]; exact p2 t (by omega)
+    · intro i h1 h2
+      rw [get', ite_eq_right (h2 k (Nat.lt_succ_self k)), ite_eq_right (h1 k (Nat.lt_succ_self k))]
+      exact p3 i (fun t ht => h1 t (Nat.lt_succ_of_lt ht)) (fun t ht => h2 t (Nat.lt_succ_of_lt ht))
+
+private theorem cmp_step (acc : UInt64) (x y : UInt8) :
+    (if decide (acc ≠ 2) then acc
+      else if decide (x < y) then 0 else if decide (y < x) then 1 else 2) =
+      cmpNat acc (x.toNat, y.toNat) := by
+  unfold cmpNat
+  by_cases h : acc ≠ 2
+  · rw [decide_eq_true h]; rfl
+  · rw [decide_eq_false h]
+    by_cases c1 : x < y
+    · have c1' : (x.toNat, y.toNat).1 < (x.toNat, y.toNat).2 := UInt8.lt_iff_toNat_lt.mp c1
+      rw [decide_eq_true c1, decide_eq_true c1']; rfl
+    · have c1' : ¬ (x.toNat, y.toNat).1 < (x.toNat, y.toNat).2 :=
+        fun hh => c1 (UInt8.lt_iff_toNat_lt.mpr hh)
+      rw [decide_eq_false c1, decide_eq_false c1']
+      by_cases c2 : y < x
+      · have c2' : (x.toNat, y.toNat).2 < (x.toNat, y.toNat).1 := UInt8.lt_iff_toNat_lt.mp c2
+        rw [decide_eq_true c2, decide_eq_true c2']
+      · have c2' : ¬ (x.toNat, y.toNat).2 < (x.toNat, y.toNat).1 :=
+          fun hh => c2 (UInt8.lt_iff_toNat_lt.mpr hh)
+        rw [decide_eq_false c2, decide_eq_false c2']
+
+private theorem succ_toNat (j : UInt32) (q : Nat) (hj : j.toNat = q) (hq : q + 1 < 4294967296) :
+    (j + 1).toNat = q + 1 := by
+  have e1 : (1 : UInt32).toNat = 1 := rfl
+  rw [UInt32.toNat_add, hj, e1]; exact Nat.mod_eq_of_lt hq
+
+private theorem cmp_spec (b : MutBytes) (stride j : UInt32) (q : Nat) (hj : j.toNat = q)
+    (hb : q * stride.toNat + 2 * stride.toNat ≤ 4294967296) (hq : q + 1 < 4294967296) :
+    (cmpLoop b stride j = 1 →
+      ¬ Spec.lexLe (viewB stride.toNat b q) (viewB stride.toNat b (q + 1))) ∧
+    (cmpLoop b stride j ≠ 1 →
+      Spec.lexLe (viewB stride.toNat b q) (viewB stride.toNat b (q + 1))) := by
+  have hj1 := succ_toNat j q hj hq
+  have hsm : (q + 1) * stride.toNat = q * stride.toNat + stride.toNat := by
+    rw [Nat.add_mul, Nat.one_mul]
+  have e : cmpLoop b stride j =
+      (lst (fun t => ((b.get (j * stride + (0 + UInt32.ofNat t))).toNat,
+        (b.get ((j + 1) * stride + (0 + UInt32.ofNat t))).toNat)) stride.toNat).foldl cmpNat 2 := by
+    have hz : (0 : UInt32).toNat = 0 := rfl
+    unfold cmpLoop lst
+    rw [forRangeU64_eq', List.foldl_map, hz, Nat.sub_zero]
+    exact foldl_range_congr _ _ _ _ (fun k acc _ => cmp_step acc _ _)
+  have f1 : (lst (fun t => ((b.get (j * stride + (0 + UInt32.ofNat t))).toNat,
+        (b.get ((j + 1) * stride + (0 + UInt32.ofNat t))).toNat)) stride.toNat).map Prod.fst =
+      viewB stride.toNat b q := by
+    rw [view_eq stride.toNat b q (fun t => j * stride + (0 + UInt32.ofNat t))
+      (fun t ht => rec_idx stride j q t hj (by omega)) (by omega)]
+    unfold lst; rw [List.map_map]; rfl
+  have f2 : (lst (fun t => ((b.get (j * stride + (0 + UInt32.ofNat t))).toNat,
+        (b.get ((j + 1) * stride + (0 + UInt32.ofNat t))).toNat)) stride.toNat).map Prod.snd =
+      viewB stride.toNat b (q + 1) := by
+    rw [view_eq stride.toNat b (q + 1) (fun t => (j + 1) * stride + (0 + UInt32.ofNat t))
+      (fun t ht => rec_idx stride (j + 1) (q + 1) t hj1 (by omega)) (by omega)]
+    unfold lst; rw [List.map_map]; rfl
+  rw [e, ← f1, ← f2]
+  exact cmp_fold _
+
+private theorem stepB (stride : UInt32) (n : Nat) (hm : 0 < stride.toNat)
+    (hn : n * stride.toNat ≤ 4294967296) (b : MutBytes) (q : Nat) (hq : q + 1 < n) :
+    (∀ i : UInt32, n * stride.toNat ≤ i.toNat →
+      (cmpSwapRec b stride (UInt32.ofNat q)).get i = b.get i) ∧
+    ((¬ Spec.lexLe (viewB stride.toNat b q) (viewB stride.toNat b (q + 1)) ∧
+        viewB stride.toNat (cmpSwapRec b stride (UInt32.ofNat q)) q = viewB stride.toNat b (q + 1) ∧
+        viewB stride.toNat (cmpSwapRec b stride (UInt32.ofNat q)) (q + 1) = viewB stride.toNat b q ∧
+        ∀ i, i < n → i ≠ q → i ≠ q + 1 →
+          viewB stride.toNat (cmpSwapRec b stride (UInt32.ofNat q)) i = viewB stride.toNat b i) ∨
+     (Spec.lexLe (viewB stride.toNat b q) (viewB stride.toNat b (q + 1)) ∧
+        ∀ i, i < n → viewB stride.toNat (cmpSwapRec b stride (UInt32.ofNat q)) i =
+          viewB stride.toNat b i)) := by
+  generalize hmd : stride.toNat = m at hm hn ⊢
+  have hnle : n ≤ n * m := Nat.le_mul_of_pos_right n hm
+  have hq2 : (q + 2) * m ≤ n * m := Nat.mul_le_mul_right m hq
+  have hsm : (q + 1) * m = q * m + m := by rw [Nat.add_mul, Nat.one_mul]
+  have hsm2 : (q + 2) * m = q * m + 2 * m := by rw [Nat.add_mul]
+  have hjn : (UInt32.ofNat q).toNat = q := ofNat_toNat_lt q (by omega)
+  generalize UInt32.ofNat q = j at hjn ⊢
+  have hj1 := succ_toNat j q hjn (by omega)
+  have cs := cmp_spec b stride j q hjn (by rw [hmd]; omega) (by omega)
+  rw [hmd] at cs
+  by_cases h : cmpLoop b stride j = 1
+  · rw [cmpSwapRec_pos b stride j h]
+    have hA : ∀ t, t < m → (j * stride + (0 + UInt32.ofNat t)).toNat = q * m + t :=
+      fun t ht => by rw [← hmd]; exact rec_idx stride j q t hjn (by rw [hmd]; omega)
+    have hC : ∀ t, t < m → ((j + 1) * stride + (0 + UInt32.ofNat t)).toNat = q * m + m + t :=
+      fun t ht => by
+        rw [← hsm, ← hmd]; exact rec_idx stride (j + 1) (q + 1) t hj1 (by rw [hmd]; omega)
+    have hC' : ∀ t, t < m → ((j + 1) * stride + (0 + UInt32.ofNat t)).toNat = (q + 1) * m + t :=
+      fun t ht => by rw [hsm]; exact hC t ht
+    have e : swapRec b stride j = (List.range m).foldl (fun (b : MutBytes) (t : Nat) =>
+        writeU8 (writeU8 b (j * stride + (0 + UInt32.ofNat t))
+          (readMutU8 b ((j + 1) * stride + (0 + UInt32.ofNat t))))
+          ((j + 1) * stride + (0 + UInt32.ofNat t))
+          (readMutU8 b (j * stride + (0 + UInt32.ofNat t)))) b := by
+      have hz : (0 : UInt32).toNat = 0 := rfl
+      unfold swapRec
+      rw [forRangeBytes_eq, hz, Nat.sub_zero, hmd]
+    rw [e]
+    obtain ⟨s1, s2, s3⟩ := swap_loop b m (q * m)
+      (fun t => j * stride + (0 + UInt32.ofNat t)) (fun t => (j + 1) * stride + (0 + UInt32.ofNat t))
+      hA hC _ (fun _ _ _ => rfl)
+    refine ⟨fun i hi => s3 i (Or.inr (by omega)), Or.inl ⟨cs.1 h, ?_, ?_, ?_⟩⟩
+    · rw [view_eq m _ q _ hA (by omega), view_eq m b (q + 1) _ hC' (by omega)]
+      exact lst_congr _ _ m (fun t ht => by rw [s1 t ht])
+    · rw [view_eq m _ (q + 1) _ hC' (by omega), view_eq m b q _ hA (by omega)]
+      exact lst_congr _ _ m (fun t ht => by rw [s2 t ht])
+    · intro i hi n1 n2
+      have him : (i + 1) * m ≤ n * m := Nat.mul_le_mul_right m hi
+      have him' : (i + 1) * m = i * m + m := by rw [Nat.add_mul, Nat.one_mul]
+      refine lst_congr _ _ m (fun t ht => ?_)
+      have ht' : (UInt32.ofNat (i * m + t)).toNat = i * m + t := ofNat_toNat_lt _ (by omega)
+      rw [s3 (UInt32.ofNat (i * m + t)) ?_]
+      rw [ht']
+      rcases Nat.lt_or_ge i q with c | c
+      · have : (i + 1) * m ≤ q * m := Nat.mul_le_mul_right m c
+        exact Or.inl (by omega)
+      · have c' : q + 2 ≤ i := by omega
+        have : (q + 2) * m ≤ i * m := Nat.mul_le_mul_right m c'
+        exact Or.inr (by omega)
+  · rw [cmpSwapRec_neg b stride j h]
+    exact ⟨fun _ _ => rfl, Or.inr ⟨cs.2 h, fun _ _ => rfl⟩⟩
+
+private theorem records_eq (b : MutBytes) (n m : Nat) : Spec.records b n m = lst (viewB m b) n := rfl
+
+theorem sortFixedBytes : Spec.SortFixedBytes := by
+  intro buf count stride hfit
+  rw [sortFixed_unfold]
+  have hc := count.toNat_lt
+  have e1 : (1 : UInt32).toNat = 1 := rfl
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  by_cases hle : count ≤ 1
+  · rw [decide_eq_true hle, Bool.true_or, ite_eq_left rfl]
+    have hn : count.toNat ≤ 1 := UInt32.le_iff_toNat_le.mp hle
+    refine ⟨?_, List.Perm.refl _, fun _ _ => rfl⟩
+    rw [records_eq]
+    exact sorted_lst Spec.lexLe _ count.toNat (fun i i' h1 h2 => by exfalso; omega)
+  · by_cases hs0 : stride = 0
+    · rw [decide_eq_true hs0, Bool.or_true, ite_eq_left rfl]
+      refine ⟨?_, List.Perm.refl _, fun _ _ => rfl⟩
+      rw [records_eq, hs0, hz]
+      exact sorted_lst Spec.lexLe _ count.toNat (fun _ _ _ _ => trivial)
+    · rw [decide_eq_false hle, decide_eq_false hs0, Bool.or_false,
+        ite_eq_right Bool.false_ne_true, forRangeBytes_eq, e1]
+      have hm : 0 < stride.toNat := by
+        have hne : stride.toNat ≠ 0 := fun h => hs0 (UInt32.toNat_inj.mp h)
+        omega
+      generalize hnd : count.toNat = n at hc hfit ⊢
+      have conv : (List.range (n - 1)).foldl (fun b k =>
+            forRangeBytes 0 (1 + UInt32.ofNat k) b
+              (fun k' a => cmpSwapRec a stride (1 + UInt32.ofNat k - 1 - k'))) buf =
+          (List.range (n - 1)).foldl (fun b k => (List.range (k + 1)).foldl
+            (fun b k' => cmpSwapRec b stride (UInt32.ofNat (k + 1 - 1 - k'))) b) buf := by
+        apply foldl_range_congr
+        intro k b hk
+        have hs := slot_toNat k (by omega)
+        rw [forRangeBytes_eq, hs, hz, Nat.sub_zero]
+        apply foldl_range_congr
+        intro k' b' hk'
+        show cmpSwapRec b' stride (1 + UInt32.ofNat k - 1 - (0 + UInt32.ofNat k')) = _
+        rw [idx_eq _ k k' hs hk']
+      rw [conv, records_eq, records_eq]
+      exact ins_sort Spec.lexLe lexLe_trans lexLe_total (viewB stride.toNat)
+        (fun b' b : MutBytes => ∀ i : UInt32, n * stride.toNat ≤ i.toNat → b'.get i = b.get i)
+        (fun _ _ _ => rfl) (fun _ _ _ h1 h2 i hi => (h1 i hi).trans (h2 i hi))
+        n (fun b q => cmpSwapRec b stride (UInt32.ofNat q)) (stepB stride n hm hfit) buf
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
    compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep,
-   psbtLocktime, sortU16⟩
+   psbtLocktime, sortU16, sortFixedBytes⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -1686,5 +2085,17 @@ theorem witness_sortU16 :
     Spec.u16s (llbSortU16 (mutU16s [3, 1, 2, 1]) 4) 4 = [1, 1, 2, 3] ∧
     Spec.u16s (llbSortU16 (mutU16s [3, 1, 2, 0]) 3) 4 = [1, 2, 3, 0] ∧
     Spec.u16s (llbSortU16 (mutU16s [5, 4]) 1) 2 = [5, 4] := by decide
+
+private def mutBytes (l : List UInt8) : MutBytes := ⟨fun i => l.getD i.toNat 0, ()⟩
+
+/-- Three two-byte records sorted (the tie on the first byte is broken by the second); only
+    the first two sorted, the third left alone; one record untouched. -/
+theorem witness_sortFixedBytes :
+    Spec.records (llbSortFixedBytes (mutBytes [2, 9, 1, 7, 2, 3]) 3 2) 3 2 =
+      [[1, 7], [2, 3], [2, 9]] ∧
+    Spec.records (llbSortFixedBytes (mutBytes [2, 9, 1, 7, 0, 0]) 2 2) 3 2 =
+      [[1, 7], [2, 9], [0, 0]] ∧
+    Spec.records (llbSortFixedBytes (mutBytes [2, 9, 1, 7]) 1 2) 2 2 = [[2, 9], [1, 7]] := by
+  decide
 
 end Proofs.KernelSpec
