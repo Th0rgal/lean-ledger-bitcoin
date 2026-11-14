@@ -294,6 +294,57 @@ def SortFixedBytes : Prop :=
     ∀ i : UInt32, count.toNat * stride.toNat ≤ i.toNat →
       (llbSortFixedBytes buf count stride).get i = buf.get i
 
+/-! ## Amount formatter -/
+
+/-- The first `len` bytes of a buffer that is written. -/
+def written (b : MutBytes) (len : Nat) : List Nat :=
+  (List.range len).map fun i => (b.get (UInt32.ofNat i)).toNat
+
+/-- An ASCII decimal digit. -/
+def isDigit (c : Nat) : Bool := decide (48 ≤ c) && decide (c ≤ 57)
+
+/-- The number written by a list of ASCII digits. -/
+def digitsValue (l : List Nat) : Nat := l.foldl (fun acc c => 10 * acc + (c - 48)) 0
+
+/-- Reads `<digits>[.<at most 8 digits>][ <ticker>]` as an amount in satoshis and a ticker. -/
+def parseAmount (text : List Nat) : Option (Nat × List Nat) :=
+  let int := text.takeWhile isDigit
+  let afterInt := text.dropWhile isDigit
+  let hasDot := decide (afterInt.head? = some 46)
+  let frac := if hasDot then afterInt.tail.takeWhile isDigit else []
+  let afterFrac := if hasDot then afterInt.tail.dropWhile isDigit else afterInt
+  let sats := digitsValue int * 100000000 + digitsValue frac * 10 ^ (8 - frac.length)
+  if int.isEmpty || decide (8 < frac.length) then none
+  else if afterFrac.isEmpty then some (sats, [])
+  else if decide (afterFrac.head? = some 32) then some (sats, afterFrac.tail)
+  else none
+
+/-- Format `amount` satoshis in `out`:
+    * when `256 < tickerLen`, or the formatted string and its trailing NUL do not fit in
+      `outCap` bytes, returns `0` and leaves `out` unchanged;
+    * otherwise writes `<integer>[.<1..8 fractional digits>][ <ticker>]\0`, returns its
+      byte length `len` (`1 ≤ len < outCap`), and leaves `out` past `len` unchanged;
+    * the written string is canonical: the integer part has no leading `'0'` except `"0"`
+      itself, the fractional part is omitted when zero with `padFrac8 = 0`, has 8 digits
+      when `padFrac8 ≠ 0`, and has no trailing `'0'` when `padFrac8 = 0`. -/
+def FormatSats : Prop :=
+  ∀ (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt32) (padFrac8 : UInt8)
+    (out : MutBytes) (outCap : UInt32),
+    ((llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2 = 0 →
+      (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).1 = out) ∧
+    ((llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2 ≠ 0 →
+      (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2.toNat < outCap.toNat ∧
+      parseAmount (written (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).1
+          (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2.toNat) =
+        some (amount.toNat, bytes ticker tickerLen.toNat) ∧
+      (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).1.get
+          (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2 = 0 ∧
+      ∀ i : UInt32,
+        (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2.toNat < i.toNat →
+          (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).1.get i = out.get i) ∧
+    (tickerLen.toNat ≤ 256 → 22 + tickerLen.toNat < outCap.toNat →
+      (llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap).2 ≠ 0)
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -307,6 +358,7 @@ def KernelSpec : Prop :=
   MerkleStep ∧
   PsbtLocktime ∧
   SortU16 ∧
-  SortFixedBytes
+  SortFixedBytes ∧
+  FormatSats
 
 end Spec

@@ -1960,12 +1960,1206 @@ theorem sortFixedBytes : Spec.SortFixedBytes := by
         (fun _ _ _ => rfl) (fun _ _ _ h1 h2 i hi => (h1 i hi).trans (h2 i hi))
         n (fun b q => cmpSwapRec b stride (UInt32.ofNat q)) (stepB stride n hm hfit) buf
 
+/-! ### Amount formatter -/
+
+section Formatter
+open Proofs.FreestandingKernels (selU32_eq selU64_eq bor_eq bnot_eq div10U32_eq mod10U32_eq)
+
+private theorem forRangeU32_go_eq (step : UInt32 → UInt32 → UInt32) (fuel : Nat) :
+    ∀ (cur : UInt32) (b : UInt32), forRangeU32.go step fuel cur b =
+      (List.range fuel).foldl (fun a k => step (cur + UInt32.ofNat k) a) b := by
+  induction fuel with
+  | zero => intro cur b; rfl
+  | succ fuel' ih =>
+    intro cur b
+    unfold forRangeU32.go
+    rw [List.range_succ_eq_map, List.foldl_cons, List.foldl_map]
+    have h0 : cur + UInt32.ofNat 0 = cur := UInt32.add_zero cur
+    rw [h0, ih (cur + 1) (step cur b)]
+    have hfun :
+        (fun a k => step (cur + 1 + UInt32.ofNat k) a) =
+          (fun a k => step (cur + UInt32.ofNat (k + 1)) a) := by
+      funext a k
+      have hk : (1 : UInt32) + UInt32.ofNat k = UInt32.ofNat (k + 1) := by
+        rw [UInt32.ofNat_add, UInt32.add_comm]
+        rfl
+      rw [UInt32.add_assoc, hk]
+    rw [hfun]
+
+private theorem forRangeU32_eq (lo hi : UInt32) (buf : UInt32) (step : UInt32 → UInt32 → UInt32) :
+    forRangeU32 lo hi buf step =
+      (List.range (hi.toNat - lo.toNat)).foldl (fun b k => step (lo + UInt32.ofNat k) b) buf := by
+  unfold forRangeU32
+  by_cases h : lo < hi
+  · rw [decide_eq_true h]
+    simp only [↓reduceIte]
+    rw [forRangeU32_go_eq, UInt32.toNat_sub_of_le _ _ (UInt32.le_iff_toNat_le.mpr
+      (Nat.le_of_lt (UInt32.lt_iff_toNat_lt.mp h)))]
+  · rw [decide_eq_false h]
+    have : hi.toNat - lo.toNat = 0 := by
+      have hnl : ¬ lo.toNat < hi.toNat := fun h' => h (UInt32.lt_iff_toNat_lt.mpr h')
+      omega
+    rw [this]; rfl
+
+/-! ### Amount formatter: numbers -/
+
+private theorem lst_append {α : Type} (f : Nat → α) (a n : Nat) :
+    lst f (a + n) = lst f a ++ lst (fun t => f (a + t)) n := by
+  induction n with
+  | zero => rw [Nat.add_zero]; exact (List.append_nil _).symm
+  | succ m ih => rw [← Nat.add_assoc, lst_succ, ih, lst_succ, List.append_assoc]
+
+private theorem lo32 (acc : UInt64) : acc.toUInt32.toNat = acc.toNat % 4294967296 :=
+  UInt64.toNat_toUInt32 acc
+
+private theorem hi32 (acc : UInt64) : (acc >>> 32).toUInt32.toNat = acc.toNat / 4294967296 := by
+  have h := acc.toNat_lt
+  rw [UInt64.toNat_toUInt32, UInt64.toNat_shiftRight]
+  have e : (32 : UInt64).toNat % 64 = 32 := rfl
+  rw [e, Nat.shiftRight_eq_div_pow]
+  exact Nat.mod_eq_of_lt (by omega)
+
+private theorem pack64 (a b : UInt32) :
+    ((a.toUInt64 <<< 32) ||| b.toUInt64).toNat = a.toNat * 4294967296 + b.toNat := by
+  have ha := a.toNat_lt; have hb := b.toNat_lt
+  rw [UInt64.toNat_or, UInt64.toNat_shiftLeft, UInt32.toNat_toUInt64, UInt32.toNat_toUInt64]
+  have e : (32 : UInt64).toNat % 64 = 32 := rfl
+  rw [e, Nat.shiftLeft_eq, Nat.mod_eq_of_lt (by omega), Nat.or_comm,
+    show a.toNat * 2 ^ 32 = a.toNat <<< 32 from (Nat.shiftLeft_eq _ _).symm,
+    Nat.or_comm, ← Nat.shiftLeft_add_eq_or_of_lt hb, Nat.shiftLeft_eq]
+
+private theorem div10_toNat (v : UInt32) : (div10U32 v).toNat = v.toNat / 10 := by
+  rw [div10U32_eq, UInt32.toNat_div]; rfl
+
+private theorem mod10_toNat (v : UInt32) : (mod10U32 v).toNat = v.toNat % 10 := by
+  rw [mod10U32_eq, UInt32.toNat_mod]; rfl
+
+private def decStep (acc : UInt64) : UInt64 :=
+  if decide (acc.toUInt32 = 0) then acc
+  else (((acc >>> 32).toUInt32 + 1).toUInt64 <<< 32) ||| (div10U32 acc.toUInt32).toUInt64
+
+private theorem decLen_unfold (v : UInt32) : decLenU32 v =
+    (if decide (((forRangeU64 0 10 v.toUInt64 (fun _ acc => decStep acc)) >>> 32).toUInt32 = 0)
+      then (1 : UInt32)
+      else ((forRangeU64 0 10 v.toUInt64 (fun _ acc => decStep acc)) >>> 32).toUInt32) := rfl
+
+private theorem bump (acc : UInt64) (n : Nat) (hn : acc.toNat / 4294967296 = n) (h : n ≤ 9) :
+    ((((acc >>> 32).toUInt32 + 1).toUInt64 <<< 32) ||| (div10U32 acc.toUInt32).toUInt64).toNat =
+      (n + 1) * 4294967296 + acc.toNat % 4294967296 / 10 := by
+  have e1 : (1 : UInt32).toNat = 1 := rfl
+  rw [pack64, div10_toNat, lo32, UInt32.toNat_add, hi32, hn, e1, Nat.mod_eq_of_lt (by omega)]
+
+private theorem decStep_inv (v k : Nat) (hk : k < 10) (acc : UInt64)
+    (h : acc.toNat / 4294967296 ≤ k ∧ acc.toNat % 4294967296 = v / 10 ^ (acc.toNat / 4294967296) ∧
+      (acc.toNat % 4294967296 = 0 ∨ acc.toNat / 4294967296 = k) ∧
+      (acc.toNat / 4294967296 = 0 ∨ v / 10 ^ (acc.toNat / 4294967296 - 1) ≠ 0)) :
+    (decStep acc).toNat / 4294967296 ≤ k + 1 ∧
+      (decStep acc).toNat % 4294967296 = v / 10 ^ ((decStep acc).toNat / 4294967296) ∧
+      ((decStep acc).toNat % 4294967296 = 0 ∨ (decStep acc).toNat / 4294967296 = k + 1) ∧
+      ((decStep acc).toNat / 4294967296 = 0 ∨ v / 10 ^ ((decStep acc).toNat / 4294967296 - 1) ≠ 0) := by
+  obtain ⟨h1, h2, h3, h4⟩ := h
+  unfold decStep
+  by_cases hz : acc.toUInt32 = 0
+  · rw [decide_eq_true hz, ite_eq_left rfl]
+    have hc : acc.toNat % 4294967296 = 0 := by rw [← lo32, hz]; rfl
+    exact ⟨Nat.le_succ_of_le h1, h2, Or.inl hc, h4⟩
+  · rw [decide_eq_false hz, ite_eq_right Bool.false_ne_true]
+    have hc : acc.toNat % 4294967296 ≠ 0 := fun e => hz (UInt32.toNat_inj.mp (by rw [lo32, e]; rfl))
+    have hnk : acc.toNat / 4294967296 = k := by
+      rcases h3 with h3 | h3
+      · exact absurd h3 hc
+      · exact h3
+    generalize hn : acc.toNat / 4294967296 = n at h1 h2 h4 hnk
+    generalize hcd : acc.toNat % 4294967296 = c at h2 hc
+    have hclt : c < 4294967296 := by rw [← hcd]; exact Nat.mod_lt _ (by decide)
+    have e := bump acc n hn (by omega)
+    rw [hcd] at e
+    have q1 : ((n + 1) * 4294967296 + c / 10) / 4294967296 = n + 1 := by omega
+    have q2 : ((n + 1) * 4294967296 + c / 10) % 4294967296 = c / 10 := by omega
+    rw [e, q1, q2]
+    refine ⟨by omega, ?_, Or.inr (by omega), Or.inr ?_⟩
+    · rw [h2, Nat.div_div_eq_div_mul, Nat.pow_succ]
+    · rw [Nat.add_sub_cancel, ← h2]; exact hc
+
+private theorem decLen_spec (v : UInt32) :
+    1 ≤ (decLenU32 v).toNat ∧ (decLenU32 v).toNat ≤ 10 ∧ v.toNat < 10 ^ (decLenU32 v).toNat ∧
+      ((decLenU32 v).toNat = 1 ∨ 10 ^ ((decLenU32 v).toNat - 1) ≤ v.toNat) := by
+  have hv := v.toNat_lt
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  have h10 : (10 : UInt32).toNat = 10 := rfl
+  have key := foldl_range_inv
+    (fun k (acc : UInt64) =>
+      acc.toNat / 4294967296 ≤ k ∧ acc.toNat % 4294967296 = v.toNat / 10 ^ (acc.toNat / 4294967296) ∧
+      (acc.toNat % 4294967296 = 0 ∨ acc.toNat / 4294967296 = k) ∧
+      (acc.toNat / 4294967296 = 0 ∨ v.toNat / 10 ^ (acc.toNat / 4294967296 - 1) ≠ 0))
+    (fun (acc : UInt64) (k : Nat) => decStep acc) 10 v.toUInt64 ?h0
+    (fun k acc hk hp => decStep_inv v.toNat k hk acc hp)
+  · rw [decLen_unfold, forRangeU64_eq', h10, hz, Nat.sub_zero]
+    generalize (List.range 10).foldl (fun (acc : UInt64) (k : Nat) => decStep acc) v.toUInt64 = r at key
+    obtain ⟨k1, k2, k3, k4⟩ := key
+    have hn := hi32 r
+    generalize hnn : r.toNat / 4294967296 = n at k1 k2 k3 k4 hn
+    have hc0 : v.toNat / 10 ^ n = 0 := by
+      rcases k3 with k3 | k3
+      · rw [← k2]; exact k3
+      · rw [k3]; exact Nat.div_eq_of_lt (by omega)
+    have hlt : v.toNat < 10 ^ n := by
+      rcases Nat.lt_or_ge v.toNat (10 ^ n) with c | c
+      · exact c
+      · have := Nat.div_pos c (Nat.pow_pos (by decide))
+        omega
+    by_cases hn0 : (r >>> 32).toUInt32 = 0
+    · rw [decide_eq_true hn0, ite_eq_left rfl]
+      have e1 : (1 : UInt32).toNat = 1 := rfl
+      have n0 : n = 0 := by rw [← hn, hn0]; rfl
+      rw [n0] at hlt
+      rw [e1]
+      exact ⟨Nat.le_refl 1, by decide, Nat.lt_of_lt_of_le hlt (by decide), Or.inl rfl⟩
+    · rw [decide_eq_false hn0, ite_eq_right Bool.false_ne_true, hn]
+      have n0 : n ≠ 0 := fun e => hn0 (UInt32.toNat_inj.mp (by rw [hn, e]; rfl))
+      refine ⟨by omega, k1, hlt, Or.inr ?_⟩
+      rcases k4 with k4 | k4
+      · exact absurd k4 n0
+      · rcases Nat.lt_or_ge v.toNat (10 ^ (n - 1)) with c | c
+        · exact absurd (Nat.div_eq_of_lt c) k4
+        · exact c
+  case h0 =>
+    have e : v.toUInt64.toNat = v.toNat := UInt32.toNat_toUInt64 v
+    rw [e]
+    have q1 : v.toNat / 4294967296 = 0 := by omega
+    have q2 : v.toNat % 4294967296 = v.toNat := by omega
+    rw [q1, q2]
+    exact ⟨Nat.le_refl 0, by rw [Nat.pow_zero, Nat.div_one], Or.inr rfl, Or.inl rfl⟩
+
+/-! ### Amount formatter: digits and the parser -/
+
+private theorem lst_length {α : Type} (f : Nat → α) (n : Nat) : (lst f n).length = n := by
+  unfold lst; rw [List.length_map, List.length_range]
+
+private theorem lst_mem {α : Type} (f : Nat → α) (n : Nat) (x : α) (h : x ∈ lst f n) :
+    ∃ t, t < n ∧ f t = x := by
+  obtain ⟨t, ht, e⟩ := List.mem_map.mp h
+  exact ⟨t, List.mem_range.mp ht, e⟩
+
+private theorem dvFold (b : List Nat) : ∀ x, b.foldl (fun acc c => 10 * acc + (c - 48)) x =
+    x * 10 ^ b.length + b.foldl (fun acc c => 10 * acc + (c - 48)) 0 := by
+  induction b with
+  | nil => intro x; show x = x * 1 + 0; omega
+  | cons c b ih =>
+    intro x
+    rw [List.foldl_cons, List.foldl_cons, ih, ih (10 * 0 + (c - 48)), List.length_cons, Nat.pow_succ]
+    generalize 10 ^ b.length = P
+    have e : (10 * x + (c - 48)) * P = x * (P * 10) + (10 * 0 + (c - 48)) * P := by
+      rw [Nat.add_mul, Nat.mul_comm P 10, ← Nat.mul_assoc, Nat.mul_comm x 10, Nat.mul_zero,
+        Nat.zero_add]
+    omega
+
+private theorem dv_append (a b : List Nat) :
+    Spec.digitsValue (a ++ b) = Spec.digitsValue a * 10 ^ b.length + Spec.digitsValue b := by
+  unfold Spec.digitsValue
+  rw [List.foldl_append, dvFold]
+
+/-- The `n` low decimal digits of `v`, most significant first, in ASCII. -/
+private def digs (v n : Nat) : List Nat := lst (fun t => 48 + v / 10 ^ (n - 1 - t) % 10) n
+
+private theorem digs_digit (v n c : Nat) (h : c ∈ digs v n) : Spec.isDigit c = true := by
+  obtain ⟨t, _, e⟩ := lst_mem _ _ _ h
+  have hm : v / 10 ^ (n - 1 - t) % 10 < 10 := Nat.mod_lt _ (by decide)
+  unfold Spec.isDigit
+  rw [← e, decide_eq_true (by omega), decide_eq_true (by omega)]; rfl
+
+private theorem mod_mul10 (v P : Nat) (hP : 0 < P) : v % (10 * P) = 10 * (v / 10 % P) + v % 10 := by
+  have hlt : v / 10 % P < P := Nat.mod_lt _ hP
+  have hr : v % 10 < 10 := Nat.mod_lt _ (by decide)
+  have h2 : P * (v / 10 / P) + v / 10 % P = v / 10 := Nat.div_add_mod _ P
+  have h1 : 10 * (v / 10) + v % 10 = v := Nat.div_add_mod v 10
+  generalize v / 10 = q at h1 h2 hlt ⊢
+  generalize q % P = b at h2 hlt ⊢
+  generalize q / P = a at h2
+  generalize hrd : v % 10 = r at h1 hr ⊢
+  have e : v = 10 * P * a + (10 * b + r) := by
+    rw [← h1, ← h2, Nat.mul_add, ← Nat.mul_assoc, Nat.add_assoc]
+  have hb : 10 * b + r < 10 * P := by omega
+  rw [e, Nat.mul_add_mod]
+  exact Nat.mod_eq_of_lt hb
+
+private theorem dv_digs : ∀ (n v : Nat), Spec.digitsValue (digs v n) = v % 10 ^ n
+  | 0, v => by rw [Nat.pow_zero, Nat.mod_one]; rfl
+  | n + 1, v => by
+    unfold digs
+    rw [lst_succ, dv_append]
+    have e : lst (fun t => 48 + v / 10 ^ (n + 1 - 1 - t) % 10) n = digs (v / 10) n := by
+      unfold digs
+      refine lst_congr _ _ n (fun t ht => ?_)
+      have e1 : n + 1 - 1 - t = (n - 1 - t) + 1 := by omega
+      rw [e1, Nat.pow_succ, Nat.mul_comm, Nat.div_div_eq_div_mul]
+    rw [e, dv_digs n (v / 10)]
+    have e2 : n + 1 - 1 - n = 0 := by omega
+    have e3 : Spec.digitsValue [48 + v / 10 ^ 0 % 10] = v % 10 := by
+      show 10 * 0 + (48 + v / 10 ^ 0 % 10 - 48) = v % 10
+      rw [Nat.pow_zero, Nat.div_one]; omega
+    rw [e2, e3, Nat.pow_succ, Nat.mul_comm (10 ^ n) 10, mod_mul10 v (10 ^ n) (Nat.pow_pos (by decide))]
+    show v / 10 % 10 ^ n * 10 ^ 1 + v % 10 = _
+    generalize v / 10 % 10 ^ n = z
+    omega
+
+private theorem tw_append (p : Nat → Bool) (r : List Nat)
+    (hr : r = [] ∨ ∃ c t, r = c :: t ∧ p c = false) :
+    ∀ a : List Nat, (∀ c, c ∈ a → p c = true) →
+      (a ++ r).takeWhile p = a ∧ (a ++ r).dropWhile p = r
+  | [], _ => by
+    rcases hr with h | ⟨c, t, h, hc⟩
+    · rw [h]; exact ⟨rfl, rfl⟩
+    · rw [h, List.nil_append, List.takeWhile_cons, List.dropWhile_cons, hc]; exact ⟨rfl, rfl⟩
+  | x :: a, h => by
+    have hx : p x = true := h x (List.mem_cons_self ..)
+    obtain ⟨i1, i2⟩ := tw_append p r hr a (fun c hc => h c (List.mem_cons_of_mem _ hc))
+    rw [List.cons_append, List.takeWhile_cons, List.dropWhile_cons, hx, i1, i2]
+    exact ⟨rfl, rfl⟩
+
+private theorem isEmpty_false (l : List Nat) (h : 0 < l.length) : l.isEmpty = false := by
+  cases l with
+  | nil => exact absurd h (Nat.lt_irrefl 0)
+  | cons _ _ => rfl
+
+private theorem parse_tail (sats : Nat) (T r : List Nat) (hr : (r = [] ∧ T = []) ∨ r = 32 :: T) :
+    (if r.isEmpty = true then some (sats, ([] : List Nat))
+      else if decide (r.head? = some 32) = true then some (sats, r.tail) else none) =
+      some (sats, T) := by
+  rcases hr with ⟨h1, h2⟩ | h
+  · rw [h1, h2]; rfl
+  · rw [h]
+    have e1 : (32 :: T).isEmpty = false := rfl
+    have e2 : decide ((32 :: T).head? = some 32) = true := decide_eq_true rfl
+    rw [e1, ite_eq_right Bool.false_ne_true, e2, ite_eq_left rfl]; rfl
+
+private theorem no_dot (T r : List Nat) (hr : (r = [] ∧ T = []) ∨ r = 32 :: T) :
+    decide (r.head? = some 46) = false := by
+  rcases hr with ⟨h1, _⟩ | h
+  · rw [h1]; rfl
+  · rw [h]; exact decide_eq_false (fun e => absurd (Option.some.inj e) (by decide))
+
+/-- Text without a fractional part: digits, then nothing or a space and the ticker. -/
+private theorem parse_plain (I T r : List Nat) (hI : ∀ c, c ∈ I → Spec.isDigit c = true)
+    (hne : 0 < I.length) (hr : (r = [] ∧ T = []) ∨ r = 32 :: T) :
+    Spec.parseAmount (I ++ r) = some (Spec.digitsValue I * 100000000, T) := by
+  have hr' : r = [] ∨ ∃ c t, r = c :: t ∧ Spec.isDigit c = false := by
+    rcases hr with h | h
+    · exact Or.inl h.1
+    · exact Or.inr ⟨32, T, h, rfl⟩
+  obtain ⟨t1, t2⟩ := tw_append Spec.isDigit r hr' I hI
+  have e0 : Spec.digitsValue [] = 0 := rfl
+  have e8 : decide (8 < ([] : List Nat).length) = false := rfl
+  unfold Spec.parseAmount
+  rw [t1, t2]
+  dsimp only
+  rw [isEmpty_false I hne, no_dot T r hr]
+  rw [ite_eq_right Bool.false_ne_true, ite_eq_right Bool.false_ne_true, e8, Bool.or_false,
+    ite_eq_right Bool.false_ne_true, e0, Nat.zero_mul, Nat.add_zero]
+  exact parse_tail _ T r hr
+
+/-- Text with a fractional part. -/
+private theorem parse_frac (I F T r : List Nat) (hI : ∀ c, c ∈ I → Spec.isDigit c = true)
+    (hF : ∀ c, c ∈ F → Spec.isDigit c = true) (hne : 0 < I.length) (hlen : F.length ≤ 8)
+    (hr : (r = [] ∧ T = []) ∨ r = 32 :: T) :
+    Spec.parseAmount (I ++ 46 :: (F ++ r)) =
+      some (Spec.digitsValue I * 100000000 + Spec.digitsValue F * 10 ^ (8 - F.length), T) := by
+  have hr' : r = [] ∨ ∃ c t, r = c :: t ∧ Spec.isDigit c = false := by
+    rcases hr with h | h
+    · exact Or.inl h.1
+    · exact Or.inr ⟨32, T, h, rfl⟩
+  obtain ⟨t1, t2⟩ := tw_append Spec.isDigit (46 :: (F ++ r)) (Or.inr ⟨46, F ++ r, rfl, rfl⟩) I hI
+  obtain ⟨t3, t4⟩ := tw_append Spec.isDigit r hr' F hF
+  have ed : decide ((46 :: (F ++ r)).head? = some 46) = true := decide_eq_true rfl
+  unfold Spec.parseAmount
+  rw [t1, t2]
+  dsimp only
+  rw [isEmpty_false I hne, ed]
+  rw [ite_eq_left rfl, ite_eq_left rfl, List.tail_cons, t3, t4,
+    decide_eq_false (by omega : ¬ 8 < F.length), Bool.or_false, ite_eq_right Bool.false_ne_true]
+  exact parse_tail _ T r hr
+
+/-! ### Amount formatter: what each stage writes -/
+
+private def seg (b : MutBytes) (a n : Nat) : List Nat :=
+  lst (fun t => (b.get (UInt32.ofNat (a + t))).toNat) n
+
+/-- `b'` is `b` with the bytes `l` written from index `a`, and nothing else changed. -/
+private def Writes (b' b : MutBytes) (a : Nat) (l : List Nat) : Prop :=
+  seg b' a l.length = l ∧
+    ∀ i : UInt32, i.toNat < a ∨ a + l.length ≤ i.toNat → b'.get i = b.get i
+
+private theorem writes_nil (b : MutBytes) (a : Nat) : Writes b b a [] := ⟨rfl, fun _ _ => rfl⟩
+
+private theorem writes_append (b0 b1 b2 : MutBytes) (a : Nat) (l1 l2 : List Nat)
+    (hb : a + l1.length + l2.length ≤ 4294967296)
+    (h1 : Writes b1 b0 a l1) (h2 : Writes b2 b1 (a + l1.length) l2) :
+    Writes b2 b0 a (l1 ++ l2) := by
+  obtain ⟨s1, f1⟩ := h1
+  obtain ⟨s2, f2⟩ := h2
+  constructor
+  · rw [List.length_append]
+    unfold seg
+    rw [lst_append]
+    have e1 : lst (fun t => (b2.get (UInt32.ofNat (a + t))).toNat) l1.length = l1 :=
+      (lst_congr _ _ _ (fun t ht => by
+        rw [f2 _ (Or.inl (by rw [ofNat_toNat_lt _ (by omega)]; omega))])).trans s1
+    have e2 : lst (fun t => (b2.get (UInt32.ofNat (a + (l1.length + t)))).toNat) l2.length = l2 :=
+      (lst_congr _ _ _ (fun t ht => by rw [Nat.add_assoc])).trans s2
+    rw [e1, e2]
+  · intro i hi
+    rw [List.length_append] at hi
+    rcases hi with h | h
+    · rw [f2 i (Or.inl (by omega)), f1 i (Or.inl h)]
+    · rw [f2 i (Or.inr (by omega)), f1 i (Or.inr (by omega))]
+
+private theorem writes_one (b : MutBytes) (pos : UInt32) (v : UInt8) (a : Nat) (ha : pos.toNat = a) :
+    Writes (writeU8 b pos v) b a [v.toNat] := by
+  constructor
+  · show [((if UInt32.ofNat (a + 0) = pos then v else b.get (UInt32.ofNat (a + 0)))).toNat] = _
+    rw [Nat.add_zero, ← ha, u32_ofNat_toNat, ite_eq_left rfl]
+  · intro i hi
+    have ne : ¬ i = pos := fun e => by
+      rw [e, ha] at hi
+      rcases hi with h | h
+      · omega
+      · have : a + 1 ≤ a := h
+        omega
+    show (if i = pos then v else b.get i) = _
+    rw [ite_eq_right ne]
+
+private def maybeWrite' (cond : Bool) (out : MutBytes) (pos : UInt32) (val : UInt8) : MutBytes :=
+  if cond then writeU8 out pos val else out
+
+private theorem writes_maybe (c : Bool) (b : MutBytes) (pos : UInt32) (v : UInt8) (a : Nat)
+    (ha : pos.toNat = a) :
+    Writes (maybeWrite' c b pos v) b a (if c then [v.toNat] else []) := by
+  cases c
+  · exact writes_nil b a
+  · exact writes_one b pos v a ha
+
+private theorem goBU32_eq (step : UInt32 → MutBytes → UInt32 → MutBytes × UInt32) (fuel : Nat) :
+    ∀ (cur : UInt32) (b : MutBytes) (acc : UInt32), forRangeBytesU32.go step fuel cur b acc =
+      (List.range fuel).foldl (fun p k => step (cur + UInt32.ofNat k) p.1 p.2) (b, acc) := by
+  induction fuel with
+  | zero => intro cur b acc; rfl
+  | succ fuel' ih =>
+    intro cur b acc
+    have e : forRangeBytesU32.go step (fuel' + 1) cur b acc =
+        forRangeBytesU32.go step fuel' (cur + 1) (step cur b acc).1 (step cur b acc).2 := rfl
+    rw [e, ih, List.range_succ_eq_map, List.foldl_cons, List.foldl_map]
+    have h0 : cur + UInt32.ofNat 0 = cur := UInt32.add_zero cur
+    have hfun :
+        (fun (p : MutBytes × UInt32) k => step (cur + 1 + UInt32.ofNat k) p.1 p.2) =
+          (fun p k => step (cur + UInt32.ofNat (k + 1)) p.1 p.2) := by
+      funext p k
+      have hk : (1 : UInt32) + UInt32.ofNat k = UInt32.ofNat (k + 1) := by
+        rw [UInt32.ofNat_add, UInt32.add_comm]
+        rfl
+      rw [UInt32.add_assoc, hk]
+    rw [hfun, h0]
+    all_goals rfl
+
+private theorem forRangeBytesU32_eq (hi : UInt32) (buf : MutBytes) (init : UInt32)
+    (step : UInt32 → MutBytes → UInt32 → MutBytes × UInt32) :
+    forRangeBytesU32 0 hi buf init step =
+      (List.range hi.toNat).foldl (fun p k => step (0 + UInt32.ofNat k) p.1 p.2) (buf, init) := by
+  unfold forRangeBytesU32
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  by_cases h : (0 : UInt32) < hi
+  · rw [decide_eq_true h]
+    simp only [↓reduceIte]
+    rw [goBU32_eq, UInt32.toNat_sub_of_le _ _ (UInt32.le_iff_toNat_le.mpr
+      (Nat.le_of_lt (UInt32.lt_iff_toNat_lt.mp h))), hz, Nat.sub_zero]
+  · rw [decide_eq_false h]
+    have : hi.toNat = 0 := by
+      have hnl : ¬ (0 : UInt32).toNat < hi.toNat := fun h' => h (UInt32.lt_iff_toNat_lt.mpr h')
+      omega
+    rw [this]; rfl
+
+private def emitDec' (out : MutBytes) (pos v len : UInt32) : MutBytes :=
+  (forRangeBytesU32 0 len out v (fun k (b : MutBytes) (cur : UInt32) =>
+    (writeU8 b (pos - 1 - k) (0x30 + (mod10U32 cur).toUInt8), div10U32 cur))).1
+
+private theorem digit_byte (cur : UInt32) :
+    ((0x30 : UInt8) + (mod10U32 cur).toUInt8).toNat = 48 + cur.toNat % 10 := by
+  have hm : cur.toNat % 10 < 10 := Nat.mod_lt _ (by decide)
+  have e : (0x30 : UInt8).toNat = 48 := rfl
+  rw [UInt8.toNat_add, UInt32.toNat_toUInt8, mod10_toNat, e, Nat.mod_eq_of_lt (by omega : cur.toNat % 10 < 256)]
+  exact Nat.mod_eq_of_lt (by omega)
+
+private theorem writes_emit (out : MutBytes) (pos v len : UInt32) (hle : len.toNat ≤ pos.toNat) :
+    Writes (emitDec' out pos v len) out (pos.toNat - len.toNat) (digs v.toNat len.toNat) := by
+  have hp := pos.toNat_lt
+  generalize hP : pos.toNat = P at hle hp
+  generalize hn : len.toNat = n at hle
+  unfold emitDec'
+  rw [forRangeBytesU32_eq, hn]
+  have key := foldl_range_inv
+    (fun k (p : MutBytes × UInt32) =>
+      p.2.toNat = v.toNat / 10 ^ k ∧
+      (∀ t, t < k → (p.1.get (UInt32.ofNat (P - 1 - t))).toNat = 48 + v.toNat / 10 ^ t % 10) ∧
+      (∀ i : UInt32, i.toNat < P - k ∨ P ≤ i.toNat → p.1.get i = out.get i))
+    (fun (p : MutBytes × UInt32) (k : Nat) =>
+      (writeU8 p.1 (pos - 1 - (0 + UInt32.ofNat k)) (0x30 + (mod10U32 p.2).toUInt8), div10U32 p.2))
+    n (out, v) ⟨by rw [Nat.pow_zero, Nat.div_one], fun t h => absurd h (Nat.not_lt_zero t),
+      fun _ _ => rfl⟩ ?hs
+  · obtain ⟨_, k2, k3⟩ := key
+    constructor
+    · unfold digs seg
+      rw [lst_length]
+      refine lst_congr _ _ n (fun t ht => ?_)
+      have e : P - n + t = P - 1 - (n - 1 - t) := by omega
+      rw [e]; exact k2 (n - 1 - t) (by omega)
+    · intro i hi
+      unfold digs at hi
+      rw [lst_length] at hi
+      rcases hi with h | h
+      · exact k3 i (Or.inl h)
+      · exact k3 i (Or.inr (by omega))
+  case hs =>
+    intro k p hk ⟨p1, p2, p3⟩
+    have hidx : pos - 1 - (0 + UInt32.ofNat k) = UInt32.ofNat (P - 1 - k) := by
+      have := idx_eq pos (P - 1) k (by omega) (by omega)
+      rw [this]
+      have e : P - 1 + 1 - 1 - k = P - 1 - k := by omega
+      rw [e]
+    have hidxn : (UInt32.ofNat (P - 1 - k)).toNat = P - 1 - k := ofNat_toNat_lt _ (by omega)
+    have get' : ∀ i, (writeU8 p.1 (UInt32.ofNat (P - 1 - k))
+        (0x30 + (mod10U32 p.2).toUInt8)).get i =
+          if i = UInt32.ofNat (P - 1 - k) then 0x30 + (mod10U32 p.2).toUInt8 else p.1.get i :=
+      fun _ => rfl
+    show (div10U32 p.2).toNat = _ ∧ (∀ t, t < k + 1 →
+        ((writeU8 p.1 (pos - 1 - (0 + UInt32.ofNat k)) (0x30 + (mod10U32 p.2).toUInt8)).get
+          (UInt32.ofNat (P - 1 - t))).toNat = _) ∧
+      (∀ i : UInt32, i.toNat < P - (k + 1) ∨ P ≤ i.toNat →
+        (writeU8 p.1 (pos - 1 - (0 + UInt32.ofNat k)) (0x30 + (mod10U32 p.2).toUInt8)).get i = _)
+    rw [hidx]
+    refine ⟨?_, ?_, ?_⟩
+    · rw [div10_toNat, p1, Nat.div_div_eq_div_mul, Nat.pow_succ]
+    · intro t ht
+      rw [get']
+      by_cases c : t = k
+      · rw [c, ite_eq_left rfl, digit_byte, p1]
+      · have ne : ¬ UInt32.ofNat (P - 1 - t) = UInt32.ofNat (P - 1 - k) := fun e => by
+          have := congrArg UInt32.toNat e
+          rw [hidxn, ofNat_toNat_lt _ (by omega)] at this
+          omega
+        rw [ite_eq_right ne]; exact p2 t (by omega)
+    · intro i hi
+      have ne : ¬ i = UInt32.ofNat (P - 1 - k) := fun e => by
+        rw [e, hidxn] at hi
+        rcases hi with h | h
+        · omega
+        · omega
+      rw [get', ite_eq_right ne]
+      rcases hi with h | h
+      · exact p3 i (Or.inl (by omega))
+      · exact p3 i (Or.inr h)
+
+private def copyTicker' (ticker : ConstBytes) (tickerLen : UInt32) (out : MutBytes) (pos : UInt32) : MutBytes :=
+  forRangeBytes 0 tickerLen out (fun k b => writeU8 b (pos + k) (readU8 ticker k))
+
+private theorem writes_ticker (ticker : ConstBytes) (tl : UInt32) (out : MutBytes) (pos : UInt32)
+    (hfit : pos.toNat + tl.toNat < 4294967296) :
+    Writes (copyTicker' ticker tl out pos) out pos.toNat (Spec.bytes ticker tl.toNat) := by
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  have blen : (Spec.bytes ticker tl.toNat).length = tl.toNat := lst_length _ _
+  generalize hP : pos.toNat = P at hfit
+  generalize hn : tl.toNat = n at hfit blen
+  unfold copyTicker'
+  rw [forRangeBytes_eq, hz, Nat.sub_zero, hn]
+  have hix : ∀ t, t < n → (pos + (0 + UInt32.ofNat t)).toNat = P + t := fun t ht => by
+    rw [UInt32.toNat_add, UInt32.zero_add, ofNat_toNat_lt t (by omega), hP]
+    exact Nat.mod_eq_of_lt (by omega)
+  have key := foldl_range_inv
+    (fun k (b : MutBytes) =>
+      (∀ t, t < k → b.get (UInt32.ofNat (P + t)) = ticker.get (UInt32.ofNat t)) ∧
+      (∀ i : UInt32, i.toNat < P ∨ P + k ≤ i.toNat → b.get i = out.get i))
+    (fun (b : MutBytes) (k : Nat) =>
+      writeU8 b (pos + (0 + UInt32.ofNat k)) (readU8 ticker (0 + UInt32.ofNat k)))
+    n out ⟨fun t h => absurd h (Nat.not_lt_zero t), fun _ _ => rfl⟩ ?hs
+  · obtain ⟨k1, k2⟩ := key
+    constructor
+    · rw [blen]
+      exact lst_congr _ _ n (fun t ht => by rw [k1 t ht])
+    · intro i hi
+      rw [blen] at hi
+      exact k2 i hi
+  case hs =>
+    intro k b hk ⟨p1, p2⟩
+    have hidx : pos + (0 + UInt32.ofNat k) = UInt32.ofNat (P + k) :=
+      ((ofNat_eq_iff (P + k) (by omega) _).mpr (hix k hk).symm).symm
+    have get' : ∀ i, (writeU8 b (UInt32.ofNat (P + k)) (readU8 ticker (0 + UInt32.ofNat k))).get i =
+        if i = UInt32.ofNat (P + k) then ticker.get (0 + UInt32.ofNat k) else b.get i := fun _ => rfl
+    rw [hidx]
+    refine ⟨?_, ?_⟩
+    · intro t ht
+      rw [get']
+      by_cases c : t = k
+      · rw [c, ite_eq_left rfl, UInt32.zero_add]
+      · have ne : ¬ UInt32.ofNat (P + t) = UInt32.ofNat (P + k) := fun e => by
+          have := congrArg UInt32.toNat e
+          rw [ofNat_toNat_lt _ (by omega), ofNat_toNat_lt _ (by omega)] at this
+          omega
+        rw [ite_eq_right ne]; exact p1 t (by omega)
+    · intro i hi
+      have ne : ¬ i = UInt32.ofNat (P + k) := fun e => by
+        rw [e, ofNat_toNat_lt _ (by omega)] at hi
+        rcases hi with h | h
+        · omega
+        · omega
+      rw [get', ite_eq_right ne]
+      rcases hi with h | h
+      · exact p2 i (Or.inl h)
+      · exact p2 i (Or.inr (by omega))
+
+/-! ### Amount formatter: trailing zeros and the shown fraction -/
+
+private def fracStep (acc : UInt64) : UInt64 :=
+  selU64 (bor (decide (acc.toUInt32 = 0)) (decide (mod10U32 acc.toUInt32 ≠ 0))) acc
+    ((((acc >>> 32).toUInt32 + 1).toUInt64 <<< 32) ||| (div10U32 acc.toUInt32).toUInt64)
+
+private theorem fracSig_unfold (f : UInt32) : fracSigLen f =
+    selU32 (decide (f = 0)) 0
+      ((8 : UInt32) - ((forRangeU64 0 8 f.toUInt64 (fun _ acc => fracStep acc)) >>> 32).toUInt32) := rfl
+
+private theorem fracStep_inv (F k : Nat) (hk : k < 8) (acc : UInt64)
+    (h : acc.toNat / 4294967296 ≤ k ∧ acc.toNat % 4294967296 = F / 10 ^ (acc.toNat / 4294967296) ∧
+      F / 10 ^ (acc.toNat / 4294967296) * 10 ^ (acc.toNat / 4294967296) = F) :
+    (fracStep acc).toNat / 4294967296 ≤ k + 1 ∧
+      (fracStep acc).toNat % 4294967296 = F / 10 ^ ((fracStep acc).toNat / 4294967296) ∧
+      F / 10 ^ ((fracStep acc).toNat / 4294967296) * 10 ^ ((fracStep acc).toNat / 4294967296) = F := by
+  obtain ⟨h1, h2, h3⟩ := h
+  unfold fracStep
+  rw [selU64_eq, bor_eq]
+  by_cases hz : acc.toUInt32 = 0
+  · rw [decide_eq_true hz, Bool.true_or, ite_eq_left rfl]
+    exact ⟨Nat.le_succ_of_le h1, h2, h3⟩
+  · by_cases hm : mod10U32 acc.toUInt32 ≠ 0
+    · rw [decide_eq_false hz, decide_eq_true hm, Bool.false_or, ite_eq_left rfl]
+      exact ⟨Nat.le_succ_of_le h1, h2, h3⟩
+    · rw [decide_eq_false hz, decide_eq_false hm, Bool.false_or, ite_eq_right Bool.false_ne_true]
+      have hm0 : mod10U32 acc.toUInt32 = 0 := Decidable.not_not.mp hm
+      have hc10 : acc.toNat % 4294967296 % 10 = 0 := by
+        rw [← lo32, ← mod10_toNat, hm0]; rfl
+      generalize hn : acc.toNat / 4294967296 = n at h1 h2 h3
+      generalize hcd : acc.toNat % 4294967296 = c at h2 hc10
+      have hclt : c < 4294967296 := by rw [← hcd]; exact Nat.mod_lt _ (by decide)
+      have e := bump acc n hn (by omega)
+      rw [hcd] at e
+      have q1 : ((n + 1) * 4294967296 + c / 10) / 4294967296 = n + 1 := by omega
+      have q2 : ((n + 1) * 4294967296 + c / 10) % 4294967296 = c / 10 := by omega
+      have ediv : F / 10 ^ (n + 1) = c / 10 := by
+        rw [h2, Nat.div_div_eq_div_mul, Nat.pow_succ]
+      rw [e, q1, q2, ediv]
+      refine ⟨by omega, rfl, ?_⟩
+      have hc : c / 10 * 10 = c := by omega
+      rw [← h2] at h3
+      rw [Nat.pow_succ, Nat.mul_comm (10 ^ n) 10, ← Nat.mul_assoc, hc, h3]
+
+private theorem fracSig_spec (f : UInt32) :
+    (fracSigLen f).toNat ≤ 8 ∧ (f = 0 → fracSigLen f = 0) ∧
+      f.toNat / 10 ^ (8 - (fracSigLen f).toNat) * 10 ^ (8 - (fracSigLen f).toNat) = f.toNat := by
+  have hv := f.toNat_lt
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  have h8 : (8 : UInt32).toNat = 8 := rfl
+  rw [fracSig_unfold, selU32_eq]
+  by_cases h0 : f = 0
+  · rw [decide_eq_true h0, ite_eq_left rfl, h0]
+    exact ⟨by decide, fun _ => rfl, by decide⟩
+  · rw [decide_eq_false h0, ite_eq_right Bool.false_ne_true]
+    have key := foldl_range_inv
+      (fun k (acc : UInt64) =>
+        acc.toNat / 4294967296 ≤ k ∧
+        acc.toNat % 4294967296 = f.toNat / 10 ^ (acc.toNat / 4294967296) ∧
+        f.toNat / 10 ^ (acc.toNat / 4294967296) * 10 ^ (acc.toNat / 4294967296) = f.toNat)
+      (fun (acc : UInt64) (k : Nat) => fracStep acc) 8 f.toUInt64 ?h0
+      (fun k acc hk hp => fracStep_inv f.toNat k hk acc hp)
+    · rw [forRangeU64_eq', h8, hz, Nat.sub_zero]
+      generalize (List.range 8).foldl (fun (acc : UInt64) (k : Nat) => fracStep acc) f.toUInt64 = r at key
+      obtain ⟨k1, _, k3⟩ := key
+      have hn := hi32 r
+      generalize r.toNat / 4294967296 = n at k1 k3 hn
+      have hle : (r >>> 32).toUInt32 ≤ 8 := UInt32.le_iff_toNat_le.mpr (by rw [hn, h8]; exact k1)
+      have es : ((8 : UInt32) - (r >>> 32).toUInt32).toNat = 8 - n := by
+        rw [UInt32.toNat_sub_of_le _ _ hle, hn, h8]
+      rw [es]
+      have e2 : 8 - (8 - n) = n := by omega
+      rw [e2]
+      exact ⟨by omega, fun e => absurd e h0, k3⟩
+    case h0 =>
+      have e : f.toUInt64.toNat = f.toNat := UInt32.toNat_toUInt64 f
+      rw [e]
+      have q1 : f.toNat / 4294967296 = 0 := by omega
+      have q2 : f.toNat % 4294967296 = f.toNat := by omega
+      rw [q1, q2, Nat.pow_zero, Nat.div_one, Nat.mul_one]
+      exact ⟨Nat.le_refl 0, rfl, rfl⟩
+
+private theorem div_iter (v : UInt32) (n : Nat) :
+    ((List.range n).foldl (fun (b : UInt32) (_ : Nat) => div10U32 b) v).toNat = v.toNat / 10 ^ n :=
+  foldl_range_inv (fun k (b : UInt32) => b.toNat = v.toNat / 10 ^ k)
+    (fun (b : UInt32) (_ : Nat) => div10U32 b) n v (by rw [Nat.pow_zero, Nat.div_one])
+    (fun k b _ hp => by
+      show (div10U32 b).toNat = _
+      rw [div10_toNat, hp, Nat.div_div_eq_div_mul, Nat.pow_succ])
+
+private theorem format_unfold (amount : UInt64) (ticker : ConstBytes) (tickerLen : UInt32)
+    (padFrac8 : UInt8) (out : MutBytes) (outCap : UInt32) :
+    llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap =
+      if decide (256 < tickerLen) then (out, 0)
+      else
+        let q := llbSatsDiv1e8 amount
+        let frac := llbSatsMod1e8 amount
+        let qHi := (llbSatsDiv1e8 q).toUInt32
+        let qLo := llbSatsMod1e8 q
+        let hiZero := decide (qHi = 0)
+        let hiLen := selU32 hiZero 0 (decLenU32 qHi)
+        let loLen := selU32 hiZero (decLenU32 qLo) 8
+        let intLen := hiLen + loLen
+        let pad := bnot (decide (padFrac8 = 0))
+        let showFrac := bor pad (bnot (decide (frac = 0)))
+        let fracLen := selU32 pad 8 (fracSigLen frac)
+        let dotLen : UInt32 := showFrac.toUInt32
+        let hasTicker := bnot (decide (tickerLen = 0))
+        let spaceLen : UInt32 := hasTicker.toUInt32
+        let total := intLen + dotLen + fracLen + spaceLen + tickerLen
+        if decide (outCap ≤ total) then (out, 0)
+        else
+          let o1 := emitDec' out hiLen qHi hiLen
+          let o2 := emitDec' o1 (hiLen + loLen) qLo loLen
+          let o3 := maybeWrite' showFrac o2 intLen 0x2E
+          let drop := selU32 pad 0 (8 - fracLen)
+          let fracShown := forRangeU32 0 drop frac (fun _ cur => div10U32 cur)
+          let emitFracLen := selU32 showFrac fracLen 0
+          let o4 := emitDec' o3 (intLen + 1 + emitFracLen) fracShown emitFracLen
+          let o5 := maybeWrite' hasTicker o4 (intLen + dotLen + fracLen) 0x20
+          let o6 := copyTicker' ticker tickerLen o5 (intLen + dotLen + fracLen + spaceLen)
+          (writeU8 o6 total 0, total) := rfl
+
+private theorem written_eq (b : MutBytes) (n : Nat) : Spec.written b n = seg b 0 n := by
+  unfold Spec.written seg lst
+  exact lst_congr _ _ n (fun t _ => by rw [Nat.zero_add])
+
+private theorem toNat_div1e8 (a : UInt64) : (llbSatsDiv1e8 a).toNat = a.toNat / 100000000 :=
+  (splitBtc a).1
+
+private theorem toNat_mod1e8 (a : UInt64) : (llbSatsMod1e8 a).toNat = a.toNat % 100000000 :=
+  (splitBtc a).2
+
+private theorem sats_parts (amount : UInt64) :
+    let q := llbSatsDiv1e8 amount
+    let frac := llbSatsMod1e8 amount
+    let qHi := (llbSatsDiv1e8 q).toUInt32
+    let qLo := llbSatsMod1e8 q
+    q.toNat = amount.toNat / 100000000 ∧
+    frac.toNat = amount.toNat % 100000000 ∧
+    frac.toNat < 100000000 ∧
+    qHi.toNat = q.toNat / 100000000 ∧
+    qHi.toNat ≤ 1844 ∧
+    qLo.toNat = q.toNat % 100000000 ∧
+    qLo.toNat < 100000000 ∧
+    q.toNat = qHi.toNat * 100000000 + qLo.toNat ∧
+    amount.toNat = q.toNat * 100000000 + frac.toNat := by
+  dsimp only
+  have hlt := amount.toNat_lt
+  have hq := toNat_div1e8 amount
+  have hf := toNat_mod1e8 amount
+  have hqHi64 := toNat_div1e8 (llbSatsDiv1e8 amount)
+  have hqLo := toNat_mod1e8 (llbSatsDiv1e8 amount)
+  have hqHi : (llbSatsDiv1e8 (llbSatsDiv1e8 amount)).toUInt32.toNat =
+      (llbSatsDiv1e8 amount).toNat / 100000000 := by
+    rw [lo32, hqHi64]
+    exact Nat.mod_eq_of_lt (by omega)
+  refine ⟨hq, hf, by omega, hqHi, by omega, hqLo, by omega, ?_, ?_⟩
+  · omega
+  · omega
+
+private theorem bool_toUInt32_toNat (b : Bool) : b.toUInt32.toNat = if b then 1 else 0 := by
+  cases b <;> rfl
+
+private theorem digs_length (v n : Nat) : (digs v n).length = n := lst_length _ n
+
+private theorem int_stage (out : MutBytes) (qHi qLo : UInt32) (q : Nat)
+    (hqHi : qHi.toNat ≤ 1844) (hqLo : qLo.toNat < 100000000)
+    (hq : q = qHi.toNat * 100000000 + qLo.toNat) :
+    let hiZero := decide (qHi = 0)
+    let hiLen := selU32 hiZero 0 (decLenU32 qHi)
+    let loLen := selU32 hiZero (decLenU32 qLo) 8
+    let intLen := hiLen + loLen
+    let o1 := emitDec' out hiLen qHi hiLen
+    let o2 := emitDec' o1 intLen qLo loLen
+    let I := digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat
+    1 ≤ intLen.toNat ∧ intLen.toNat ≤ 12 ∧ I.length = intLen.toNat ∧
+    (∀ c, c ∈ I → Spec.isDigit c = true) ∧
+    Spec.digitsValue I = q ∧
+    Writes o2 out 0 I := by
+  dsimp only
+  have dHi := decLen_spec qHi
+  have dLo := decLen_spec qLo
+  have h8 : (8 : UInt32).toNat = 8 := rfl
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  have hhiLe4 : (decLenU32 qHi).toNat ≤ 4 := by
+    rcases dHi.2.2.2 with h1 | hge
+    · omega
+    · rcases Nat.lt_or_ge 4 (decLenU32 qHi).toNat with hgt | hle
+      · have h5 : 4 ≤ (decLenU32 qHi).toNat - 1 := by omega
+        have hp : 10 ^ 4 ≤ 10 ^ ((decLenU32 qHi).toNat - 1) := Nat.pow_le_pow_right (by decide) h5
+        omega
+      · exact hle
+  have hloLe8 : (decLenU32 qLo).toNat ≤ 8 := by
+    rcases dLo.2.2.2 with h1 | hge
+    · omega
+    · rcases Nat.lt_or_ge 8 (decLenU32 qLo).toNat with hgt | hle
+      · have h8' : 8 ≤ (decLenU32 qLo).toNat - 1 := by omega
+        have hp : 10 ^ 8 ≤ 10 ^ ((decLenU32 qLo).toNat - 1) := Nat.pow_le_pow_right (by decide) h8'
+        omega
+      · exact hle
+  generalize hiLen_def : selU32 (decide (qHi = 0)) 0 (decLenU32 qHi) = hiLen
+  generalize loLen_def : selU32 (decide (qHi = 0)) (decLenU32 qLo) 8 = loLen
+  have hbounds : (hiLen.toNat = 0 ∧ loLen.toNat = (decLenU32 qLo).toNat ∧ qHi.toNat = 0) ∨
+      (hiLen.toNat = (decLenU32 qHi).toNat ∧ loLen.toNat = 8) := by
+    rw [selU32_eq] at hiLen_def loLen_def
+    by_cases h0 : qHi = 0
+    · rw [decide_eq_true h0, ite_eq_left rfl] at hiLen_def loLen_def
+      exact Or.inl ⟨by rw [← hiLen_def, hz], by rw [← loLen_def], by rw [h0]; rfl⟩
+    · rw [decide_eq_false h0, ite_eq_right Bool.false_ne_true] at hiLen_def loLen_def
+      exact Or.inr ⟨by rw [← hiLen_def], by rw [← loLen_def, h8]⟩
+  have hintAdd : (hiLen + loLen).toNat = hiLen.toNat + loLen.toNat := by
+    rw [UInt32.toNat_add]
+    rcases hbounds with ⟨h1, h2, _⟩ | ⟨h1, h2⟩
+    · exact Nat.mod_eq_of_lt (by omega)
+    · exact Nat.mod_eq_of_lt (by omega)
+  have h1le_l : 1 ≤ (hiLen + loLen).toNat := by
+    rcases hbounds with ⟨h1, h2, _⟩ | ⟨h1, h2⟩ <;> omega
+  have h1le_r : (hiLen + loLen).toNat ≤ 12 := by
+    rcases hbounds with ⟨h1, h2, _⟩ | ⟨h1, h2⟩ <;> omega
+  have hlenI : (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat).length = (hiLen + loLen).toNat := by
+    rw [List.length_append, digs_length, digs_length, hintAdd]
+  have hdigI : ∀ c, c ∈ digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat → Spec.isDigit c = true := by
+    intro c hc
+    rcases List.mem_append.mp hc with h | h
+    · exact digs_digit _ _ c h
+    · exact digs_digit _ _ c h
+  have hvalI : Spec.digitsValue (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat) = q := by
+    rw [dv_append, dv_digs, dv_digs, digs_length]
+    rcases hbounds with ⟨h1, h2, hq0⟩ | ⟨h1, h2⟩
+    · rw [h1, h2, hq0, Nat.zero_mod, Nat.zero_mul, Nat.zero_add,
+        Nat.mod_eq_of_lt dLo.2.2.1, hq, hq0, Nat.zero_mul, Nat.zero_add]
+    · rw [h1, h2, Nat.mod_eq_of_lt dHi.2.2.1, Nat.mod_eq_of_lt hqLo]
+      exact hq.symm
+  have w1 : Writes (emitDec' out hiLen qHi hiLen) out 0 (digs qHi.toNat hiLen.toNat) := by
+    have := writes_emit out hiLen qHi hiLen (Nat.le_refl _)
+    rwa [Nat.sub_self] at this
+  have w2 : Writes (emitDec' (emitDec' out hiLen qHi hiLen) (hiLen + loLen) qLo loLen)
+      (emitDec' out hiLen qHi hiLen) hiLen.toNat (digs qLo.toNat loLen.toNat) := by
+    have := writes_emit (emitDec' out hiLen qHi hiLen) (hiLen + loLen) qLo loLen (by omega)
+    have hsub : (hiLen + loLen).toNat - loLen.toNat = hiLen.toNat := by omega
+    rwa [hsub] at this
+  have w12 : Writes (emitDec' (emitDec' out hiLen qHi hiLen) (hiLen + loLen) qLo loLen) out 0
+      (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat) := by
+    have := writes_append out (emitDec' out hiLen qHi hiLen)
+      (emitDec' (emitDec' out hiLen qHi hiLen) (hiLen + loLen) qLo loLen)
+      0 (digs qHi.toNat hiLen.toNat) (digs qLo.toNat loLen.toNat)
+      (by rw [digs_length, digs_length]; omega) w1 (by rw [Nat.zero_add, digs_length]; exact w2)
+    exact this
+  exact ⟨h1le_l, h1le_r, hlenI, hdigI, hvalI, w12⟩
+
+private theorem frac_stage (o2 : MutBytes) (intLen : UInt32) (padFrac8 : UInt8) (frac : UInt32)
+    (hint : intLen.toNat ≤ 12) (hfrac : frac.toNat < 100000000) :
+    let pad := bnot (decide (padFrac8 = 0))
+    let showFrac := bor pad (bnot (decide (frac = 0)))
+    let fracLen := selU32 pad 8 (fracSigLen frac)
+    let dotLen : UInt32 := showFrac.toUInt32
+    let o3 := maybeWrite' showFrac o2 intLen 0x2E
+    let drop := selU32 pad 0 (8 - fracLen)
+    let fracShown := forRangeU32 0 drop frac (fun _ cur => div10U32 cur)
+    let emitFracLen := selU32 showFrac fracLen 0
+    let o4 := emitDec' o3 (intLen + 1 + emitFracLen) fracShown emitFracLen
+    let F := digs fracShown.toNat emitFracLen.toNat
+    dotLen.toNat + fracLen.toNat ≤ 9 ∧
+    (intLen + dotLen + fracLen).toNat = intLen.toNat + dotLen.toNat + fracLen.toNat ∧
+    ((showFrac = false ∧ frac.toNat = 0 ∧ dotLen.toNat = 0 ∧ fracLen.toNat = 0 ∧
+        Writes o4 o2 intLen.toNat []) ∨
+     (showFrac = true ∧ dotLen.toNat = 1 ∧ F.length = fracLen.toNat ∧ fracLen.toNat ≤ 8 ∧
+        (∀ c, c ∈ F → Spec.isDigit c = true) ∧
+        Spec.digitsValue F * 10 ^ (8 - F.length) = frac.toNat ∧
+        Writes o4 o2 intLen.toNat (46 :: F))) := by
+  dsimp only
+  have fs := fracSig_spec frac
+  have h8 : (8 : UInt32).toNat = 8 := rfl
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  have h1 : (1 : UInt32).toNat = 1 := rfl
+  have h46 : (0x2E : UInt8).toNat = 46 := rfl
+  generalize hpad : bnot (decide (padFrac8 = 0)) = pad
+  generalize hsf : bor pad (bnot (decide (frac = 0))) = showFrac
+  generalize hfl : selU32 pad 8 (fracSigLen frac) = fracLen
+  generalize hdl : showFrac.toUInt32 = dotLen
+  generalize hdrop : selU32 pad 0 (8 - fracLen) = drop
+  generalize hfs : forRangeU32 0 drop frac (fun _ cur => div10U32 cur) = fracShown
+  generalize hefl : selU32 showFrac fracLen 0 = emitFracLen
+  have hfs_val : fracShown.toNat = frac.toNat / 10 ^ drop.toNat := by
+    rw [← hfs, forRangeU32_eq, hz, Nat.sub_zero]
+    exact div_iter frac drop.toNat
+  have hf_cases : (showFrac = false ∧ frac.toNat = 0 ∧ dotLen.toNat = 0 ∧ fracLen.toNat = 0 ∧ emitFracLen.toNat = 0) ∨
+      (showFrac = true ∧ dotLen.toNat = 1 ∧ emitFracLen.toNat = fracLen.toNat ∧
+        fracLen.toNat ≤ 8 ∧ drop.toNat = 8 - fracLen.toNat ∧
+        frac.toNat / 10 ^ (8 - fracLen.toNat) * 10 ^ (8 - fracLen.toNat) = frac.toNat) := by
+    rw [bor_eq, bnot_eq] at hsf
+    rw [selU32_eq] at hfl hdrop hefl
+    cases pad
+    · simp only [Bool.false_or, Bool.false_eq_true, ↓reduceIte] at hsf hfl hdrop
+      by_cases hf0 : frac = 0
+      · rw [decide_eq_true hf0, Bool.not_true] at hsf
+        subst hsf
+        simp only [Bool.false_eq_true, ↓reduceIte] at hefl
+        refine Or.inl ⟨rfl, by rw [hf0]; rfl, by rw [← hdl]; rfl, ?_, by rw [← hefl]; rfl⟩
+        rw [← hfl, fs.2.1 hf0]; rfl
+      · rw [decide_eq_false hf0, Bool.not_false] at hsf
+        subst hsf
+        simp only [↓reduceIte] at hefl
+        have hfl_le : fracLen ≤ 8 := UInt32.le_iff_toNat_le.mpr (by rw [← hfl, h8]; exact fs.1)
+        have hdrop_nat : drop.toNat = 8 - fracLen.toNat := by
+          rw [← hdrop, UInt32.toNat_sub_of_le _ _ hfl_le, h8]
+        exact Or.inr ⟨rfl, by rw [← hdl]; rfl, by rw [← hefl], by rw [← hfl]; exact fs.1,
+          hdrop_nat, by rw [← hfl]; exact fs.2.2⟩
+    · simp only [Bool.true_or, ↓reduceIte] at hsf hfl hdrop
+      subst hsf
+      simp only [↓reduceIte] at hefl
+      exact Or.inr ⟨rfl, by rw [← hdl]; rfl, by rw [← hefl], by rw [← hfl, h8]; exact Nat.le_refl 8,
+        by rw [← hdrop, ← hfl, h8, hz], by rw [← hfl, h8, Nat.sub_self, Nat.pow_zero, Nat.div_one, Nat.mul_one]⟩
+  have hdf_le : dotLen.toNat + fracLen.toNat ≤ 9 := by
+    rcases hf_cases with ⟨_, _, d0, f0, _⟩ | ⟨_, d1, _, fle, _, _⟩ <;> omega
+  have hdf_add : (intLen + dotLen + fracLen).toNat = intLen.toNat + dotLen.toNat + fracLen.toNat := by
+    rw [UInt32.toNat_add, UInt32.toNat_add, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]
+  have w3 : Writes (maybeWrite' showFrac o2 intLen 0x2E) o2 intLen.toNat
+      (if showFrac then [46] else []) := by
+    have := writes_maybe showFrac o2 intLen 0x2E intLen.toNat rfl
+    rwa [h46] at this
+  have hpos4 : (intLen + 1 + emitFracLen).toNat = intLen.toNat + 1 + emitFracLen.toNat := by
+    have hefl_le : emitFracLen.toNat ≤ 8 := by
+      rcases hf_cases with ⟨_, _, _, _, e0⟩ | ⟨_, _, eeq, fle, _, _⟩ <;> omega
+    rw [UInt32.toNat_add, UInt32.toNat_add, h1, Nat.mod_eq_of_lt (by omega), Nat.mod_eq_of_lt (by omega)]
+  have w4 : Writes (emitDec' (maybeWrite' showFrac o2 intLen 0x2E) (intLen + 1 + emitFracLen) fracShown emitFracLen)
+      (maybeWrite' showFrac o2 intLen 0x2E) (intLen.toNat + 1)
+      (digs fracShown.toNat emitFracLen.toNat) := by
+    have := writes_emit (maybeWrite' showFrac o2 intLen 0x2E) (intLen + 1 + emitFracLen) fracShown emitFracLen (by omega)
+    have hsub : (intLen + 1 + emitFracLen).toNat - emitFracLen.toNat = intLen.toNat + 1 := by omega
+    rwa [hsub] at this
+  refine ⟨hdf_le, hdf_add, ?_⟩
+  rcases hf_cases with ⟨hsf0, hf0, hd0, hfl0, he0⟩ | ⟨hsf1, hd1, hefl_eq, hfl_le, hdrop_eq, hdiv_mul⟩
+  · left
+    rw [hsf0] at w3 w4 ⊢
+    simp only [Bool.false_eq_true, ↓reduceIte] at w3
+    have w4' : Writes (emitDec' (maybeWrite' false o2 intLen 0x2E) (intLen + 1 + emitFracLen) fracShown emitFracLen)
+        (maybeWrite' false o2 intLen 0x2E) intLen.toNat [] := by
+      have hdig0 : digs fracShown.toNat emitFracLen.toNat = [] := by
+        rw [he0]; rfl
+      rw [hdig0] at w4
+      exact ⟨rfl, fun i _ => w4.2 i (by rw [List.length_nil]; omega)⟩
+    have w34 := writes_append o2 (maybeWrite' false o2 intLen 0x2E)
+      (emitDec' (maybeWrite' false o2 intLen 0x2E) (intLen + 1 + emitFracLen) fracShown emitFracLen)
+      intLen.toNat [] [] (by rw [List.length_nil]; omega) w3 (by rw [List.length_nil, Nat.add_zero]; exact w4')
+    exact ⟨rfl, hf0, hd0, hfl0, w34⟩
+  · right
+    rw [hsf1] at w3 w4 ⊢
+    simp only [↓reduceIte] at w3
+    have hF_len : (digs fracShown.toNat emitFracLen.toNat).length = fracLen.toNat := by
+      rw [digs_length, hefl_eq]
+    have hF_dig : ∀ c, c ∈ digs fracShown.toNat emitFracLen.toNat → Spec.isDigit c = true :=
+      fun c hc => digs_digit _ _ c hc
+    have hF_val : Spec.digitsValue (digs fracShown.toNat emitFracLen.toNat) *
+        10 ^ (8 - (digs fracShown.toNat emitFracLen.toNat).length) = frac.toNat := by
+      rw [dv_digs, digs_length, hefl_eq, hfs_val, hdrop_eq]
+      have hlt_pow : frac.toNat / 10 ^ (8 - fracLen.toNat) < 10 ^ fracLen.toNat := by
+        have hp : 10 ^ (8 - fracLen.toNat) * 10 ^ fracLen.toNat = 100000000 := by
+          rw [← Nat.pow_add]
+          have e8 : 8 - fracLen.toNat + fracLen.toNat = 8 := by omega
+          rw [e8]
+        rcases Nat.lt_or_ge (frac.toNat / 10 ^ (8 - fracLen.toNat)) (10 ^ fracLen.toNat) with c | c
+        · exact c
+        · have hge := Nat.mul_le_mul_right (10 ^ (8 - fracLen.toNat)) c
+          rw [hdiv_mul, Nat.mul_comm, hp] at hge
+          omega
+      rw [Nat.mod_eq_of_lt hlt_pow, hdiv_mul]
+    have w34 := writes_append o2 (maybeWrite' true o2 intLen 0x2E)
+      (emitDec' (maybeWrite' true o2 intLen 0x2E) (intLen + 1 + emitFracLen) fracShown emitFracLen)
+      intLen.toNat [46] (digs fracShown.toNat emitFracLen.toNat)
+      (by rw [List.length_singleton, hF_len]; omega) w3 (by rw [List.length_singleton]; exact w4)
+    exact ⟨rfl, hd1, hF_len, hfl_le, hF_dig, hF_val, w34⟩
+
+private theorem bytes_length (t : ConstBytes) (n : Nat) : (Spec.bytes t n).length = n := lst_length _ n
+
+private theorem ticker_stage (o4 : MutBytes) (pos : UInt32) (ticker : ConstBytes) (tickerLen : UInt32)
+    (hpos : pos.toNat ≤ 21) (htick : tickerLen.toNat ≤ 256) :
+    let hasTicker := bnot (decide (tickerLen = 0))
+    let spaceLen : UInt32 := hasTicker.toUInt32
+    let total := pos + spaceLen + tickerLen
+    let o5 := maybeWrite' hasTicker o4 pos 0x20
+    let o6 := copyTicker' ticker tickerLen o5 (pos + spaceLen)
+    let o7 := writeU8 o6 total 0
+    total.toNat = pos.toNat + spaceLen.toNat + tickerLen.toNat ∧
+    total.toNat + 1 ≤ 280 ∧
+    Writes o7 o4 pos.toNat
+      ((if tickerLen.toNat = 0 then [] else 32 :: Spec.bytes ticker tickerLen.toNat) ++ [0]) := by
+  dsimp only
+  have h32 : (0x20 : UInt8).toNat = 32 := rfl
+  have hz8 : (0 : UInt8).toNat = 0 := rfl
+  have hz32 : (0 : UInt32).toNat = 0 := rfl
+  generalize hht : bnot (decide (tickerLen = 0)) = hasTicker
+  generalize hsl : hasTicker.toUInt32 = spaceLen
+  have hcases : (hasTicker = false ∧ tickerLen.toNat = 0 ∧ spaceLen.toNat = 0) ∨
+      (hasTicker = true ∧ tickerLen.toNat ≠ 0 ∧ spaceLen.toNat = 1) := by
+    rw [bnot_eq] at hht
+    by_cases ht0 : tickerLen = 0
+    · rw [decide_eq_true ht0, Bool.not_true] at hht
+      subst hht
+      exact Or.inl ⟨rfl, by rw [ht0]; rfl, by rw [← hsl]; rfl⟩
+    · rw [decide_eq_false ht0, Bool.not_false] at hht
+      subst hht
+      have hne : tickerLen.toNat ≠ 0 := fun h => ht0 (UInt32.toNat_inj.mp (by rw [h, hz32]))
+      exact Or.inr ⟨rfl, hne, by rw [← hsl]; rfl⟩
+  have hps : (pos + spaceLen).toNat = pos.toNat + spaceLen.toNat := by
+    rw [UInt32.toNat_add]
+    rcases hcases with ⟨_, _, s0⟩ | ⟨_, _, s1⟩ <;> exact Nat.mod_eq_of_lt (by omega)
+  have htot : (pos + spaceLen + tickerLen).toNat = pos.toNat + spaceLen.toNat + tickerLen.toNat := by
+    rw [UInt32.toNat_add, hps]
+    rcases hcases with ⟨_, _, s0⟩ | ⟨_, _, s1⟩ <;> exact Nat.mod_eq_of_lt (by omega)
+  have htot_le : (pos + spaceLen + tickerLen).toNat + 1 ≤ 280 := by
+    rcases hcases with ⟨_, _, s0⟩ | ⟨_, _, s1⟩ <;> omega
+  have w5 : Writes (maybeWrite' hasTicker o4 pos 0x20) o4 pos.toNat
+      (if hasTicker then [32] else []) := by
+    have := writes_maybe hasTicker o4 pos 0x20 pos.toNat rfl
+    rwa [h32] at this
+  have w6 : Writes (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      (maybeWrite' hasTicker o4 pos 0x20) (pos.toNat + spaceLen.toNat) (Spec.bytes ticker tickerLen.toNat) := by
+    have := writes_ticker ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen) (by omega)
+    rwa [hps] at this
+  have w56 : Writes (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      o4 pos.toNat (if tickerLen.toNat = 0 then [] else 32 :: Spec.bytes ticker tickerLen.toNat) := by
+    rcases hcases with ⟨hht0, htl0, hsl0⟩ | ⟨hht1, htl1, hsl1⟩
+    · rw [hht0] at w5 w6 ⊢
+      simp only [Bool.false_eq_true, ↓reduceIte, htl0] at w5 ⊢
+      have ht0 : Spec.bytes ticker tickerLen.toNat = [] := by rw [htl0]; rfl
+      rw [ht0, hsl0, Nat.add_zero] at w6
+      exact writes_append o4 (maybeWrite' false o4 pos 0x20)
+        (copyTicker' ticker tickerLen (maybeWrite' false o4 pos 0x20) (pos + spaceLen))
+        pos.toNat [] [] (by rw [List.length_nil]; omega) w5 (by rw [List.length_nil, Nat.add_zero]; exact w6)
+    · rw [hht1] at w5 w6 ⊢
+      simp only [↓reduceIte, ite_eq_right htl1] at w5 ⊢
+      rw [hsl1] at w6
+      exact writes_append o4 (maybeWrite' true o4 pos 0x20)
+        (copyTicker' ticker tickerLen (maybeWrite' true o4 pos 0x20) (pos + spaceLen))
+        pos.toNat [32] (Spec.bytes ticker tickerLen.toNat)
+        (by rw [List.length_singleton, bytes_length]; omega) w5
+        (by rw [List.length_singleton]; exact w6)
+  have hlen56 : (if tickerLen.toNat = 0 then ([] : List Nat) else 32 :: Spec.bytes ticker tickerLen.toNat).length =
+      spaceLen.toNat + tickerLen.toNat := by
+    rcases hcases with ⟨_, htl0, hsl0⟩ | ⟨_, htl1, hsl1⟩
+    · simp only [htl0, ↓reduceIte, List.length_nil, hsl0]
+    · simp only [ite_eq_right htl1, List.length_cons, bytes_length, hsl1]; omega
+  have w7 : Writes (writeU8 (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      (pos + spaceLen + tickerLen) 0)
+      (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      (pos.toNat + (if tickerLen.toNat = 0 then ([] : List Nat) else 32 :: Spec.bytes ticker tickerLen.toNat).length)
+      [0] := by
+    have := writes_one (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      (pos + spaceLen + tickerLen) 0
+      (pos.toNat + (if tickerLen.toNat = 0 then ([] : List Nat) else 32 :: Spec.bytes ticker tickerLen.toNat).length)
+      (by rw [htot, hlen56, ← Nat.add_assoc])
+    rwa [hz8] at this
+  have w567 := writes_append o4
+    (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+    (writeU8 (copyTicker' ticker tickerLen (maybeWrite' hasTicker o4 pos 0x20) (pos + spaceLen))
+      (pos + spaceLen + tickerLen) 0)
+    pos.toNat (if tickerLen.toNat = 0 then [] else 32 :: Spec.bytes ticker tickerLen.toNat) [0]
+    (by rw [hlen56, List.length_singleton]; omega) w56 w7
+  exact ⟨htot, htot_le, w567⟩
+
+private theorem seg_append (b : MutBytes) (a n m : Nat) :
+    seg b a (n + m) = seg b a n ++ seg b (a + n) m := by
+  unfold seg
+  rw [lst_append]
+  refine congrArg (lst (fun t => (b.get (UInt32.ofNat (a + t))).toNat) n ++ ·) ?_
+  exact lst_congr _ _ m (fun t _ => by rw [Nat.add_assoc])
+
+private theorem writes_prefix_get_zero (b1 b0 : MutBytes) (L : List Nat) (pos : UInt32)
+    (hpos : pos.toNat = L.length) (hw : Writes b1 b0 0 (L ++ [0])) :
+    Spec.written b1 pos.toNat = L ∧ b1.get pos = 0 ∧
+    (∀ i : UInt32, pos.toNat < i.toNat → b1.get i = b0.get i) := by
+  obtain ⟨hseg, hout⟩ := hw
+  have hlen : (L ++ [0]).length = L.length + 1 := by rw [List.length_append, List.length_singleton]
+  have h1 := seg_append b1 0 L.length 1
+  rw [Nat.zero_add] at h1
+  rw [hlen, h1] at hseg
+  have hseg1_len : (seg b1 0 L.length).length = L.length := lst_length _ L.length
+  have hseg2_len : (seg b1 L.length 1).length = ([0] : List Nat).length := lst_length _ 1
+  obtain ⟨heq1, heq2⟩ := List.append_inj hseg hseg1_len
+  refine ⟨?_, ?_, ?_⟩
+  · rw [written_eq, hpos]
+    exact heq1
+  · have h3 : seg b1 L.length 1 = [(b1.get (UInt32.ofNat (L.length + 0))).toNat] := rfl
+    rw [h3, Nat.add_zero, ← hpos, u32_ofNat_toNat] at heq2
+    have h4 : (b1.get pos).toNat = (0 : UInt8).toNat := List.head_eq_of_cons_eq heq2
+    exact UInt8.toNat_inj.mp h4
+  · intro i hi
+    apply hout i
+    rw [hlen, Nat.zero_add, ← hpos]
+    exact Or.inr hi
+
+theorem formatSats : Spec.FormatSats := by
+  intro amount ticker tickerLen padFrac8 out outCap
+  have h256 : (256 : UInt32).toNat = 256 := rfl
+  have hz : (0 : UInt32).toNat = 0 := rfl
+  by_cases htick : 256 < tickerLen.toNat
+  · have hlt : (256 : UInt32) < tickerLen := UInt32.lt_iff_toNat_lt.mpr (by rw [h256]; exact htick)
+    have hres : llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap = (out, 0) := by
+      rw [format_unfold, decide_eq_true hlt, ite_eq_left rfl]
+    refine ⟨fun _ => by rw [hres], fun h => absurd (by rw [hres]) h, fun hle => absurd htick (Nat.not_lt_of_ge hle)⟩
+  · have hnlt : ¬ (256 : UInt32) < tickerLen := fun h => htick (by rw [← h256]; exact UInt32.lt_iff_toNat_lt.mp h)
+    have htick_le : tickerLen.toNat ≤ 256 := Nat.le_of_not_lt htick
+    have sp := sats_parts amount
+    dsimp only at sp
+    obtain ⟨hq, hfrac, hfrac_lt, hqHi, hqHi_le, hqLo, hqLo_lt, hq_eq, hamt_eq⟩ := sp
+    generalize hq_def : llbSatsDiv1e8 amount = q at hq hqHi hqHi_le hqLo hqLo_lt hq_eq hamt_eq
+    generalize hfrac_def : llbSatsMod1e8 amount = frac at hfrac hfrac_lt hamt_eq
+    generalize hqHi_def : (llbSatsDiv1e8 q).toUInt32 = qHi at hqHi hqHi_le hq_eq
+    generalize hqLo_def : llbSatsMod1e8 q = qLo at hqLo hqLo_lt hq_eq
+    have stI := int_stage out qHi qLo q.toNat hqHi_le hqLo_lt hq_eq
+    dsimp only at stI
+    generalize hhiZero : decide (qHi = 0) = hiZero at stI
+    generalize hhiLen : selU32 hiZero 0 (decLenU32 qHi) = hiLen at stI
+    generalize hloLen : selU32 hiZero (decLenU32 qLo) 8 = loLen at stI
+    generalize hintLen : hiLen + loLen = intLen at stI
+    generalize ho1 : emitDec' out hiLen qHi hiLen = o1 at stI
+    generalize ho2 : emitDec' o1 intLen qLo loLen = o2 at stI
+    obtain ⟨hint1, hint12, hI_len, hI_dig, hI_val, w12⟩ := stI
+    have stF := frac_stage o2 intLen padFrac8 frac hint12 hfrac_lt
+    dsimp only at stF
+    generalize hpad : bnot (decide (padFrac8 = 0)) = pad at stF
+    generalize hsf : bor pad (bnot (decide (frac = 0))) = showFrac at stF
+    generalize hfl : selU32 pad 8 (fracSigLen frac) = fracLen at stF
+    generalize hdl : showFrac.toUInt32 = dotLen at stF
+    generalize ho3 : maybeWrite' showFrac o2 intLen 0x2E = o3 at stF
+    generalize hdrop : selU32 pad 0 (8 - fracLen) = drop at stF
+    generalize hfs : forRangeU32 0 drop frac (fun _ cur => div10U32 cur) = fracShown at stF
+    generalize hefl : selU32 showFrac fracLen 0 = emitFracLen at stF
+    generalize ho4 : emitDec' o3 (intLen + 1 + emitFracLen) fracShown emitFracLen = o4 at stF
+    obtain ⟨hdf_le, hdf_add, hf_cases⟩ := stF
+    have hpos_le : (intLen + dotLen + fracLen).toNat ≤ 21 := by omega
+    have stT := ticker_stage o4 (intLen + dotLen + fracLen) ticker tickerLen hpos_le htick_le
+    dsimp only at stT
+    generalize hht : bnot (decide (tickerLen = 0)) = hasTicker at stT
+    generalize hsl : hasTicker.toUInt32 = spaceLen at stT
+    generalize htot : intLen + dotLen + fracLen + spaceLen + tickerLen = total at stT
+    generalize ho5 : maybeWrite' hasTicker o4 (intLen + dotLen + fracLen) 0x20 = o5 at stT
+    generalize ho6 : copyTicker' ticker tickerLen o5 (intLen + dotLen + fracLen + spaceLen) = o6 at stT
+    generalize ho7 : writeU8 o6 total 0 = o7 at stT
+    obtain ⟨htot_add, htot_le, w567⟩ := stT
+    have hunf : llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap =
+        if decide (outCap ≤ total) then (out, 0) else (o7, total) := by
+      rw [format_unfold, decide_eq_false hnlt, ite_eq_right Bool.false_ne_true]
+      dsimp only
+      rw [hq_def, hfrac_def, hqHi_def, hqLo_def, hhiZero, hhiLen, hloLen, hintLen,
+        hpad, hsf, hfl, hdl, hht, hsl, htot,
+        ho1, ho2, ho3, hdrop, hfs, hefl, ho4, ho5, ho6, ho7]
+    have htot_pos : 1 ≤ total.toNat := by omega
+    have htot_ne0 : total ≠ 0 := fun h => by
+      have : total.toNat = 0 := by rw [h]; rfl
+      exact absurd this (Nat.ne_of_gt htot_pos)
+    have hsl_le : spaceLen.toNat ≤ 1 := by
+      rw [← hsl, bool_toUInt32_toNat]
+      cases hasTicker <;> decide
+    have htot_max : total.toNat ≤ 22 + tickerLen.toNat := by omega
+    by_cases hcap : outCap ≤ total
+    · have hcap_nat : outCap.toNat ≤ total.toNat := UInt32.le_iff_toNat_le.mp hcap
+      have hres : llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap = (out, 0) := by
+        rw [hunf, decide_eq_true hcap, ite_eq_left rfl]
+      refine ⟨fun _ => by rw [hres], fun h => absurd (by rw [hres]) h, fun _ h22 => ?_⟩
+      exact absurd hcap_nat (Nat.not_le_of_gt (Nat.lt_of_le_of_lt htot_max h22))
+    · have hcap_gt : total.toNat < outCap.toNat := Nat.lt_of_not_le (fun h => hcap (UInt32.le_iff_toNat_le.mpr h))
+      have hres : llbFormatSatsAscii amount ticker tickerLen padFrac8 out outCap = (o7, total) := by
+        rw [hunf, decide_eq_false hcap, ite_eq_right Bool.false_ne_true]
+      refine ⟨fun h => absurd (by rw [hres] at h; exact h) htot_ne0, ?_, fun _ _ => by rw [hres]; exact htot_ne0⟩
+      intro _
+      rw [hres]
+      dsimp only
+      let T : List Nat := if tickerLen.toNat = 0 then [] else 32 :: Spec.bytes ticker tickerLen.toNat
+      have hT_len : T.length = spaceLen.toNat + tickerLen.toNat := by
+        dsimp [T]
+        by_cases ht0 : tickerLen.toNat = 0
+        · have hs0 : spaceLen.toNat = 0 := by
+            have ht_eq : tickerLen = 0 := UInt32.toNat_inj.mp (by rw [ht0, hz])
+            rw [← hsl, ← hht, decide_eq_true ht_eq]; rfl
+          simp only [ht0, ↓reduceIte, List.length_nil, hs0]
+        · have hs1 : spaceLen.toNat = 1 := by
+            have ht_ne : tickerLen ≠ 0 := fun e => ht0 (by rw [e]; rfl)
+            rw [← hsl, ← hht, decide_eq_false ht_ne]; rfl
+          simp only [ite_eq_right ht0, List.length_cons, bytes_length, hs1]; omega
+      have hTr : (T = [] ∧ Spec.bytes ticker tickerLen.toNat = []) ∨ T = 32 :: Spec.bytes ticker tickerLen.toNat := by
+        dsimp [T]
+        by_cases ht0 : tickerLen.toNat = 0
+        · left
+          rw [ite_eq_left ht0]
+          exact ⟨rfl, by rw [ht0]; rfl⟩
+        · right
+          rw [ite_eq_right ht0]
+      have hI_pos : 0 < (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat).length := by omega
+      rcases hf_cases with ⟨_, hf0, hd0, hfl0, w34⟩ | ⟨_, hd1, hF_len, hfl_le, hF_dig, hF_val, w34⟩
+      · have w14 := writes_append out o2 o4 0
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat) []
+          (by rw [hI_len, List.length_nil]; omega) w12 (by rw [Nat.zero_add, hI_len]; exact w34)
+        rw [List.append_nil] at w14
+        have hpos_eq : (intLen + dotLen + fracLen).toNat =
+            (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat).length := by omega
+        have w17 := writes_append out o4 o7 0
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat) (T ++ [0])
+          (by rw [hI_len, List.length_append, hT_len, List.length_singleton]; omega) w14
+          (by rw [Nat.zero_add, ← hpos_eq]; exact w567)
+        rw [← List.append_assoc] at w17
+        have hlen_full : total.toNat =
+            (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++ T).length := by
+          rw [List.length_append, hI_len, hT_len]; omega
+        obtain ⟨hwrit, hget0, hout⟩ := writes_prefix_get_zero o7 out
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++ T) total hlen_full w17
+        refine ⟨hcap_gt, ?_, hget0, hout⟩
+        rw [hwrit, parse_plain _ (Spec.bytes ticker tickerLen.toNat) T hI_dig hI_pos hTr,
+          hI_val, hamt_eq, hf0, Nat.add_zero]
+      · have w14 := writes_append out o2 o4 0
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat)
+          (46 :: digs fracShown.toNat emitFracLen.toNat)
+          (by rw [hI_len, List.length_cons, hF_len]; omega) w12 (by rw [Nat.zero_add, hI_len]; exact w34)
+        have hpos_eq : (intLen + dotLen + fracLen).toNat =
+            (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++
+              (46 :: digs fracShown.toNat emitFracLen.toNat)).length := by
+          rw [List.length_append, hI_len, List.length_cons, hF_len]; omega
+        have w17 := writes_append out o4 o7 0
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++
+            (46 :: digs fracShown.toNat emitFracLen.toNat)) (T ++ [0])
+          (by rw [← hpos_eq, List.length_append, hT_len, List.length_singleton]; omega) w14
+          (by rw [Nat.zero_add, ← hpos_eq]; exact w567)
+        rw [← List.append_assoc] at w17
+        have hlen_full : total.toNat =
+            (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++
+              (46 :: digs fracShown.toNat emitFracLen.toNat) ++ T).length := by
+          rw [List.length_append, ← hpos_eq, hT_len]; omega
+        obtain ⟨hwrit, hget0, hout⟩ := writes_prefix_get_zero o7 out
+          (digs qHi.toNat hiLen.toNat ++ digs qLo.toNat loLen.toNat ++
+            (46 :: digs fracShown.toNat emitFracLen.toNat) ++ T) total hlen_full w17
+        refine ⟨hcap_gt, ?_, hget0, hout⟩
+        rw [hwrit, List.append_assoc, List.cons_append,
+          parse_frac _ _ (Spec.bytes ticker tickerLen.toNat) T hI_dig hF_dig hI_pos
+            (by rw [hF_len]; exact hfl_le) hTr,
+          hI_val, hF_val, hamt_eq]
+
+end Formatter
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
    compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep,
-   psbtLocktime, sortU16, sortFixedBytes⟩
+   psbtLocktime, sortU16, sortFixedBytes, formatSats⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -2096,6 +3290,23 @@ theorem witness_sortFixedBytes :
     Spec.records (llbSortFixedBytes (mutBytes [2, 9, 1, 7, 0, 0]) 2 2) 3 2 =
       [[1, 7], [2, 9], [0, 0]] ∧
     Spec.records (llbSortFixedBytes (mutBytes [2, 9, 1, 7]) 1 2) 2 2 = [[2, 9], [1, 7]] := by
+  decide
+
+/-- Accepted: `0` as `"0\0"`, `1.5 BTC` as `"1.5 BTC\0"` without padding and
+    `"1.50000000 BTC\0"` with padding. Rejected: capacity equal to the string length (no room
+    for the trailing NUL), and a ticker past 256 bytes. -/
+theorem witness_formatSats :
+    let btc := constBytes [66, 84, 67]
+    (llbFormatSatsAscii 0 btc 0 0 (mutBytes []) 2).2 = 1 ∧
+    Spec.written (llbFormatSatsAscii 0 btc 0 0 (mutBytes []) 2).1 2 = [48, 0] ∧
+    (llbFormatSatsAscii 150000000 btc 3 0 (mutBytes []) 8).2 = 7 ∧
+    Spec.written (llbFormatSatsAscii 150000000 btc 3 0 (mutBytes []) 8).1 8 =
+      [49, 46, 53, 32, 66, 84, 67, 0] ∧
+    (llbFormatSatsAscii 150000000 btc 3 1 (mutBytes []) 15).2 = 14 ∧
+    Spec.written (llbFormatSatsAscii 150000000 btc 3 1 (mutBytes []) 15).1 15 =
+      [49, 46, 53, 48, 48, 48, 48, 48, 48, 48, 32, 66, 84, 67, 0] ∧
+    (llbFormatSatsAscii 150000000 btc 3 0 (mutBytes []) 7).2 = 0 ∧
+    (llbFormatSatsAscii 0 btc 257 0 (mutBytes []) 300).2 = 0 := by
   decide
 
 end Proofs.KernelSpec

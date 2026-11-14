@@ -36,7 +36,6 @@ PENDING = {
     "llb_miniscript_older_ok": MODEL,
     "llb_miniscript_after_ok": MODEL,
     "llb_miniscript_check_postfix": BUFFER + "; only its combinators are proved",
-    "llb_format_sats_ascii": BUFFER + "; no theorem at all",
 }
 
 # Exports that neither app calls in a release build. Must stay empty: an export that no
