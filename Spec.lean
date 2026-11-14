@@ -207,6 +207,57 @@ def MerkleStep : Prop :=
         if index < 2 ^ e then 2 ^ e * 2 ^ 32 + index
         else (size - 2 ^ e) * 2 ^ 32 + (index - 2 ^ e)
 
+/-! ## BIP-370 locktime -/
+
+/-- What one input requires: `(height, time)`, each optional. The input is given to the
+    kernel as `(hasHeight, height, hasTime, time)`; a zero flag means "absent". -/
+def lockReq (i : UInt8 × UInt32 × UInt8 × UInt32) : Option Nat × Option Nat :=
+  (if i.1 = 0 then none else some i.2.1.toNat,
+   if i.2.2.1 = 0 then none else some i.2.2.2.toNat)
+
+/-- The kernel state after the inputs `ins`, fed one at a time from the initial state. -/
+def locktimeRun (ins : List (UInt8 × UInt32 × UInt8 × UInt32)) : UInt64 :=
+  ins.foldl (fun st i => llbPsbtLocktimeStep st i.1 i.2.1 i.2.2.1 i.2.2.2) llbPsbtLocktimeInit
+
+/-- A height requirement is in `1 .. 499999999`; a time requirement is `≥ 500000000`. -/
+def lockReqInRange (r : Option Nat × Option Nat) : Bool :=
+  (match r.1 with
+    | none => true
+    | some h => decide (0 < h ∧ h < 500000000)) &&
+  (match r.2 with
+    | none => true
+    | some t => decide (500000000 ≤ t))
+
+def maxOf (l : List Nat) : Nat := l.foldl max 0
+
+/-- An input accepts a height locktime unless it requires a time and no height. -/
+def supportsHeight (r : Option Nat × Option Nat) : Bool := r.1.isSome || r.2.isNone
+
+/-- An input accepts a time locktime unless it requires a height and no time. -/
+def supportsTime (r : Option Nat × Option Nat) : Bool := r.2.isSome || r.1.isNone
+
+/-- The transaction locktime of BIP-370, or `none` when there is none:
+    * every requirement must be in range;
+    * if no input requires anything, the fallback;
+    * else if every input accepts a height, the largest required height;
+    * else if every input accepts a time, the largest required time;
+    * else there is no valid locktime. -/
+def bip370Locktime (fallback : Nat) (reqs : List (Option Nat × Option Nat)) : Option Nat :=
+  if !reqs.all lockReqInRange then none
+  else if reqs.all (fun r => r.1.isNone && r.2.isNone) then some fallback
+  else if reqs.all supportsHeight then some (maxOf (reqs.filterMap fun r => r.1))
+  else if reqs.all supportsTime then some (maxOf (reqs.filterMap fun r => r.2))
+  else none
+
+/-- Running the kernel over a list of inputs and finalizing returns `2 ^ 32 + locktime`
+    with the BIP-370 locktime of that list, and `0` exactly when there is none. -/
+def PsbtLocktime : Prop :=
+  ∀ (ins : List (UInt8 × UInt32 × UInt8 × UInt32)) (fallback : UInt32),
+    (llbPsbtLocktimeFinalize (locktimeRun ins) fallback).toNat =
+      match bip370Locktime fallback.toNat (ins.map lockReq) with
+      | some v => 2 ^ 32 + v
+      | none => 0
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -217,6 +268,7 @@ def KernelSpec : Prop :=
   CompactSizeRead ∧
   Bip32ExportPath ∧
   MerkleSplit ∧
-  MerkleStep
+  MerkleStep ∧
+  PsbtLocktime
 
 end Spec

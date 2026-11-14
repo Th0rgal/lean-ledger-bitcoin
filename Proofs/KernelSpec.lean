@@ -9,8 +9,9 @@ one rejected concrete input per statement (so no statement holds for an empty re
 
 Some proofs reuse lemmas of `Proofs/FreestandingKernels.lean` that are themselves stated on
 the kernel functions: `llbSatsDiv1e8_eq` and `llbSatsMod1e8_eq` (`SplitBtc`), `llbBytesEq_iff`
-(`DualUtxo`), `bip32TailClear_iff` (`Bip32ExportPath`) and `largestPow2LtU32_eq`
-(`MerkleSplit`). Every other proof unfolds the kernel function directly.
+(`DualUtxo`), `bip32TailClear_iff` (`Bip32ExportPath`), `largestPow2LtU32_eq` (`MerkleSplit`) and
+`llbPsbtLocktime_eq_determineLocktime` (`PsbtLocktime`). Every other proof unfolds the kernel
+function directly.
 -/
 
 namespace Proofs.KernelSpec
@@ -924,11 +925,264 @@ theorem merkleStep : Spec.MerkleStep := by
       have l2 : largestPow2LtU32 S ≤ I := UInt32.le_iff_toNat_le.mpr (by rw [hI, hm]; omega)
       rw [pack_toNat, UInt32.toNat_sub_of_le _ _ l1, UInt32.toNat_sub_of_le _ _ l2, hm, hS, hI]
 
+/-! ### BIP-370 locktime -/
+
+section Locktime
+
+open BitcoinLedger.Psbt InternalSpec.Psbt Proofs.FreestandingKernels
+
+private def mkInp (i : UInt8 × UInt32 × UInt8 × UInt32) : PsbtInput :=
+  { prevout := default
+    requiredHeightLocktime := if i.1 = 0 then none else some i.2.1
+    requiredTimeLocktime := if i.2.2.1 = 0 then none else some i.2.2.2 }
+
+private theorem step_flags (st : UInt64) (a a' : UInt8) (h : UInt32) (b b' : UInt8) (t : UInt32)
+    (ha : decide (a ≠ 0) = decide (a' ≠ 0)) (hb : decide (b ≠ 0) = decide (b' ≠ 0)) :
+    llbPsbtLocktimeStep st a h b t = llbPsbtLocktimeStep st a' h b' t := by
+  unfold llbPsbtLocktimeStep
+  simp only [ha, hb]
+
+private theorem step_noH (st : UInt64) (h : UInt32) (b : UInt8) (t : UInt32) :
+    llbPsbtLocktimeStep st 0 h b t = llbPsbtLocktimeStep st 0 0 b t := by
+  have hz : decide ((0 : UInt8) ≠ 0) = false := by decide
+  unfold llbPsbtLocktimeStep
+  simp only [hz, selU64_eq, bnot_eq, band_eq, bor_eq, Bool.not_false, Bool.true_or,
+    Bool.false_and, Bool.true_and, Bool.false_eq_true, ↓reduceIte]
+
+set_option linter.unusedSimpArgs false in
+private theorem step_noT (st : UInt64) (a : UInt8) (h t : UInt32) :
+    llbPsbtLocktimeStep st a h 0 t = llbPsbtLocktimeStep st a h 0 0 := by
+  have hz : decide ((0 : UInt8) ≠ 0) = false := by decide
+  unfold llbPsbtLocktimeStep
+  cases hd : decide (a ≠ 0) <;>
+  simp only [hd, hz, selU64_eq, bnot_eq, band_eq, bor_eq, Bool.not_false, Bool.not_true,
+    Bool.true_or, Bool.false_and, Bool.true_and, Bool.and_false, Bool.and_true,
+    Bool.false_eq_true, ↓reduceIte]
+
+private theorem step_mk (st : UInt64) (a : UInt8) (h : UInt32) (b : UInt8) (t : UInt32) :
+    llbPsbtLocktimeStep st a h b t = psbtInputStep64 st (mkInp (a, h, b, t)) := by
+  have h1 : decide ((1 : UInt8) ≠ 0) = true := by decide
+  unfold psbtInputStep64 mkInp
+  dsimp only
+  by_cases ha : a = 0 <;> by_cases hb : b = 0
+  · subst ha; subst hb
+    simp only [↓reduceIte, Option.isSome_none, Option.getD_none, Bool.false_eq_true]
+    rw [step_noH, step_noT]
+  · subst ha
+    simp only [hb, ↓reduceIte, Option.isSome_none, Option.isSome_some, Option.getD_none,
+      Option.getD_some, Bool.false_eq_true]
+    rw [step_noH]
+    exact step_flags _ _ _ _ _ _ _ rfl (by rw [h1]; exact decide_eq_true hb)
+  · subst hb
+    simp only [ha, ↓reduceIte, Option.isSome_none, Option.isSome_some, Option.getD_none,
+      Option.getD_some, Bool.false_eq_true]
+    rw [step_noT]
+    exact step_flags _ _ _ _ _ _ _ (by rw [h1]; exact decide_eq_true ha) rfl
+  · simp only [ha, hb, ↓reduceIte, Option.isSome_some, Option.getD_some]
+    exact step_flags _ _ _ _ _ _ _ (by rw [h1]; exact decide_eq_true ha)
+      (by rw [h1]; exact decide_eq_true hb)
+
+private theorem run_mk (ins : List (UInt8 × UInt32 × UInt8 × UInt32)) : ∀ st : UInt64,
+    ins.foldl (fun st i => llbPsbtLocktimeStep st i.1 i.2.1 i.2.2.1 i.2.2.2) st =
+      psbtFoldInputs64 st (ins.map mkInp) := by
+  induction ins with
+  | nil => intro st; rfl
+  | cons i rest ih =>
+    intro st
+    rcases i with ⟨a, h, b, t⟩
+    rw [List.foldl_cons, List.map_cons]
+    show _ = psbtFoldInputs64 (psbtInputStep64 st (mkInp (a, h, b, t))) (rest.map mkInp)
+    rw [← step_mk]
+    exact ih _
+
+private def reqOf (inp : PsbtInput) : Option Nat × Option Nat :=
+  (inp.requiredHeightLocktime.map UInt32.toNat, inp.requiredTimeLocktime.map UInt32.toNat)
+
+private def stepH (m : UInt32) (inp : PsbtInput) : UInt32 :=
+  match inp.requiredHeightLocktime with
+  | some h => if m.toNat < h.toNat then h else m
+  | none => m
+
+private def stepT (m : UInt32) (inp : PsbtInput) : UInt32 :=
+  match inp.requiredTimeLocktime with
+  | some t => if m.toNat < t.toNat then t else m
+  | none => m
+
+private theorem scan_closed (l : List PsbtInput) : ∀ st : LocktimeScanState,
+    scanLocktimeInputs st l =
+      if l.all checkInputLocktimeBounds then
+        some { hasHeightOnly := st.hasHeightOnly ||
+                 l.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone)
+               hasTimeOnly := st.hasTimeOnly ||
+                 l.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone)
+               anyHeight := st.anyHeight || l.any (fun i => i.requiredHeightLocktime.isSome)
+               anyTime := st.anyTime || l.any (fun i => i.requiredTimeLocktime.isSome)
+               maxHeight := l.foldl stepH st.maxHeight
+               maxTime := l.foldl stepT st.maxTime }
+      else none := by
+  induction l with
+  | nil =>
+    intro st
+    simp only [List.all_nil, List.any_nil, Bool.or_false, List.foldl_nil, ↓reduceIte]
+    rfl
+  | cons inp rest ih =>
+    intro st
+    rw [scanLocktimeInputs]
+    cases hb : checkInputLocktimeBounds inp
+    · simp only [List.all_cons, hb, Bool.false_and, Bool.not_false, ↓reduceIte, Bool.false_eq_true]
+    · simp only [List.all_cons, hb, Bool.true_and, Bool.not_true, Bool.false_eq_true, ↓reduceIte]
+      rw [ih]
+      simp only [List.any_cons, List.foldl_cons, Bool.or_assoc]
+      rfl
+
+private theorem enc_ok (x : UInt32) :
+    (encodeLocktimeResult (.ok x)).toNat = 2 ^ 32 + x.toNat := by
+  have hx := x.toNat_lt
+  show (((1 : UInt64) <<< 32) ||| x.toUInt64).toNat = _
+  rw [UInt64.toNat_or, UInt32.toNat_toUInt64, show ((1 : UInt64) <<< 32).toNat = 1 <<< 32 from rfl,
+    Nat.or_comm, or_shift _ _ 32 hx, Nat.one_mul, Nat.add_comm]
+
+private theorem range_eq (l : List PsbtInput) :
+    (l.map reqOf).all Spec.lockReqInRange = l.all checkInputLocktimeBounds := by
+  induction l with
+  | nil => rfl
+  | cons inp rest ih =>
+    rw [List.map_cons, List.all_cons, List.all_cons, ih]
+    have : Spec.lockReqInRange (reqOf inp) = checkInputLocktimeBounds inp := by
+      unfold Spec.lockReqInRange reqOf checkInputLocktimeBounds
+      cases inp.requiredHeightLocktime <;> cases inp.requiredTimeLocktime <;> rfl
+    rw [this]
+
+private theorem maxH_eq (l : List PsbtInput) : ∀ m : UInt32,
+    ((l.map reqOf).filterMap (fun r => r.1)).foldl max m.toNat = (l.foldl stepH m).toNat := by
+  induction l with
+  | nil => intro m; rfl
+  | cons inp rest ih =>
+    intro m
+    rw [List.map_cons, List.foldl_cons]
+    cases hh : inp.requiredHeightLocktime with
+    | none =>
+      have e1 : (reqOf inp).1 = none := by simp only [reqOf, hh, Option.map_none]
+      have e2 : stepH m inp = m := by simp only [stepH, hh]
+      rw [List.filterMap_cons_none e1, e2]
+      exact ih m
+    | some h =>
+      have e1 : (reqOf inp).1 = some h.toNat := by simp only [reqOf, hh, Option.map_some]
+      have e2 : stepH m inp = if m.toNat < h.toNat then h else m := by simp only [stepH, hh]
+      rw [List.filterMap_cons_some e1, List.foldl_cons, e2]
+      by_cases hlt : m.toNat < h.toNat
+      · rw [ite_eq_left hlt, ← ih h, Nat.max_eq_right (Nat.le_of_lt hlt)]
+      · rw [ite_eq_right hlt, ← ih m, Nat.max_eq_left (Nat.le_of_not_lt hlt)]
+
+private theorem maxT_eq (l : List PsbtInput) : ∀ m : UInt32,
+    ((l.map reqOf).filterMap (fun r => r.2)).foldl max m.toNat = (l.foldl stepT m).toNat := by
+  induction l with
+  | nil => intro m; rfl
+  | cons inp rest ih =>
+    intro m
+    rw [List.map_cons, List.foldl_cons]
+    cases hh : inp.requiredTimeLocktime with
+    | none =>
+      have e1 : (reqOf inp).2 = none := by simp only [reqOf, hh, Option.map_none]
+      have e2 : stepT m inp = m := by simp only [stepT, hh]
+      rw [List.filterMap_cons_none e1, e2]
+      exact ih m
+    | some h =>
+      have e1 : (reqOf inp).2 = some h.toNat := by simp only [reqOf, hh, Option.map_some]
+      have e2 : stepT m inp = if m.toNat < h.toNat then h else m := by simp only [stepT, hh]
+      rw [List.filterMap_cons_some e1, List.foldl_cons, e2]
+      by_cases hlt : m.toNat < h.toNat
+      · rw [ite_eq_left hlt, ← ih h, Nat.max_eq_right (Nat.le_of_lt hlt)]
+      · rw [ite_eq_right hlt, ← ih m, Nat.max_eq_left (Nat.le_of_not_lt hlt)]
+
+private theorem flags (l : List PsbtInput) :
+    (l.map reqOf).all (fun r => r.1.isNone && r.2.isNone) =
+      (!l.any (fun i => i.requiredHeightLocktime.isSome) &&
+       !l.any (fun i => i.requiredTimeLocktime.isSome)) ∧
+    (l.map reqOf).all Spec.supportsHeight =
+      (!l.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone)) ∧
+    (l.map reqOf).all Spec.supportsTime =
+      (!l.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone)) ∧
+    (l.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone) = true →
+      l.any (fun i => i.requiredHeightLocktime.isSome) = true) ∧
+    (l.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone) = true →
+      l.any (fun i => i.requiredTimeLocktime.isSome) = true) ∧
+    (l.any (fun i => i.requiredTimeLocktime.isSome) = true →
+      l.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone) = true ∨
+      l.any (fun i => i.requiredHeightLocktime.isSome) = true) := by
+  induction l with
+  | nil => exact ⟨rfl, rfl, rfl, fun h => h, fun h => h, fun h => Or.inl h⟩
+  | cons inp rest ih =>
+    obtain ⟨i1, i2, i3, i4, i5, i6⟩ := ih
+    simp only [List.map_cons, List.all_cons, List.any_cons, i1, i2, i3]
+    unfold reqOf Spec.supportsHeight Spec.supportsTime
+    generalize rest.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone) = a at *
+    generalize rest.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone) = b at *
+    generalize rest.any (fun i => i.requiredHeightLocktime.isSome) = c at *
+    generalize rest.any (fun i => i.requiredTimeLocktime.isSome) = d at *
+    revert i4 i5 i6
+    cases inp.requiredHeightLocktime <;> cases inp.requiredTimeLocktime <;>
+      simp only [Option.isSome_some, Option.isSome_none, Option.isNone_some, Option.isNone_none,
+        Option.map_some, Option.map_none] <;>
+      cases a <;> cases b <;> cases c <;> cases d <;> decide
+
+set_option linter.unusedSimpArgs false in
+private theorem det_eq (fb : UInt32) (l : List PsbtInput) :
+    (encodeLocktimeResult (BitcoinLedger.Psbt.determineLocktime (some fb) l)).toNat =
+      match Spec.bip370Locktime fb.toNat (l.map reqOf) with
+      | some v => 2 ^ 32 + v
+      | none => 0 := by
+  obtain ⟨f1, f2, f3, f4, f5, f6⟩ := flags l
+  have mh : Spec.maxOf ((l.map reqOf).filterMap (fun r => r.1)) = (l.foldl stepH 0).toNat :=
+    maxH_eq l 0
+  have mt : Spec.maxOf ((l.map reqOf).filterMap (fun r => r.2)) = (l.foldl stepT 0).toNat :=
+    maxT_eq l 0
+  unfold BitcoinLedger.Psbt.determineLocktime Spec.bip370Locktime
+  rw [scan_closed, range_eq, f1, f2, f3, mh, mt]
+  cases l.all checkInputLocktimeBounds
+  · rfl
+  · simp only [↓reduceIte, Bool.not_true, Bool.false_eq_true, Bool.false_or, Option.getD_some]
+    generalize l.any (fun i => i.requiredHeightLocktime.isSome && i.requiredTimeLocktime.isNone) = a at *
+    generalize l.any (fun i => i.requiredTimeLocktime.isSome && i.requiredHeightLocktime.isNone) = b at *
+    generalize l.any (fun i => i.requiredHeightLocktime.isSome) = c at *
+    generalize l.any (fun i => i.requiredTimeLocktime.isSome) = d at *
+    clear f1 f2 f3 mh mt
+    revert f4 f5 f6
+    cases a <;> cases b <;> cases c <;> cases d <;> intro f4 f5 f6 <;>
+      simp only [Bool.and_self, Bool.and_true, Bool.and_false, Bool.true_and, Bool.false_and,
+        Bool.not_true, Bool.not_false, Bool.false_eq_true, ↓reduceIte] <;>
+      first
+        | exact enc_ok _
+        | rfl
+        | exact absurd (f4 rfl) (by decide)
+        | exact absurd (f5 rfl) (by decide)
+        | (rcases f6 rfl with h | h <;> exact absurd h (by decide))
+
+private theorem mk_req (i : UInt8 × UInt32 × UInt8 × UInt32) : reqOf (mkInp i) = Spec.lockReq i := by
+  unfold reqOf mkInp Spec.lockReq
+  dsimp only
+  by_cases ha : i.1 = 0 <;> by_cases hb : i.2.2.1 = 0 <;>
+    simp only [ha, hb, ↓reduceIte, Option.map_some, Option.map_none]
+
+theorem psbtLocktime : Spec.PsbtLocktime := by
+  intro ins fallback
+  unfold Spec.locktimeRun
+  rw [run_mk]
+  have h := llbPsbtLocktime_eq_determineLocktime (some fallback) (ins.map mkInp)
+  rw [Option.getD_some] at h
+  rw [h, det_eq, List.map_map]
+  have e : reqOf ∘ mkInp = Spec.lockReq := funext mk_req
+  rw [e]
+  rfl
+
+end Locktime
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
-   compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep⟩
+   compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep,
+   psbtLocktime⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -1022,5 +1276,23 @@ theorem witness_merkleStep :
     llbMerkleAdvanceState (5 * 4294967296 + 3) = 4 * 4294967296 + 3 ∧
     llbMerkleAdvanceState (5 * 4294967296 + 4) = 1 * 4294967296 + 0 ∧
     llbMerkleAdvanceState (1 * 4294967296 + 0) = 1 * 4294967296 + 0 := by decide
+
+/-- Inputs are `(hasHeight, height, hasTime, time)`. Accepted: no requirement (fallback 7),
+    two heights (the larger), a height-only input next to one with both (height wins), a
+    time-only input next to one with both (time). Rejected: a height-only input next to a
+    time-only one, height 0, a time below 500000000. -/
+theorem witness_psbtLocktime :
+    llbPsbtLocktimeFinalize (Spec.locktimeRun [(0, 0, 0, 0)]) 7 = 4294967296 + 7 ∧
+    llbPsbtLocktimeFinalize (Spec.locktimeRun [(1, 100, 0, 0), (1, 200, 0, 0)]) 7 =
+      4294967296 + 200 ∧
+    llbPsbtLocktimeFinalize
+      (Spec.locktimeRun [(1, 100, 0, 0), (1, 200, 1, 600000000)]) 7 = 4294967296 + 200 ∧
+    llbPsbtLocktimeFinalize
+      (Spec.locktimeRun [(0, 0, 1, 500000001), (1, 200, 1, 600000000)]) 7 =
+        4294967296 + 600000000 ∧
+    llbPsbtLocktimeFinalize
+      (Spec.locktimeRun [(1, 100, 0, 0), (0, 0, 1, 600000000)]) 7 = 0 ∧
+    llbPsbtLocktimeFinalize (Spec.locktimeRun [(1, 0, 0, 0)]) 7 = 0 ∧
+    llbPsbtLocktimeFinalize (Spec.locktimeRun [(0, 0, 1, 499999999)]) 7 = 0 := by decide
 
 end Proofs.KernelSpec
