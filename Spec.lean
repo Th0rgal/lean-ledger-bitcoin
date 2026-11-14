@@ -136,12 +136,34 @@ def DualUtxo : Prop :=
       witAmount.toNat ≤ maxMoney ∧ witAmount.toNat = nonWitAmount.toNat ∧
       bytes witSpk witLen.toNat = bytes nonWitSpk nonWitLen.toNat
 
+/-! ## CompactSize reader -/
+
+/-- The CompactSize encoding of `v` (Bitcoin's variable-length integer): the shortest of the
+    1, 3, 5 and 9 byte forms, little-endian after the tag byte. -/
+def compactSize (v : Nat) : List Nat :=
+  if v < 253 then [v]
+  else if v < 65536 then [253, v % 256, v / 256]
+  else if v < 4294967296 then [254, v % 256, v / 256 % 256, v / 65536 % 256, v / 16777216]
+  else [255, v % 256, v / 256 % 256, v / 65536 % 256, v / 16777216 % 256, v / 4294967296 % 256,
+        v / 1099511627776 % 256, v / 281474976710656 % 256, v / 72057594037927936]
+
+/-- When the buffer starts with the encoding of some `v ≤ maxVal`, the reader returns
+    `(number of bytes read) * 2^32 + v`, which is never `0`. In every other case (encoding
+    not the shortest one, cut by the end of the buffer, or value above `maxVal`) it returns `0`. -/
+def CompactSizeRead : Prop :=
+  ∀ (buf : ConstBytes) (bufLen maxVal : UInt32),
+    (∀ v : Nat, v ≤ maxVal.toNat → compactSize v <+: bytes buf bufLen.toNat →
+      (llbReadCompactSizeChecked buf bufLen maxVal).toNat = (compactSize v).length * 2 ^ 32 + v) ∧
+    ((¬ ∃ v : Nat, v ≤ maxVal.toNat ∧ compactSize v <+: bytes buf bufLen.toNat) →
+      (llbReadCompactSizeChecked buf bufLen maxVal).toNat = 0)
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
   HardenedBit ∧ DepthLimits ∧
   SegwitProgram ∧ WitnessOpcode ∧ SighashType ∧ TaprootSighashType ∧
   CompactSizeCanonical ∧
-  DualUtxo
+  DualUtxo ∧
+  CompactSizeRead
 
 end Spec
