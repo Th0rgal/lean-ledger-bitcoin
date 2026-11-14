@@ -665,7 +665,7 @@ index 0000000..cacfc1f
 +#endif
 diff --git a/src/lean_kernels/liblean_ledger_bitcoin_host.ll b/src/lean_kernels/liblean_ledger_bitcoin_host.ll
 new file mode 100644
-index 0000000..863226e
+index 0000000..d759449
 --- /dev/null
 +++ b/src/lean_kernels/liblean_ledger_bitcoin_host.ll
 @@ -0,0 +1,12356 @@
@@ -4883,15 +4883,15 @@ index 0000000..863226e
 +
 +loop_body_45:                                     ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit.3, %loop_body_45.lr.ph
 +  %loop_idx_4829 = phi i64 [ 0, %loop_body_45.lr.ph ], [ %loop_next_49.3, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit.3 ]
-+  %slot_v1869.028 = phi i64 [ 0, %loop_body_45.lr.ph ], [ %common.ret.op.i.3, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit.3 ]
-+  %cmp_eq_7.i = icmp sgt i64 %slot_v1869.028, -1
++  %slot_v1870.028 = phi i64 [ 0, %loop_body_45.lr.ph ], [ %common.ret.op.i.3, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit.3 ]
++  %cmp_eq_7.i = icmp sgt i64 %slot_v1870.028, -1
 +  br i1 %cmp_eq_7.i, label %ite_then_9.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_9.i:                                     ; preds = %loop_body_45
 +  %rld_gep_14.i = getelementptr inbounds nuw i8, ptr %arg_v0, i64 %loop_idx_4829
 +  %rld_i8_15.i = load i8, ptr %rld_gep_14.i, align 1
 +  %rld_val_16.i = zext i8 %rld_i8_15.i to i64
-+  %1 = and i64 %slot_v1869.028, 70931694131085312
++  %1 = and i64 %slot_v1870.028, 70931694131085312
 +  %cmp_eq_34.i = icmp eq i64 %1, 0
 +  br i1 %cmp_eq_34.i, label %ite_then_36.i, label %ite_else_37.i
 +
@@ -4909,97 +4909,97 @@ index 0000000..863226e
 +  unreachable
 +
 +ite_then_46.i:                                    ; preds = %ite_then_36.i
-+  %cmp_le_15.i.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i.i
 +
 +ite_else_18.i.i:                                  ; preds = %ite_then_46.i
-+  %alu_2.i.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i.i
 +  store i8 -28, ptr %rst_gep_13.i.i.i, align 1
 +  %rst_gep_33.i.i.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i.i, align 1
-+  %alu_34.i.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i.i = add nuw nsw i64 %alu_30.i.i, 72057594037927936
 +  %alu_43.i.i = or disjoint i64 %alu_39.i.i, %alu_34.i.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_322.i:                                   ; preds = %ite_then_36.i
-+  %cmp_le_15.i1195.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1195.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1195.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1196.i
 +
 +ite_else_18.i1196.i:                              ; preds = %ite_then_322.i
-+  %alu_2.i1193.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1193.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1198.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1193.i
 +  store i8 68, ptr %rst_gep_13.i.i1198.i, align 1
 +  %rst_gep_33.i.i1199.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1198.i, i64 1
 +  store i8 -123, ptr %rst_gep_33.i.i1199.i, align 1
-+  %alu_34.i1200.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1201.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1200.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1201.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1202.i = add nuw nsw i64 %alu_30.i1201.i, 72057594037927936
 +  %alu_43.i1203.i = or disjoint i64 %alu_39.i1202.i, %alu_34.i1200.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_598.i:                                   ; preds = %ite_then_36.i
-+  %cmp_le_15.i1208.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1208.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1208.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1209.i
 +
 +ite_else_18.i1209.i:                              ; preds = %ite_then_598.i
-+  %alu_2.i1206.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1206.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1211.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1206.i
 +  store i8 -6, ptr %rst_gep_13.i.i1211.i, align 1
 +  %rst_gep_33.i.i1212.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1211.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i1212.i, align 1
-+  %alu_34.i1213.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1214.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1213.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1214.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1215.i = add nuw nsw i64 %alu_30.i1214.i, 72057594037927936
 +  %alu_43.i1216.i = or disjoint i64 %alu_39.i1215.i, %alu_34.i1213.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_873.i:                                   ; preds = %ite_then_36.i
-+  %cmp_le_15.i1221.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1221.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1221.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1222.i
 +
 +ite_else_18.i1222.i:                              ; preds = %ite_then_873.i
-+  %alu_2.i1219.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1219.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1224.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1219.i
 +  store i8 -14, ptr %rst_gep_13.i.i1224.i, align 1
 +  %rst_gep_33.i.i1225.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1224.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i1225.i, align 1
-+  %alu_34.i1226.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1227.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1226.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1227.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1228.i = add nuw nsw i64 %alu_30.i1227.i, 72057594037927936
 +  %alu_43.i1229.i = or disjoint i64 %alu_39.i1228.i, %alu_34.i1226.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1148.i:                                  ; preds = %ite_then_36.i
-+  %cmp_le_15.i1234.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1234.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1234.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1235.i
 +
 +ite_else_18.i1235.i:                              ; preds = %ite_then_1148.i
-+  %alu_2.i1232.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1232.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1237.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1232.i
 +  store i8 -8, ptr %rst_gep_13.i.i1237.i, align 1
 +  %rst_gep_33.i.i1238.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1237.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i1238.i, align 1
-+  %alu_34.i1239.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1240.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1239.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1240.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1241.i = add nuw nsw i64 %alu_30.i1240.i, 72057594037927936
 +  %alu_43.i1242.i = or disjoint i64 %alu_39.i1241.i, %alu_34.i1239.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1423.i:                                  ; preds = %ite_then_36.i
-+  %cmp_le_15.i1247.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1247.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1247.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1248.i
 +
 +ite_else_18.i1248.i:                              ; preds = %ite_then_1423.i
-+  %alu_2.i1245.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1245.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1250.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1245.i
 +  store i8 -16, ptr %rst_gep_13.i.i1250.i, align 1
 +  %rst_gep_33.i.i1251.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1250.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i1251.i, align 1
-+  %alu_34.i1252.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1253.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1252.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1253.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1254.i = add nuw nsw i64 %alu_30.i1253.i, 72057594037927936
 +  %alu_43.i1255.i = or disjoint i64 %alu_39.i1254.i, %alu_34.i1252.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5010,17 +5010,17 @@ index 0000000..863226e
 +  br i1 %alu_1713894.i, label %ite_then_1723.i, label %ite_else_1724.i
 +
 +ite_then_1723.i:                                  ; preds = %ite_else_1424.i
-+  %cmp_le_15.i1260.i = icmp samesign ugt i64 %slot_v1869.028, 4611686018427387903
++  %cmp_le_15.i1260.i = icmp samesign ugt i64 %slot_v1870.028, 4611686018427387903
 +  br i1 %cmp_le_15.i1260.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i1261.i
 +
 +ite_else_18.i1261.i:                              ; preds = %ite_then_1723.i
-+  %alu_2.i1258.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i1258.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i1263.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i1258.i
 +  store i8 120, ptr %rst_gep_13.i.i1263.i, align 1
 +  %rst_gep_33.i.i1264.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i1263.i, i64 1
 +  store i8 -124, ptr %rst_gep_33.i.i1264.i, align 1
-+  %alu_34.i1265.i = and i64 %slot_v1869.028, 1125899906842623
-+  %alu_30.i1266.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_34.i1265.i = and i64 %slot_v1870.028, 1125899906842623
++  %alu_30.i1266.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i1267.i = add nuw nsw i64 %alu_30.i1266.i, 72057594037927936
 +  %alu_43.i1268.i = or disjoint i64 %alu_39.i1267.i, %alu_34.i1265.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5035,7 +5035,7 @@ index 0000000..863226e
 +  ]
 +
 +ite_then_2107.i:                                  ; preds = %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i
-+  %alu_2112.i = and i64 %slot_v1869.028, 9151314442816847872
++  %alu_2112.i = and i64 %slot_v1870.028, 9151314442816847872
 +  %alu_2117.i = shl nuw nsw i64 %rld_val_16.i, 50
 +  %alu_2121.i = add nuw nsw i64 %alu_2117.i, %alu_2112.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5046,11 +5046,11 @@ index 0000000..863226e
 +  br i1 %alu_2146901.i, label %ite_then_2156.i, label %ite_else_2157.i
 +
 +ite_then_2156.i:                                  ; preds = %ite_else_2108.i
-+  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1869.028, 72057594037927936
++  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1870.028, 72057594037927936
 +  br i1 %cmp_lt_2169.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_2173.i
 +
 +ite_else_2173.i:                                  ; preds = %ite_then_2156.i
-+  %alu_2161.i = lshr i64 %slot_v1869.028, 55
++  %alu_2161.i = lshr i64 %slot_v1870.028, 55
 +  %arg_ext_v1.i.i = add nuw nsw i64 %alu_2161.i, 4294967294
 +  %alu_7.i.i = and i64 %arg_ext_v1.i.i, 4294967294
 +  %rld_gep_10.i.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_7.i.i
@@ -5326,11 +5326,11 @@ index 0000000..863226e
 +  br i1 %alu_5786902.i, label %ite_then_5796.i, label %ite_else_5797.i
 +
 +ite_then_5796.i:                                  ; preds = %ite_else_2157.i
-+  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1869.028, 144115188075855872
++  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1870.028, 144115188075855872
 +  br i1 %cmp_lt_5809.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_5813.i
 +
 +ite_else_5813.i:                                  ; preds = %ite_then_5796.i
-+  %alu_5801.i = lshr i64 %slot_v1869.028, 56
++  %alu_5801.i = lshr i64 %slot_v1870.028, 56
 +  %call_tr_5834.i = shl nuw nsw i64 %alu_5801.i, 1
 +  %arg_ext_v1.i1336.i = add nuw nsw i64 %call_tr_5834.i, 4294967292
 +  %alu_7.i1338.i = and i64 %arg_ext_v1.i1336.i, 4294967294
@@ -5459,7 +5459,7 @@ index 0000000..863226e
 +  %rst_gep_33.i.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i.i = trunc nuw i16 %90 to i8
 +  store i8 %rst_tr8_34.i.i, ptr %rst_gep_33.i.i, align 1
-+  %alu_7805.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_7805.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_7810.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_7814.i = or disjoint i64 %alu_7810.i, %alu_7805.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5514,7 +5514,7 @@ index 0000000..863226e
 +  %rst_gep_33.i1354.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1355.i = trunc nuw i16 %99 to i8
 +  store i8 %rst_tr8_34.i1355.i, ptr %rst_gep_33.i1354.i, align 1
-+  %alu_8315.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_8315.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_8320.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8324.i = or disjoint i64 %alu_8320.i, %alu_8315.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5562,7 +5562,7 @@ index 0000000..863226e
 +  %rst_gep_33.i1361.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1362.i = trunc nuw i16 %110 to i8
 +  store i8 %rst_tr8_34.i1362.i, ptr %rst_gep_33.i1361.i, align 1
-+  %alu_8709.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_8709.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_8714.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8718.i = or disjoint i64 %alu_8714.i, %alu_8709.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5611,7 +5611,7 @@ index 0000000..863226e
 +  %rst_gep_33.i1368.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1369.i = trunc nuw i16 %119 to i8
 +  store i8 %rst_tr8_34.i1369.i, ptr %rst_gep_33.i1368.i, align 1
-+  %alu_9158.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_9158.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_9163.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9167.i = or disjoint i64 %alu_9163.i, %alu_9158.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5656,7 +5656,7 @@ index 0000000..863226e
 +  %rst_gep_33.i1375.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1376.i = trunc nuw i16 %122 to i8
 +  store i8 %rst_tr8_34.i1376.i, ptr %rst_gep_33.i1375.i, align 1
-+  %alu_9550.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_9550.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_9555.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9559.i = or disjoint i64 %alu_9555.i, %alu_9550.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5703,7 +5703,7 @@ index 0000000..863226e
 +  %rst_gep_33.i1382.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1383.i = trunc nuw i16 %132 to i8
 +  store i8 %rst_tr8_34.i1383.i, ptr %rst_gep_33.i1382.i, align 1
-+  %alu_9942.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_9942.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_9947.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9951.i = or disjoint i64 %alu_9947.i, %alu_9942.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -5762,19 +5762,19 @@ index 0000000..863226e
 +  %rst_gep_33.i1389.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1339.i, i64 1
 +  %rst_tr8_34.i1390.i = trunc nuw i16 %147 to i8
 +  store i8 %rst_tr8_34.i1390.i, ptr %rst_gep_33.i1389.i, align 1
-+  %alu_10924.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_10924.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_10929.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_10933.i = or disjoint i64 %alu_10929.i, %alu_10924.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_5797.i:                                  ; preds = %ite_else_2157.i
 +  %cmp_eq_10973.i = icmp ne i8 %rld_i8_15.i, 39
-+  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1869.028, 216172782113783808
++  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1870.028, 216172782113783808
 +  %or.cond.i = or i1 %cmp_lt_10988.i, %cmp_eq_10973.i
 +  br i1 %or.cond.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_10992.i
 +
 +ite_else_10992.i:                                 ; preds = %ite_else_5797.i
-+  %alu_10980.i = lshr i64 %slot_v1869.028, 56
++  %alu_10980.i = lshr i64 %slot_v1870.028, 56
 +  %call_tr_11013.i = shl nuw nsw i64 %alu_10980.i, 1
 +  %arg_ext_v1.i1391.i = add nuw nsw i64 %call_tr_11013.i, 4294967290
 +  %alu_7.i1393.i = and i64 %arg_ext_v1.i1391.i, 4294967294
@@ -5885,23 +5885,23 @@ index 0000000..863226e
 +  %rst_gep_33.i1411.i = getelementptr inbounds nuw i8, ptr %rld_gep_10.i1394.i, i64 1
 +  %rst_tr8_34.i1412.i = trunc nuw i16 %185 to i8
 +  store i8 %rst_tr8_34.i1412.i, ptr %rst_gep_33.i1411.i, align 1
-+  %alu_14183.i = and i64 %slot_v1869.028, 1125899906842623
++  %alu_14183.i = and i64 %slot_v1870.028, 1125899906842623
 +  %alu_14188.i = shl nuw nsw i64 %alu_11020.i, 56
 +  %alu_14192.i = or disjoint i64 %alu_14188.i, %alu_14183.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_37.i:                                    ; preds = %ite_then_9.i
-+  %alu_26.i = lshr i64 %slot_v1869.028, 47
++  %alu_26.i = lshr i64 %slot_v1870.028, 47
 +  %alu_30.i = and i64 %alu_26.i, 7
-+  %alu_14203.i = and i64 %slot_v1869.028, 9222386874436288256
++  %alu_14203.i = and i64 %slot_v1870.028, 9222386874436288256
 +  %alu_14206.i = or disjoint i64 %alu_14203.i, %rld_val_16.i
-+  %alu_14209.i = and i64 %slot_v1869.028, 9222386874436223231
++  %alu_14209.i = and i64 %slot_v1870.028, 9222386874436223231
 +  %alu_14212.i = shl nuw nsw i64 %rld_val_16.i, 8
 +  %alu_14216.i = or disjoint i64 %alu_14212.i, %alu_14209.i
-+  %alu_14219.i = and i64 %slot_v1869.028, 9222386874419576831
++  %alu_14219.i = and i64 %slot_v1870.028, 9222386874419576831
 +  %alu_14222.i = shl nuw nsw i64 %rld_val_16.i, 16
 +  %alu_14226.i = or disjoint i64 %alu_14222.i, %alu_14219.i
-+  %alu_14229.i = and i64 %slot_v1869.028, 9222386870158098431
++  %alu_14229.i = and i64 %slot_v1870.028, 9222386870158098431
 +  %alu_14232.i = shl nuw nsw i64 %rld_val_16.i, 24
 +  %alu_14236.i = or disjoint i64 %alu_14232.i, %alu_14229.i
 +  %cmp_eq_14240.i = icmp eq i64 %alu_30.i, 0
@@ -5920,9 +5920,9 @@ index 0000000..863226e
 +  %alu_2.i1413.i = lshr i64 %alu_14306.i, 50
 +  %alu_6.i1414.i = and i64 %alu_2.i1413.i, 63
 +  %alu_11.i.i = and i64 %alu_14236.i, 4294967295
-+  %alu_14.i.i = and i64 %slot_v1869.028, 65535
++  %alu_14.i.i = and i64 %slot_v1870.028, 65535
 +  %alu_19.i.i = lshr i64 %alu_11.i.i, 16
-+  %186 = and i64 %slot_v1869.028, 69805794224242688
++  %186 = and i64 %slot_v1870.028, 69805794224242688
 +  %alu_51257.not.i.i = icmp eq i64 %186, 6755399441055744
 +  br i1 %alu_51257.not.i.i, label %ite_then_63.i.i, label %ite_else_64.i.i
 +
@@ -5943,7 +5943,7 @@ index 0000000..863226e
 +  br i1 %cmp_eq_183.i.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_186.i.i
 +
 +ite_else_186.i.i:                                 ; preds = %ite_then_63.i.i
-+  %alu_191.i.i = and i64 %slot_v1869.028, 4194304
++  %alu_191.i.i = and i64 %slot_v1870.028, 4194304
 +  %cmp_eq_195.i.i = icmp eq i64 %alu_191.i.i, 0
 +  br i1 %cmp_eq_195.i.i, label %ite_then_197.i.i, label %ite_else_198.i.i
 +
@@ -5951,7 +5951,7 @@ index 0000000..863226e
 +  %cmp_le_206.i.i = icmp samesign ult i64 %alu_11.i.i, 500000000
 +  %cmp_eq_243279.i.i = icmp ne i64 %188, 0
 +  %cmp_eq_243.i.i = or i1 %cmp_le_206.i.i, %cmp_eq_243279.i.i
-+  %alu_2.i.i.i = lshr i64 %slot_v1869.028, 56
++  %alu_2.i.i.i = lshr i64 %slot_v1870.028, 56
 +  %cmp_le_15.i.i.i = icmp samesign ugt i64 %alu_14229.i, 4611686018427387903
 +  br i1 %cmp_eq_243.i.i, label %ite_then_245.i.i, label %ite_else_246.i.i
 +
@@ -5968,7 +5968,7 @@ index 0000000..863226e
 +  %191 = and i8 %190, 80
 +  %rst_tr8_34.i.i.i.i = xor i8 %191, -59
 +  store i8 %rst_tr8_34.i.i.i.i, ptr %rst_gep_33.i.i.i.i, align 1
-+  %alu_30.i.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i.i.i = add nuw nsw i64 %alu_30.i.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
@@ -5985,7 +5985,7 @@ index 0000000..863226e
 +  %194 = and i8 %193, 40
 +  %rst_tr8_34.i.i288.i.i = xor i8 %194, -91
 +  store i8 %rst_tr8_34.i.i288.i.i, ptr %rst_gep_33.i.i287.i.i, align 1
-+  %alu_30.i290.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i290.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i291.i.i = add nuw nsw i64 %alu_30.i290.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
@@ -5995,7 +5995,7 @@ index 0000000..863226e
 +  %alu_1375.i.i = xor i64 %sel_1361.i.i, 1
 +  %alu_1381.i.i = and i64 %alu_158.i.i, %alu_1375.i.i
 +  %cmp_eq_1395.i.i = icmp eq i64 %alu_1381.i.i, %sel_1361.i.i
-+  %alu_2.i295.i.i = lshr i64 %slot_v1869.028, 56
++  %alu_2.i295.i.i = lshr i64 %slot_v1870.028, 56
 +  %cmp_le_15.i297.i.i = icmp samesign ugt i64 %alu_14229.i, 4611686018427387903
 +  br i1 %cmp_eq_1395.i.i, label %ite_then_1397.i.i, label %ite_else_1398.i.i
 +
@@ -6012,7 +6012,7 @@ index 0000000..863226e
 +  %197 = and i8 %196, 80
 +  %rst_tr8_34.i.i303.i.i = xor i8 %197, -59
 +  store i8 %rst_tr8_34.i.i303.i.i, ptr %rst_gep_33.i.i302.i.i, align 1
-+  %alu_30.i305.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i305.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i306.i.i = add nuw nsw i64 %alu_30.i305.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
@@ -6029,7 +6029,7 @@ index 0000000..863226e
 +  %200 = and i8 %199, 40
 +  %rst_tr8_34.i.i318.i.i = xor i8 %200, -91
 +  store i8 %rst_tr8_34.i.i318.i.i, ptr %rst_gep_33.i.i317.i.i, align 1
-+  %alu_30.i320.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i320.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i321.i.i = add nuw nsw i64 %alu_30.i320.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
@@ -6053,12 +6053,12 @@ index 0000000..863226e
 +  br i1 %or.cond1420.not.i, label %ite_else_18.i328.i.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_18.i328.i.i:                             ; preds = %ite_then_2548.i.i
-+  %alu_2.i325.i.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i325.i.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i330.i.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i325.i.i
 +  store i8 -16, ptr %rst_gep_13.i.i330.i.i, align 1
 +  %rst_gep_33.i.i331.i.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i330.i.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i331.i.i, align 1
-+  %alu_30.i333.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i333.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i334.i.i = add nuw nsw i64 %alu_30.i333.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
@@ -6072,17 +6072,17 @@ index 0000000..863226e
 +  br i1 %or.cond1421.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_18.i341.i.i
 +
 +ite_else_18.i341.i.i:                             ; preds = %ite_else_2549.i.i
-+  %alu_2.i338.i.i = lshr i64 %slot_v1869.028, 55
++  %alu_2.i338.i.i = lshr i64 %slot_v1870.028, 55
 +  %rst_gep_13.i.i343.i.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_2.i338.i.i
 +  store i8 -32, ptr %rst_gep_13.i.i343.i.i, align 1
 +  %rst_gep_33.i.i344.i.i = getelementptr inbounds nuw i8, ptr %rst_gep_13.i.i343.i.i, i64 1
 +  store i8 -122, ptr %rst_gep_33.i.i344.i.i, align 1
-+  %alu_30.i346.i.i = and i64 %slot_v1869.028, 4539628424389459968
++  %alu_30.i346.i.i = and i64 %slot_v1870.028, 4539628424389459968
 +  %alu_39.i347.i.i = add nuw nsw i64 %alu_30.i346.i.i, 72057594037927936
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_2539.i.i:                                ; preds = %ite_else_64.i.i
-+  %alu_3393.i.i = lshr i64 %slot_v1869.028, 56
++  %alu_3393.i.i = lshr i64 %slot_v1870.028, 56
 +  %alu_3423259.i.i = icmp uge i64 %201, %alu_19.i.i
 +  %cmp_le_3437.not.i.i = icmp samesign ugt i64 %alu_19.i.i, %alu_3393.i.i
 +  %cmp_le_3443.i.i = icmp samesign ugt i64 %alu_11.i.i, 4259839
@@ -6095,7 +6095,7 @@ index 0000000..863226e
 +  %cmp_le_484.i.i.i = icmp samesign ugt i64 %alu_14.i.i, 1
 +  %206 = zext i8 %rld_i8_15.i to i64
 +  %207 = shl nuw nsw i64 %206, 24
-+  %alu_14229.i.masked = and i64 %slot_v1869.028, 16711680
++  %alu_14229.i.masked = and i64 %slot_v1870.028, 16711680
 +  %208 = or disjoint i64 %207, %alu_14229.i.masked
 +  %209 = lshr exact i64 %208, 16
 +  %210 = add nsw i64 %209, -1
@@ -6638,7 +6638,7 @@ index 0000000..863226e
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit: ; preds = %loop_body_45, %ite_then_46.i, %ite_else_18.i.i, %ite_then_322.i, %ite_else_18.i1196.i, %ite_then_598.i, %ite_else_18.i1209.i, %ite_then_873.i, %ite_else_18.i1222.i, %ite_then_1148.i, %ite_else_18.i1235.i, %ite_then_1423.i, %ite_else_18.i1248.i, %ite_then_1723.i, %ite_else_18.i1261.i, %ite_then_2107.i, %ite_then_2156.i, %ite_then_2508.i, %ite_else_2808.i, %ite_then_2824.i, %ite_else_3143.i, %ite_then_3159.i, %ite_else_3459.i, %ite_then_3475.i, %ite_else_3775.i, %ite_then_3820.i, %ite_else_4120.i, %ite_else_3821.i, %ite_else_4426.i, %ite_then_4442.i, %ite_else_4742.i, %ite_then_4758.i, %ite_else_5077.i, %ite_then_5093.i, %ite_else_5393.i, %ite_else_5094.i, %ite_else_5736.i, %ite_then_5796.i, %ite_then_7080.i, %ite_else_7097.i, %ite_else_7795.i, %ite_then_7824.i, %ite_else_8305.i, %ite_then_8334.i, %ite_else_8699.i, %ite_then_8728.i, %ite_else_9148.i, %ite_then_9177.i, %ite_else_9540.i, %ite_then_9569.i, %ite_else_9932.i, %ite_then_9961.i, %ite_else_9972.i, %ite_else_10914.i, %ite_else_5797.i, %ite_else_10992.i, %ite_else_11921.i, %ite_else_14173.i, %ite_else_37.i, %ite_then_63.i.i, %ite_then_245.i.i, %ite_else_18.i.i.i, %ite_else_246.i.i, %ite_else_18.i283.i.i, %ite_then_1397.i.i, %ite_else_18.i298.i.i, %ite_else_1398.i.i, %ite_else_18.i313.i.i, %ite_then_2548.i.i, %ite_else_18.i328.i.i, %ite_else_2549.i.i, %ite_else_18.i341.i.i, %ite_else_2539.i.i, %loop_exit_3510.i.i, %ite_else_3948.i.i
-+  %common.ret.op.i = phi i64 [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1869.028, %ite_else_2808.i ], [ %slot_v1869.028, %ite_else_3143.i ], [ %slot_v1869.028, %ite_else_3459.i ], [ %slot_v1869.028, %ite_else_3775.i ], [ %slot_v1869.028, %ite_else_4120.i ], [ %slot_v1869.028, %ite_else_4426.i ], [ %slot_v1869.028, %ite_else_4742.i ], [ %slot_v1869.028, %ite_else_5077.i ], [ %slot_v1869.028, %ite_else_5393.i ], [ %slot_v1869.028, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1869.028, %loop_body_45 ], [ %alu_43.i.i, %ite_else_18.i.i ], [ -9223372036854775808, %ite_then_46.i ], [ %alu_43.i1203.i, %ite_else_18.i1196.i ], [ -9223372036854775808, %ite_then_322.i ], [ %alu_43.i1216.i, %ite_else_18.i1209.i ], [ -9223372036854775808, %ite_then_598.i ], [ %alu_43.i1229.i, %ite_else_18.i1222.i ], [ -9223372036854775808, %ite_then_873.i ], [ %alu_43.i1242.i, %ite_else_18.i1235.i ], [ -9223372036854775808, %ite_then_1148.i ], [ %alu_43.i1255.i, %ite_else_18.i1248.i ], [ -9223372036854775808, %ite_then_1423.i ], [ %alu_43.i1268.i, %ite_else_18.i1261.i ], [ -9223372036854775808, %ite_then_1723.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ], [ %alu_39.i.i.i, %ite_else_18.i.i.i ], [ -9223372036854775808, %ite_then_245.i.i ], [ %alu_39.i291.i.i, %ite_else_18.i283.i.i ], [ -9223372036854775808, %ite_else_246.i.i ], [ %alu_39.i306.i.i, %ite_else_18.i298.i.i ], [ -9223372036854775808, %ite_then_1397.i.i ], [ %alu_39.i321.i.i, %ite_else_18.i313.i.i ], [ -9223372036854775808, %ite_else_1398.i.i ], [ %alu_39.i334.i.i, %ite_else_18.i328.i.i ], [ %alu_39.i347.i.i, %ite_else_18.i341.i.i ]
++  %common.ret.op.i = phi i64 [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1870.028, %ite_else_2808.i ], [ %slot_v1870.028, %ite_else_3143.i ], [ %slot_v1870.028, %ite_else_3459.i ], [ %slot_v1870.028, %ite_else_3775.i ], [ %slot_v1870.028, %ite_else_4120.i ], [ %slot_v1870.028, %ite_else_4426.i ], [ %slot_v1870.028, %ite_else_4742.i ], [ %slot_v1870.028, %ite_else_5077.i ], [ %slot_v1870.028, %ite_else_5393.i ], [ %slot_v1870.028, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1870.028, %loop_body_45 ], [ %alu_43.i.i, %ite_else_18.i.i ], [ -9223372036854775808, %ite_then_46.i ], [ %alu_43.i1203.i, %ite_else_18.i1196.i ], [ -9223372036854775808, %ite_then_322.i ], [ %alu_43.i1216.i, %ite_else_18.i1209.i ], [ -9223372036854775808, %ite_then_598.i ], [ %alu_43.i1229.i, %ite_else_18.i1222.i ], [ -9223372036854775808, %ite_then_873.i ], [ %alu_43.i1242.i, %ite_else_18.i1235.i ], [ -9223372036854775808, %ite_then_1148.i ], [ %alu_43.i1255.i, %ite_else_18.i1248.i ], [ -9223372036854775808, %ite_then_1423.i ], [ %alu_43.i1268.i, %ite_else_18.i1261.i ], [ -9223372036854775808, %ite_then_1723.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ], [ %alu_39.i.i.i, %ite_else_18.i.i.i ], [ -9223372036854775808, %ite_then_245.i.i ], [ %alu_39.i291.i.i, %ite_else_18.i283.i.i ], [ -9223372036854775808, %ite_else_246.i.i ], [ %alu_39.i306.i.i, %ite_else_18.i298.i.i ], [ -9223372036854775808, %ite_then_1397.i.i ], [ %alu_39.i321.i.i, %ite_else_18.i313.i.i ], [ -9223372036854775808, %ite_else_1398.i.i ], [ %alu_39.i334.i.i, %ite_else_18.i328.i.i ], [ %alu_39.i347.i.i, %ite_else_18.i341.i.i ]
 +  %loop_next_49 = or disjoint i64 %loop_idx_4829, 1
 +  %exitcond.not = icmp eq i64 %loop_next_49, %arg_ext_v1
 +  br i1 %exitcond.not, label %loop_exit_47, label %loop_body_45.1, !llvm.loop !24
@@ -12246,8 +12246,8 @@ index 0000000..863226e
 +; Function Attrs: alwaysinline nofree norecurse nosync nounwind memory(argmem: readwrite)
 +define hidden range(i32 0, -1) i32 @llb_format_sats_ascii(i64 noundef %arg_v0, ptr noundef readonly captures(none) %arg_v1, i32 noundef %arg_v2, i8 noundef zeroext %arg_v3, ptr noundef writeonly captures(none) %arg_v4, i32 noundef %arg_v5) local_unnamed_addr #2 {
 +entry:
-+  %arg_v1179 = ptrtoint ptr %arg_v1 to i64
-+  %arg_v4178 = ptrtoint ptr %arg_v4 to i64
++  %arg_v1180 = ptrtoint ptr %arg_v1 to i64
++  %arg_v4179 = ptrtoint ptr %arg_v4 to i64
 +  %cmp_lt_5 = icmp ugt i32 %arg_v2, 256
 +  br i1 %cmp_lt_5, label %common.ret, label %ite_else_8
 +
@@ -12363,182 +12363,182 @@ index 0000000..863226e
 +l_BitcoinLedger_FreestandingKernels_decLenU32.exit: ; preds = %loop_latch_8.i.1
 +  %alu_379.neg = mul nuw nsw i64 %alu_281, 4194967296
 +  %alu_385 = add nuw nsw i64 %alu_379.neg, %alu_94
-+  %arg_ext_v0.i95 = and i64 %alu_385, 4294967295
-+  br label %loop_body_7.i96
++  %arg_ext_v0.i96 = and i64 %alu_385, 4294967295
++  br label %loop_body_7.i97
 +
-+loop_body_7.i96:                                  ; preds = %loop_latch_8.i106.3, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit
-+  %loop_idx_107.i97 = phi i64 [ 0, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit ], [ %loop_next_11.i108.3, %loop_latch_8.i106.3 ]
-+  %slot_v20.06.i98 = phi i64 [ %arg_ext_v0.i95, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit ], [ %slot_v20.1.i107.3, %loop_latch_8.i106.3 ]
-+  %alu_16.i99 = and i64 %slot_v20.06.i98, 4294967295
-+  %cmp_eq_24.i100 = icmp eq i64 %alu_16.i99, 0
-+  br i1 %cmp_eq_24.i100, label %loop_latch_8.i106, label %ite_else_27.i101
++loop_body_7.i97:                                  ; preds = %loop_latch_8.i107.3, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit
++  %loop_idx_107.i98 = phi i64 [ 0, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit ], [ %loop_next_11.i109.3, %loop_latch_8.i107.3 ]
++  %slot_v20.06.i99 = phi i64 [ %arg_ext_v0.i96, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit ], [ %slot_v20.1.i108.3, %loop_latch_8.i107.3 ]
++  %alu_16.i100 = and i64 %slot_v20.06.i99, 4294967295
++  %cmp_eq_24.i101 = icmp eq i64 %alu_16.i100, 0
++  br i1 %cmp_eq_24.i101, label %loop_latch_8.i107, label %ite_else_27.i102
 +
-+ite_else_27.i101:                                 ; preds = %loop_body_7.i96
-+  %4 = and i64 %slot_v20.06.i98, -4294967296
-+  %alu_37.i102 = add i64 %4, 4294967296
-+  %alu_41.i103 = mul nuw i64 %alu_16.i99, 3435973837
-+  %alu_43.i104 = lshr i64 %alu_41.i103, 35
-+  %alu_51.i105 = or disjoint i64 %alu_43.i104, %alu_37.i102
-+  br label %loop_latch_8.i106
++ite_else_27.i102:                                 ; preds = %loop_body_7.i97
++  %4 = and i64 %slot_v20.06.i99, -4294967296
++  %alu_37.i103 = add i64 %4, 4294967296
++  %alu_41.i104 = mul nuw i64 %alu_16.i100, 3435973837
++  %alu_43.i105 = lshr i64 %alu_41.i104, 35
++  %alu_51.i106 = or disjoint i64 %alu_43.i105, %alu_37.i103
++  br label %loop_latch_8.i107
 +
-+loop_latch_8.i106:                                ; preds = %ite_else_27.i101, %loop_body_7.i96
-+  %slot_v20.1.i107 = phi i64 [ %alu_51.i105, %ite_else_27.i101 ], [ %slot_v20.06.i98, %loop_body_7.i96 ]
-+  %alu_16.i99.1 = and i64 %slot_v20.1.i107, 4294967295
-+  %cmp_eq_24.i100.1 = icmp eq i64 %alu_16.i99.1, 0
-+  br i1 %cmp_eq_24.i100.1, label %loop_latch_8.i106.1, label %ite_else_27.i101.1
++loop_latch_8.i107:                                ; preds = %ite_else_27.i102, %loop_body_7.i97
++  %slot_v20.1.i108 = phi i64 [ %alu_51.i106, %ite_else_27.i102 ], [ %slot_v20.06.i99, %loop_body_7.i97 ]
++  %alu_16.i100.1 = and i64 %slot_v20.1.i108, 4294967295
++  %cmp_eq_24.i101.1 = icmp eq i64 %alu_16.i100.1, 0
++  br i1 %cmp_eq_24.i101.1, label %loop_latch_8.i107.1, label %ite_else_27.i102.1
 +
-+ite_else_27.i101.1:                               ; preds = %loop_latch_8.i106
-+  %5 = and i64 %slot_v20.1.i107, -4294967296
-+  %alu_37.i102.1 = add i64 %5, 4294967296
-+  %alu_41.i103.1 = mul nuw i64 %alu_16.i99.1, 3435973837
-+  %alu_43.i104.1 = lshr i64 %alu_41.i103.1, 35
-+  %alu_51.i105.1 = or disjoint i64 %alu_43.i104.1, %alu_37.i102.1
-+  br label %loop_latch_8.i106.1
++ite_else_27.i102.1:                               ; preds = %loop_latch_8.i107
++  %5 = and i64 %slot_v20.1.i108, -4294967296
++  %alu_37.i103.1 = add i64 %5, 4294967296
++  %alu_41.i104.1 = mul nuw i64 %alu_16.i100.1, 3435973837
++  %alu_43.i105.1 = lshr i64 %alu_41.i104.1, 35
++  %alu_51.i106.1 = or disjoint i64 %alu_43.i105.1, %alu_37.i103.1
++  br label %loop_latch_8.i107.1
 +
-+loop_latch_8.i106.1:                              ; preds = %ite_else_27.i101.1, %loop_latch_8.i106
-+  %slot_v20.1.i107.1 = phi i64 [ %alu_51.i105.1, %ite_else_27.i101.1 ], [ %slot_v20.1.i107, %loop_latch_8.i106 ]
-+  %exitcond.not.i109.1 = icmp eq i64 %loop_idx_107.i97, 8
-+  br i1 %exitcond.not.i109.1, label %l_BitcoinLedger_FreestandingKernels_decLenU32.exit114, label %loop_body_7.i96.2, !llvm.loop !24
++loop_latch_8.i107.1:                              ; preds = %ite_else_27.i102.1, %loop_latch_8.i107
++  %slot_v20.1.i108.1 = phi i64 [ %alu_51.i106.1, %ite_else_27.i102.1 ], [ %slot_v20.1.i108, %loop_latch_8.i107 ]
++  %exitcond.not.i110.1 = icmp eq i64 %loop_idx_107.i98, 8
++  br i1 %exitcond.not.i110.1, label %l_BitcoinLedger_FreestandingKernels_decLenU32.exit115, label %loop_body_7.i97.2, !llvm.loop !24
 +
-+loop_body_7.i96.2:                                ; preds = %loop_latch_8.i106.1
-+  %alu_16.i99.2 = and i64 %slot_v20.1.i107.1, 4294967295
-+  %cmp_eq_24.i100.2 = icmp eq i64 %alu_16.i99.2, 0
-+  br i1 %cmp_eq_24.i100.2, label %loop_latch_8.i106.2, label %ite_else_27.i101.2
++loop_body_7.i97.2:                                ; preds = %loop_latch_8.i107.1
++  %alu_16.i100.2 = and i64 %slot_v20.1.i108.1, 4294967295
++  %cmp_eq_24.i101.2 = icmp eq i64 %alu_16.i100.2, 0
++  br i1 %cmp_eq_24.i101.2, label %loop_latch_8.i107.2, label %ite_else_27.i102.2
 +
-+ite_else_27.i101.2:                               ; preds = %loop_body_7.i96.2
-+  %6 = and i64 %slot_v20.1.i107.1, -4294967296
-+  %alu_37.i102.2 = add i64 %6, 4294967296
-+  %alu_41.i103.2 = mul nuw i64 %alu_16.i99.2, 3435973837
-+  %alu_43.i104.2 = lshr i64 %alu_41.i103.2, 35
-+  %alu_51.i105.2 = or disjoint i64 %alu_43.i104.2, %alu_37.i102.2
-+  br label %loop_latch_8.i106.2
++ite_else_27.i102.2:                               ; preds = %loop_body_7.i97.2
++  %6 = and i64 %slot_v20.1.i108.1, -4294967296
++  %alu_37.i103.2 = add i64 %6, 4294967296
++  %alu_41.i104.2 = mul nuw i64 %alu_16.i100.2, 3435973837
++  %alu_43.i105.2 = lshr i64 %alu_41.i104.2, 35
++  %alu_51.i106.2 = or disjoint i64 %alu_43.i105.2, %alu_37.i103.2
++  br label %loop_latch_8.i107.2
 +
-+loop_latch_8.i106.2:                              ; preds = %ite_else_27.i101.2, %loop_body_7.i96.2
-+  %slot_v20.1.i107.2 = phi i64 [ %alu_51.i105.2, %ite_else_27.i101.2 ], [ %slot_v20.1.i107.1, %loop_body_7.i96.2 ]
-+  %alu_16.i99.3 = and i64 %slot_v20.1.i107.2, 4294967295
-+  %cmp_eq_24.i100.3 = icmp eq i64 %alu_16.i99.3, 0
-+  br i1 %cmp_eq_24.i100.3, label %loop_latch_8.i106.3, label %ite_else_27.i101.3
++loop_latch_8.i107.2:                              ; preds = %ite_else_27.i102.2, %loop_body_7.i97.2
++  %slot_v20.1.i108.2 = phi i64 [ %alu_51.i106.2, %ite_else_27.i102.2 ], [ %slot_v20.1.i108.1, %loop_body_7.i97.2 ]
++  %alu_16.i100.3 = and i64 %slot_v20.1.i108.2, 4294967295
++  %cmp_eq_24.i101.3 = icmp eq i64 %alu_16.i100.3, 0
++  br i1 %cmp_eq_24.i101.3, label %loop_latch_8.i107.3, label %ite_else_27.i102.3
 +
-+ite_else_27.i101.3:                               ; preds = %loop_latch_8.i106.2
-+  %7 = and i64 %slot_v20.1.i107.2, -4294967296
-+  %alu_37.i102.3 = add i64 %7, 4294967296
-+  %alu_41.i103.3 = mul nuw i64 %alu_16.i99.3, 3435973837
-+  %alu_43.i104.3 = lshr i64 %alu_41.i103.3, 35
-+  %alu_51.i105.3 = or disjoint i64 %alu_43.i104.3, %alu_37.i102.3
-+  br label %loop_latch_8.i106.3
++ite_else_27.i102.3:                               ; preds = %loop_latch_8.i107.2
++  %7 = and i64 %slot_v20.1.i108.2, -4294967296
++  %alu_37.i103.3 = add i64 %7, 4294967296
++  %alu_41.i104.3 = mul nuw i64 %alu_16.i100.3, 3435973837
++  %alu_43.i105.3 = lshr i64 %alu_41.i104.3, 35
++  %alu_51.i106.3 = or disjoint i64 %alu_43.i105.3, %alu_37.i103.3
++  br label %loop_latch_8.i107.3
 +
-+loop_latch_8.i106.3:                              ; preds = %ite_else_27.i101.3, %loop_latch_8.i106.2
-+  %slot_v20.1.i107.3 = phi i64 [ %alu_51.i105.3, %ite_else_27.i101.3 ], [ %slot_v20.1.i107.2, %loop_latch_8.i106.2 ]
-+  %loop_next_11.i108.3 = add nuw nsw i64 %loop_idx_107.i97, 4
-+  br label %loop_body_7.i96, !llvm.loop !30
++loop_latch_8.i107.3:                              ; preds = %ite_else_27.i102.3, %loop_latch_8.i107.2
++  %slot_v20.1.i108.3 = phi i64 [ %alu_51.i106.3, %ite_else_27.i102.3 ], [ %slot_v20.1.i108.2, %loop_latch_8.i107.2 ]
++  %loop_next_11.i109.3 = add nuw nsw i64 %loop_idx_107.i98, 4
++  br label %loop_body_7.i97, !llvm.loop !30
 +
-+l_BitcoinLedger_FreestandingKernels_decLenU32.exit114: ; preds = %loop_latch_8.i106.1
++l_BitcoinLedger_FreestandingKernels_decLenU32.exit115: ; preds = %loop_latch_8.i107.1
 +  %alu_190.neg = mul i64 %alu_94, 4194967296
 +  %alu_196 = add i64 %alu_190.neg, %arg_v0
-+  %arg_ext_v0.i115 = and i64 %alu_196, 4294967295
-+  br label %loop_body_7.i116
++  %arg_ext_v0.i116 = and i64 %alu_196, 4294967295
++  br label %loop_body_7.i117
 +
-+loop_body_7.i116:                                 ; preds = %loop_latch_8.i119.3, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit114
-+  %loop_idx_1017.i = phi i64 [ 0, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit114 ], [ %loop_next_11.i120.3, %loop_latch_8.i119.3 ]
-+  %slot_v46.016.i = phi i64 [ %arg_ext_v0.i115, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit114 ], [ %slot_v46.1.i.3, %loop_latch_8.i119.3 ]
-+  %alu_16.i117 = and i64 %slot_v46.016.i, 4294967295
-+  %alu_28.i = mul nuw i64 %alu_16.i117, 3435973837
++loop_body_7.i117:                                 ; preds = %loop_latch_8.i120.3, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit115
++  %loop_idx_1017.i = phi i64 [ 0, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit115 ], [ %loop_next_11.i121.3, %loop_latch_8.i120.3 ]
++  %slot_v46.016.i = phi i64 [ %arg_ext_v0.i116, %l_BitcoinLedger_FreestandingKernels_decLenU32.exit115 ], [ %slot_v46.1.i.3, %loop_latch_8.i120.3 ]
++  %alu_16.i118 = and i64 %slot_v46.016.i, 4294967295
++  %alu_28.i = mul nuw i64 %alu_16.i118, 3435973837
 +  %alu_30.i = lshr i64 %alu_28.i, 35
 +  %alu_36.neg.i = mul nuw nsw i64 %alu_30.i, 4294967286
 +  %alu_42.i = add i64 %alu_36.neg.i, %slot_v46.016.i
-+  %alu_43.i118 = and i64 %alu_42.i, 4294967295
-+  %cmp_eq_48.i = icmp eq i64 %alu_43.i118, 0
-+  br i1 %cmp_eq_48.i, label %ite_then_50.i, label %loop_latch_8.i119
++  %alu_43.i119 = and i64 %alu_42.i, 4294967295
++  %cmp_eq_48.i = icmp eq i64 %alu_43.i119, 0
++  br i1 %cmp_eq_48.i, label %ite_then_50.i, label %loop_latch_8.i120
 +
-+ite_then_50.i:                                    ; preds = %loop_body_7.i116
-+  %cmp_eq_24.not.i = icmp eq i64 %alu_16.i117, 0
++ite_then_50.i:                                    ; preds = %loop_body_7.i117
++  %cmp_eq_24.not.i = icmp eq i64 %alu_16.i118, 0
 +  %8 = and i64 %slot_v46.016.i, -4294967296
 +  %alu_74.i = add i64 %8, 4294967296
 +  %alu_88.i = or disjoint i64 %alu_30.i, %alu_74.i
 +  %alu_102.i = select i1 %cmp_eq_24.not.i, i64 %slot_v46.016.i, i64 %alu_88.i
-+  br label %loop_latch_8.i119
++  br label %loop_latch_8.i120
 +
-+loop_latch_8.i119:                                ; preds = %ite_then_50.i, %loop_body_7.i116
-+  %slot_v46.1.i = phi i64 [ %alu_102.i, %ite_then_50.i ], [ %slot_v46.016.i, %loop_body_7.i116 ]
-+  %alu_16.i117.1 = and i64 %slot_v46.1.i, 4294967295
-+  %alu_28.i.1 = mul nuw i64 %alu_16.i117.1, 3435973837
++loop_latch_8.i120:                                ; preds = %ite_then_50.i, %loop_body_7.i117
++  %slot_v46.1.i = phi i64 [ %alu_102.i, %ite_then_50.i ], [ %slot_v46.016.i, %loop_body_7.i117 ]
++  %alu_16.i118.1 = and i64 %slot_v46.1.i, 4294967295
++  %alu_28.i.1 = mul nuw i64 %alu_16.i118.1, 3435973837
 +  %alu_30.i.1 = lshr i64 %alu_28.i.1, 35
 +  %alu_36.neg.i.1 = mul nuw nsw i64 %alu_30.i.1, 4294967286
 +  %alu_42.i.1 = add i64 %alu_36.neg.i.1, %slot_v46.1.i
-+  %alu_43.i118.1 = and i64 %alu_42.i.1, 4294967295
-+  %cmp_eq_48.i.1 = icmp eq i64 %alu_43.i118.1, 0
-+  br i1 %cmp_eq_48.i.1, label %ite_then_50.i.1, label %loop_latch_8.i119.1
++  %alu_43.i119.1 = and i64 %alu_42.i.1, 4294967295
++  %cmp_eq_48.i.1 = icmp eq i64 %alu_43.i119.1, 0
++  br i1 %cmp_eq_48.i.1, label %ite_then_50.i.1, label %loop_latch_8.i120.1
 +
-+ite_then_50.i.1:                                  ; preds = %loop_latch_8.i119
-+  %cmp_eq_24.not.i.1 = icmp eq i64 %alu_16.i117.1, 0
++ite_then_50.i.1:                                  ; preds = %loop_latch_8.i120
++  %cmp_eq_24.not.i.1 = icmp eq i64 %alu_16.i118.1, 0
 +  %9 = and i64 %slot_v46.1.i, -4294967296
 +  %alu_74.i.1 = add i64 %9, 4294967296
 +  %alu_88.i.1 = or disjoint i64 %alu_30.i.1, %alu_74.i.1
 +  %alu_102.i.1 = select i1 %cmp_eq_24.not.i.1, i64 %slot_v46.1.i, i64 %alu_88.i.1
-+  br label %loop_latch_8.i119.1
++  br label %loop_latch_8.i120.1
 +
-+loop_latch_8.i119.1:                              ; preds = %ite_then_50.i.1, %loop_latch_8.i119
-+  %slot_v46.1.i.1 = phi i64 [ %alu_102.i.1, %ite_then_50.i.1 ], [ %slot_v46.1.i, %loop_latch_8.i119 ]
-+  %alu_16.i117.2 = and i64 %slot_v46.1.i.1, 4294967295
-+  %alu_28.i.2 = mul nuw i64 %alu_16.i117.2, 3435973837
++loop_latch_8.i120.1:                              ; preds = %ite_then_50.i.1, %loop_latch_8.i120
++  %slot_v46.1.i.1 = phi i64 [ %alu_102.i.1, %ite_then_50.i.1 ], [ %slot_v46.1.i, %loop_latch_8.i120 ]
++  %alu_16.i118.2 = and i64 %slot_v46.1.i.1, 4294967295
++  %alu_28.i.2 = mul nuw i64 %alu_16.i118.2, 3435973837
 +  %alu_30.i.2 = lshr i64 %alu_28.i.2, 35
 +  %alu_36.neg.i.2 = mul nuw nsw i64 %alu_30.i.2, 4294967286
 +  %alu_42.i.2 = add i64 %alu_36.neg.i.2, %slot_v46.1.i.1
-+  %alu_43.i118.2 = and i64 %alu_42.i.2, 4294967295
-+  %cmp_eq_48.i.2 = icmp eq i64 %alu_43.i118.2, 0
-+  br i1 %cmp_eq_48.i.2, label %ite_then_50.i.2, label %loop_latch_8.i119.2
++  %alu_43.i119.2 = and i64 %alu_42.i.2, 4294967295
++  %cmp_eq_48.i.2 = icmp eq i64 %alu_43.i119.2, 0
++  br i1 %cmp_eq_48.i.2, label %ite_then_50.i.2, label %loop_latch_8.i120.2
 +
-+ite_then_50.i.2:                                  ; preds = %loop_latch_8.i119.1
-+  %cmp_eq_24.not.i.2 = icmp eq i64 %alu_16.i117.2, 0
++ite_then_50.i.2:                                  ; preds = %loop_latch_8.i120.1
++  %cmp_eq_24.not.i.2 = icmp eq i64 %alu_16.i118.2, 0
 +  %10 = and i64 %slot_v46.1.i.1, -4294967296
 +  %alu_74.i.2 = add i64 %10, 4294967296
 +  %alu_88.i.2 = or disjoint i64 %alu_30.i.2, %alu_74.i.2
 +  %alu_102.i.2 = select i1 %cmp_eq_24.not.i.2, i64 %slot_v46.1.i.1, i64 %alu_88.i.2
-+  br label %loop_latch_8.i119.2
++  br label %loop_latch_8.i120.2
 +
-+loop_latch_8.i119.2:                              ; preds = %ite_then_50.i.2, %loop_latch_8.i119.1
-+  %slot_v46.1.i.2 = phi i64 [ %alu_102.i.2, %ite_then_50.i.2 ], [ %slot_v46.1.i.1, %loop_latch_8.i119.1 ]
-+  %alu_16.i117.3 = and i64 %slot_v46.1.i.2, 4294967295
-+  %alu_28.i.3 = mul nuw i64 %alu_16.i117.3, 3435973837
++loop_latch_8.i120.2:                              ; preds = %ite_then_50.i.2, %loop_latch_8.i120.1
++  %slot_v46.1.i.2 = phi i64 [ %alu_102.i.2, %ite_then_50.i.2 ], [ %slot_v46.1.i.1, %loop_latch_8.i120.1 ]
++  %alu_16.i118.3 = and i64 %slot_v46.1.i.2, 4294967295
++  %alu_28.i.3 = mul nuw i64 %alu_16.i118.3, 3435973837
 +  %alu_30.i.3 = lshr i64 %alu_28.i.3, 35
 +  %alu_36.neg.i.3 = mul nuw nsw i64 %alu_30.i.3, 4294967286
 +  %alu_42.i.3 = add i64 %alu_36.neg.i.3, %slot_v46.1.i.2
-+  %alu_43.i118.3 = and i64 %alu_42.i.3, 4294967295
-+  %cmp_eq_48.i.3 = icmp eq i64 %alu_43.i118.3, 0
-+  br i1 %cmp_eq_48.i.3, label %ite_then_50.i.3, label %loop_latch_8.i119.3
++  %alu_43.i119.3 = and i64 %alu_42.i.3, 4294967295
++  %cmp_eq_48.i.3 = icmp eq i64 %alu_43.i119.3, 0
++  br i1 %cmp_eq_48.i.3, label %ite_then_50.i.3, label %loop_latch_8.i120.3
 +
-+ite_then_50.i.3:                                  ; preds = %loop_latch_8.i119.2
-+  %cmp_eq_24.not.i.3 = icmp eq i64 %alu_16.i117.3, 0
++ite_then_50.i.3:                                  ; preds = %loop_latch_8.i120.2
++  %cmp_eq_24.not.i.3 = icmp eq i64 %alu_16.i118.3, 0
 +  %11 = and i64 %slot_v46.1.i.2, -4294967296
 +  %alu_74.i.3 = add i64 %11, 4294967296
 +  %alu_88.i.3 = or disjoint i64 %alu_30.i.3, %alu_74.i.3
 +  %alu_102.i.3 = select i1 %cmp_eq_24.not.i.3, i64 %slot_v46.1.i.2, i64 %alu_88.i.3
-+  br label %loop_latch_8.i119.3
++  br label %loop_latch_8.i120.3
 +
-+loop_latch_8.i119.3:                              ; preds = %ite_then_50.i.3, %loop_latch_8.i119.2
-+  %slot_v46.1.i.3 = phi i64 [ %alu_102.i.3, %ite_then_50.i.3 ], [ %slot_v46.1.i.2, %loop_latch_8.i119.2 ]
-+  %loop_next_11.i120.3 = add nuw nsw i64 %loop_idx_1017.i, 4
-+  %exitcond.not.i121.3 = icmp eq i64 %loop_next_11.i120.3, 8
-+  br i1 %exitcond.not.i121.3, label %l_BitcoinLedger_FreestandingKernels_fracSigLen.exit, label %loop_body_7.i116, !llvm.loop !31
++loop_latch_8.i120.3:                              ; preds = %ite_then_50.i.3, %loop_latch_8.i120.2
++  %slot_v46.1.i.3 = phi i64 [ %alu_102.i.3, %ite_then_50.i.3 ], [ %slot_v46.1.i.2, %loop_latch_8.i120.2 ]
++  %loop_next_11.i121.3 = add nuw nsw i64 %loop_idx_1017.i, 4
++  %exitcond.not.i122.3 = icmp eq i64 %loop_next_11.i121.3, 8
++  br i1 %exitcond.not.i122.3, label %l_BitcoinLedger_FreestandingKernels_fracSigLen.exit, label %loop_body_7.i117, !llvm.loop !31
 +
-+l_BitcoinLedger_FreestandingKernels_fracSigLen.exit: ; preds = %loop_latch_8.i119.3
++l_BitcoinLedger_FreestandingKernels_fracSigLen.exit: ; preds = %loop_latch_8.i120.3
 +  %cmp_eq_393 = icmp samesign ult i64 %alu_277, 67108864
 +  %12 = tail call i64 @llvm.umax.i64(i64 %slot_v20.1.i.1, i64 4294967296)
 +  %call_zx_397 = lshr i64 %12, 32
 +  %alu_406 = select i1 %cmp_eq_393, i64 4294967295, i64 0
-+  %alu_41792 = xor i64 %alu_406, -1
-+  %alu_423 = and i64 %call_zx_397, %alu_41792
-+  %cmp_eq_60.i110 = icmp ult i64 %slot_v20.1.i107.1, 4294967296
-+  %alu_54.i111 = lshr i64 %slot_v20.1.i107.1, 32
-+  %13 = xor i64 %alu_54.i111, 8
-+  %alu_443 = select i1 %cmp_eq_60.i110, i64 9, i64 %13
++  %alu_41793 = xor i64 %alu_406, -1
++  %alu_423 = and i64 %call_zx_397, %alu_41793
++  %cmp_eq_60.i111 = icmp ult i64 %slot_v20.1.i108.1, 4294967296
++  %alu_54.i112 = lshr i64 %slot_v20.1.i108.1, 32
++  %13 = xor i64 %alu_54.i112, 8
++  %alu_443 = select i1 %cmp_eq_60.i111, i64 9, i64 %13
 +  %alu_449 = and i64 %alu_443, %alu_406
 +  %alu_455 = xor i64 %alu_449, 8
 +  %alu_462 = add nuw nsw i64 %alu_455, %alu_423
 +  %cmp_eq_469.not = icmp ne i8 %arg_v3, 0
-+  %cmp_eq_485.not = icmp ne i64 %arg_ext_v0.i115, 0
-+  %alu_50693 = or i1 %cmp_eq_469.not, %cmp_eq_485.not
-+  %cmp_eq_161.i = icmp eq i64 %arg_ext_v0.i115, 0
++  %cmp_eq_485.not = icmp ne i64 %arg_ext_v0.i116, 0
++  %alu_50694 = or i1 %cmp_eq_469.not, %cmp_eq_485.not
++  %cmp_eq_161.i = icmp eq i64 %arg_ext_v0.i116, 0
 +  %alu_163.i = lshr i64 %slot_v46.1.i.3, 32
 +  %alu_168.i = sub nsw i64 8, %alu_163.i
 +  %alu_18415.i = select i1 %cmp_eq_161.i, i64 0, i64 4294967295
@@ -12547,7 +12547,7 @@ index 0000000..863226e
 +  %alu_534 = xor i64 %alu_190.i, 8
 +  %alu_540 = and i64 %alu_534, %alu_529
 +  %alu_546 = xor i64 %alu_540, %alu_190.i
-+  %sel_551 = zext i1 %alu_50693 to i64
++  %sel_551 = zext i1 %alu_50694 to i64
 +  %cmp_eq_557 = icmp ne i32 %arg_v2, 0
 +  %sel_570 = zext i1 %cmp_eq_557 to i64
 +  %alu_575 = add nuw nsw i64 %alu_462, %sel_551
@@ -12565,59 +12565,59 @@ index 0000000..863226e
 +
 +loop_body_5.i:                                    ; preds = %ite_else_603, %loop_body_5.i
 +  %loop_idx_85.i = phi i64 [ %loop_next_9.i, %loop_body_5.i ], [ 0, %ite_else_603 ]
-+  %slot_v16.04.i = phi i64 [ %alu_28.i122, %loop_body_5.i ], [ %alu_281, %ite_else_603 ]
++  %slot_v17.04.i = phi i64 [ %alu_28.i123, %loop_body_5.i ], [ %alu_281, %ite_else_603 ]
 +  %14 = xor i64 %loop_idx_85.i, -1
 +  %alu_21.narrow.i = add nsw i64 %alu_423, %14
 +  %alu_22.i = and i64 %alu_21.narrow.i, 4294967295
-+  %alu_26.i = mul nuw nsw i64 %slot_v16.04.i, 3435973837
-+  %alu_28.i122 = lshr i64 %alu_26.i, 35
-+  %alu_34.neg.i = mul nuw nsw i64 %alu_28.i122, 246
-+  %alu_40.i = add nuw nsw i64 %alu_34.neg.i, %slot_v16.04.i
++  %alu_26.i = mul nuw nsw i64 %slot_v17.04.i, 3435973837
++  %alu_28.i123 = lshr i64 %alu_26.i, 35
++  %alu_34.neg.i = mul nuw nsw i64 %alu_28.i123, 246
++  %alu_40.i = add nuw nsw i64 %alu_34.neg.i, %slot_v17.04.i
 +  %rst_gep_52.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_22.i
 +  %15 = trunc i64 %alu_40.i to i8
 +  %rst_tr8_53.i = add i8 %15, 48
 +  store i8 %rst_tr8_53.i, ptr %rst_gep_52.i, align 1
 +  %loop_next_9.i = add nuw nsw i64 %loop_idx_85.i, 1
-+  %exitcond.not.i123 = icmp eq i64 %loop_next_9.i, %alu_423
-+  br i1 %exitcond.not.i123, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit, label %loop_body_5.i, !llvm.loop !4
++  %exitcond.not.i124 = icmp eq i64 %loop_next_9.i, %alu_423
++  br i1 %exitcond.not.i124, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit, label %loop_body_5.i, !llvm.loop !4
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit: ; preds = %loop_body_5.i, %ite_else_603
-+  %loop_cmp_103.not.i125 = icmp eq i64 %alu_449, 8
-+  br i1 %loop_cmp_103.not.i125, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit142, label %loop_body_5.i128
++  %loop_cmp_103.not.i126 = icmp eq i64 %alu_449, 8
++  br i1 %loop_cmp_103.not.i126, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit143, label %loop_body_5.i129
 +
-+loop_body_5.i128:                                 ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit, %loop_body_5.i128
-+  %loop_idx_85.i129 = phi i64 [ %loop_next_9.i140, %loop_body_5.i128 ], [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit ]
-+  %slot_v16.04.i130 = phi i64 [ %alu_28.i135, %loop_body_5.i128 ], [ %arg_ext_v0.i95, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit ]
-+  %16 = xor i64 %loop_idx_85.i129, -1
-+  %alu_21.narrow.i132 = add nsw i64 %alu_462, %16
-+  %alu_22.i133 = and i64 %alu_21.narrow.i132, 4294967295
-+  %alu_26.i134 = mul nuw i64 %slot_v16.04.i130, 3435973837
-+  %alu_28.i135 = lshr i64 %alu_26.i134, 35
-+  %alu_34.neg.i136 = mul nuw nsw i64 %alu_28.i135, 246
-+  %alu_40.i137 = add nuw nsw i64 %alu_34.neg.i136, %slot_v16.04.i130
-+  %rst_gep_52.i138 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_22.i133
-+  %17 = trunc i64 %alu_40.i137 to i8
-+  %rst_tr8_53.i139 = add i8 %17, 48
-+  store i8 %rst_tr8_53.i139, ptr %rst_gep_52.i138, align 1
-+  %loop_next_9.i140 = add nuw nsw i64 %loop_idx_85.i129, 1
-+  %exitcond.not.i141 = icmp eq i64 %loop_next_9.i140, %alu_455
-+  br i1 %exitcond.not.i141, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit142, label %loop_body_5.i128, !llvm.loop !4
++loop_body_5.i129:                                 ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit, %loop_body_5.i129
++  %loop_idx_85.i130 = phi i64 [ %loop_next_9.i141, %loop_body_5.i129 ], [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit ]
++  %slot_v17.04.i131 = phi i64 [ %alu_28.i136, %loop_body_5.i129 ], [ %arg_ext_v0.i96, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit ]
++  %16 = xor i64 %loop_idx_85.i130, -1
++  %alu_21.narrow.i133 = add nsw i64 %alu_462, %16
++  %alu_22.i134 = and i64 %alu_21.narrow.i133, 4294967295
++  %alu_26.i135 = mul nuw i64 %slot_v17.04.i131, 3435973837
++  %alu_28.i136 = lshr i64 %alu_26.i135, 35
++  %alu_34.neg.i137 = mul nuw nsw i64 %alu_28.i136, 246
++  %alu_40.i138 = add nuw nsw i64 %alu_34.neg.i137, %slot_v17.04.i131
++  %rst_gep_52.i139 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_22.i134
++  %17 = trunc i64 %alu_40.i138 to i8
++  %rst_tr8_53.i140 = add i8 %17, 48
++  store i8 %rst_tr8_53.i140, ptr %rst_gep_52.i139, align 1
++  %loop_next_9.i141 = add nuw nsw i64 %loop_idx_85.i130, 1
++  %exitcond.not.i142 = icmp eq i64 %loop_next_9.i141, %alu_455
++  br i1 %exitcond.not.i142, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit143, label %loop_body_5.i129, !llvm.loop !4
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit142: ; preds = %loop_body_5.i128, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit
-+  br i1 %alu_50693, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit143: ; preds = %loop_body_5.i129, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit
++  br i1 %alu_50694, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
 +
-+ite_then_1.i:                                     ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit142
-+  %arg_ext_v2.i143 = and i64 %alu_462, 4294967295
-+  %rst_gep_7.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %arg_ext_v2.i143
++ite_then_1.i:                                     ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit143
++  %arg_ext_v2.i144 = and i64 %alu_462, 4294967295
++  %rst_gep_7.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %arg_ext_v2.i144
 +  store i8 46, ptr %rst_gep_7.i, align 1
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit: ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit142, %ite_then_1.i
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit: ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit143, %ite_then_1.i
 +  %alu_639 = sub nsw i64 8, %alu_546
-+  %alu_66094 = xor i64 %alu_529, 4294967295
-+  %alu_666 = and i64 %alu_639, %alu_66094
-+  %loop_cmp_679173.not = icmp eq i64 %alu_666, 0
-+  br i1 %loop_cmp_679173.not, label %loop_exit_676, label %loop_body_674.preheader
++  %alu_66095 = xor i64 %alu_529, 4294967295
++  %alu_666 = and i64 %alu_639, %alu_66095
++  %loop_cmp_679174.not = icmp eq i64 %alu_666, 0
++  br i1 %loop_cmp_679174.not, label %loop_exit_676, label %loop_body_674.preheader
 +
 +loop_body_674.preheader:                          ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
 +  %xtraiter = and i64 %alu_666, 3
@@ -12629,9 +12629,9 @@ index 0000000..863226e
 +  br label %loop_body_674
 +
 +loop_body_674:                                    ; preds = %loop_body_674, %loop_body_674.preheader.new
-+  %slot_v15205.0174 = phi i64 [ %arg_ext_v0.i115, %loop_body_674.preheader.new ], [ %alu_689.3, %loop_body_674 ]
++  %slot_v15193.0175 = phi i64 [ %arg_ext_v0.i116, %loop_body_674.preheader.new ], [ %alu_689.3, %loop_body_674 ]
 +  %niter = phi i64 [ 0, %loop_body_674.preheader.new ], [ %niter.next.3, %loop_body_674 ]
-+  %alu_686 = mul nuw i64 %slot_v15205.0174, 3435973837
++  %alu_686 = mul nuw i64 %slot_v15193.0175, 3435973837
 +  %alu_689 = lshr i64 %alu_686, 35
 +  %alu_686.1 = mul nuw nsw i64 %alu_689, 3435973837
 +  %alu_689.1 = lshr i64 %alu_686.1, 35
@@ -12645,71 +12645,71 @@ index 0000000..863226e
 +
 +loop_exit_676.loopexit.unr-lcssa:                 ; preds = %loop_body_674, %loop_body_674.preheader
 +  %alu_689.lcssa.ph = phi i64 [ poison, %loop_body_674.preheader ], [ %alu_689.3, %loop_body_674 ]
-+  %slot_v15205.0174.unr = phi i64 [ %arg_ext_v0.i115, %loop_body_674.preheader ], [ %alu_689.3, %loop_body_674 ]
++  %slot_v15193.0175.unr = phi i64 [ %arg_ext_v0.i116, %loop_body_674.preheader ], [ %alu_689.3, %loop_body_674 ]
 +  %lcmp.mod.not = icmp eq i64 %xtraiter, 0
 +  br i1 %lcmp.mod.not, label %loop_exit_676, label %loop_body_674.epil
 +
 +loop_body_674.epil:                               ; preds = %loop_exit_676.loopexit.unr-lcssa, %loop_body_674.epil
-+  %slot_v15205.0174.epil = phi i64 [ %alu_689.epil, %loop_body_674.epil ], [ %slot_v15205.0174.unr, %loop_exit_676.loopexit.unr-lcssa ]
++  %slot_v15193.0175.epil = phi i64 [ %alu_689.epil, %loop_body_674.epil ], [ %slot_v15193.0175.unr, %loop_exit_676.loopexit.unr-lcssa ]
 +  %epil.iter = phi i64 [ %epil.iter.next, %loop_body_674.epil ], [ 0, %loop_exit_676.loopexit.unr-lcssa ]
-+  %alu_686.epil = mul nuw i64 %slot_v15205.0174.epil, 3435973837
++  %alu_686.epil = mul nuw i64 %slot_v15193.0175.epil, 3435973837
 +  %alu_689.epil = lshr i64 %alu_686.epil, 35
 +  %epil.iter.next = add i64 %epil.iter, 1
 +  %epil.iter.cmp.not = icmp eq i64 %epil.iter.next, %xtraiter
 +  br i1 %epil.iter.cmp.not, label %loop_exit_676, label %loop_body_674.epil, !llvm.loop !33
 +
 +loop_exit_676:                                    ; preds = %loop_exit_676.loopexit.unr-lcssa, %loop_body_674.epil, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
-+  %slot_v15205.0.lcssa = phi i64 [ %arg_ext_v0.i115, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %alu_689.lcssa.ph, %loop_exit_676.loopexit.unr-lcssa ], [ %alu_689.epil, %loop_body_674.epil ]
-+  %alu_714 = select i1 %alu_50693, i64 %alu_546, i64 0
++  %slot_v15193.0.lcssa = phi i64 [ %arg_ext_v0.i116, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %alu_689.lcssa.ph, %loop_exit_676.loopexit.unr-lcssa ], [ %alu_689.epil, %loop_body_674.epil ]
++  %alu_714 = select i1 %alu_50694, i64 %alu_546, i64 0
 +  %alu_727 = add nuw nsw i64 %alu_462, 1
 +  %alu_733 = add nuw nsw i64 %alu_727, %alu_714
-+  %loop_cmp_103.not.i145 = icmp eq i64 %alu_714, 0
-+  br i1 %loop_cmp_103.not.i145, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit162, label %loop_body_5.i148
++  %loop_cmp_103.not.i146 = icmp eq i64 %alu_714, 0
++  br i1 %loop_cmp_103.not.i146, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit163, label %loop_body_5.i149
 +
-+loop_body_5.i148:                                 ; preds = %loop_exit_676, %loop_body_5.i148
-+  %loop_idx_85.i149 = phi i64 [ %loop_next_9.i160, %loop_body_5.i148 ], [ 0, %loop_exit_676 ]
-+  %slot_v16.04.i150 = phi i64 [ %alu_28.i155, %loop_body_5.i148 ], [ %slot_v15205.0.lcssa, %loop_exit_676 ]
-+  %19 = xor i64 %loop_idx_85.i149, -1
-+  %alu_21.narrow.i152 = add nsw i64 %alu_733, %19
-+  %alu_22.i153 = and i64 %alu_21.narrow.i152, 4294967295
-+  %alu_26.i154 = mul nuw i64 %slot_v16.04.i150, 3435973837
-+  %alu_28.i155 = lshr i64 %alu_26.i154, 35
-+  %alu_34.neg.i156 = mul nuw nsw i64 %alu_28.i155, 246
-+  %alu_40.i157 = add nuw nsw i64 %alu_34.neg.i156, %slot_v16.04.i150
-+  %rst_gep_52.i158 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_22.i153
-+  %20 = trunc i64 %alu_40.i157 to i8
-+  %rst_tr8_53.i159 = add i8 %20, 48
-+  store i8 %rst_tr8_53.i159, ptr %rst_gep_52.i158, align 1
-+  %loop_next_9.i160 = add nuw nsw i64 %loop_idx_85.i149, 1
-+  %exitcond.not.i161 = icmp eq i64 %loop_next_9.i160, %alu_714
-+  br i1 %exitcond.not.i161, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit162, label %loop_body_5.i148, !llvm.loop !4
++loop_body_5.i149:                                 ; preds = %loop_exit_676, %loop_body_5.i149
++  %loop_idx_85.i150 = phi i64 [ %loop_next_9.i161, %loop_body_5.i149 ], [ 0, %loop_exit_676 ]
++  %slot_v17.04.i151 = phi i64 [ %alu_28.i156, %loop_body_5.i149 ], [ %slot_v15193.0.lcssa, %loop_exit_676 ]
++  %19 = xor i64 %loop_idx_85.i150, -1
++  %alu_21.narrow.i153 = add nsw i64 %alu_733, %19
++  %alu_22.i154 = and i64 %alu_21.narrow.i153, 4294967295
++  %alu_26.i155 = mul nuw i64 %slot_v17.04.i151, 3435973837
++  %alu_28.i156 = lshr i64 %alu_26.i155, 35
++  %alu_34.neg.i157 = mul nuw nsw i64 %alu_28.i156, 246
++  %alu_40.i158 = add nuw nsw i64 %alu_34.neg.i157, %slot_v17.04.i151
++  %rst_gep_52.i159 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_22.i154
++  %20 = trunc i64 %alu_40.i158 to i8
++  %rst_tr8_53.i160 = add i8 %20, 48
++  store i8 %rst_tr8_53.i160, ptr %rst_gep_52.i159, align 1
++  %loop_next_9.i161 = add nuw nsw i64 %loop_idx_85.i150, 1
++  %exitcond.not.i162 = icmp eq i64 %loop_next_9.i161, %alu_714
++  br i1 %exitcond.not.i162, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit163, label %loop_body_5.i149, !llvm.loop !4
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit162: ; preds = %loop_body_5.i148, %loop_exit_676
-+  br i1 %cmp_eq_557, label %loop_body_5.i169.preheader, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit163: ; preds = %loop_body_5.i149, %loop_exit_676
++  br i1 %cmp_eq_557, label %loop_body_5.i170.preheader, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit
 +
-+loop_body_5.i169.preheader:                       ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit162
-+  %arg_ext_v2.i165 = and i64 %alu_581, 4294967295
-+  %rst_gep_7.i166 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %arg_ext_v2.i165
-+  store i8 32, ptr %rst_gep_7.i166, align 1
++loop_body_5.i170.preheader:                       ; preds = %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit163
++  %arg_ext_v2.i166 = and i64 %alu_581, 4294967295
++  %rst_gep_7.i167 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %arg_ext_v2.i166
++  store i8 32, ptr %rst_gep_7.i167, align 1
 +  %arg_ext_v1.i = zext nneg i32 %arg_v2 to i64
 +  %min.iters.check = icmp ult i32 %arg_v2, 16
-+  br i1 %min.iters.check, label %loop_body_5.i169.preheader183, label %vector.scevcheck
++  br i1 %min.iters.check, label %loop_body_5.i170.preheader184, label %vector.scevcheck
 +
-+vector.scevcheck:                                 ; preds = %loop_body_5.i169.preheader
++vector.scevcheck:                                 ; preds = %loop_body_5.i170.preheader
 +  %21 = add nsw i64 %arg_ext_v1.i, -1
 +  %22 = trunc nsw i64 %21 to i32
 +  %23 = xor i32 %alu_587.tr, -1
 +  %24 = icmp ult i32 %23, %22
 +  %25 = icmp ugt i64 %21, 4294967295
 +  %26 = or i1 %24, %25
-+  br i1 %26, label %loop_body_5.i169.preheader183, label %vector.memcheck
++  br i1 %26, label %loop_body_5.i170.preheader184, label %vector.memcheck
 +
 +vector.memcheck:                                  ; preds = %vector.scevcheck
 +  %27 = and i64 %alu_587, 4294967295
-+  %28 = add i64 %27, %arg_v4178
-+  %29 = sub i64 %28, %arg_v1179
++  %28 = add i64 %27, %arg_v4179
++  %29 = sub i64 %28, %arg_v1180
 +  %diff.check = icmp ult i64 %29, 16
-+  br i1 %diff.check, label %loop_body_5.i169.preheader183, label %vector.ph
++  br i1 %diff.check, label %loop_body_5.i170.preheader184, label %vector.ph
 +
 +vector.ph:                                        ; preds = %vector.memcheck
 +  %n.vec = and i64 %arg_ext_v1.i, 496
@@ -12724,42 +12724,42 @@ index 0000000..863226e
 +  %34 = getelementptr inbounds nuw i8, ptr %32, i64 8
 +  %35 = getelementptr inbounds nuw i8, ptr %32, i64 12
 +  %wide.load = load <4 x i8>, ptr %32, align 1
-+  %wide.load180 = load <4 x i8>, ptr %33, align 1
-+  %wide.load181 = load <4 x i8>, ptr %34, align 1
-+  %wide.load182 = load <4 x i8>, ptr %35, align 1
++  %wide.load181 = load <4 x i8>, ptr %33, align 1
++  %wide.load182 = load <4 x i8>, ptr %34, align 1
++  %wide.load183 = load <4 x i8>, ptr %35, align 1
 +  %36 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %31
 +  %37 = getelementptr inbounds nuw i8, ptr %36, i64 4
 +  %38 = getelementptr inbounds nuw i8, ptr %36, i64 8
 +  %39 = getelementptr inbounds nuw i8, ptr %36, i64 12
 +  store <4 x i8> %wide.load, ptr %36, align 1
-+  store <4 x i8> %wide.load180, ptr %37, align 1
-+  store <4 x i8> %wide.load181, ptr %38, align 1
-+  store <4 x i8> %wide.load182, ptr %39, align 1
++  store <4 x i8> %wide.load181, ptr %37, align 1
++  store <4 x i8> %wide.load182, ptr %38, align 1
++  store <4 x i8> %wide.load183, ptr %39, align 1
 +  %index.next = add nuw i64 %index, 16
 +  %40 = icmp eq i64 %index.next, %n.vec
 +  br i1 %40, label %middle.block, label %vector.body, !llvm.loop !34
 +
 +middle.block:                                     ; preds = %vector.body
 +  %cmp.n = icmp eq i64 %n.vec, %arg_ext_v1.i
-+  br i1 %cmp.n, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit, label %loop_body_5.i169.preheader183
++  br i1 %cmp.n, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit, label %loop_body_5.i170.preheader184
 +
-+loop_body_5.i169.preheader183:                    ; preds = %vector.memcheck, %vector.scevcheck, %loop_body_5.i169.preheader, %middle.block
-+  %loop_idx_84.i.ph = phi i64 [ 0, %vector.memcheck ], [ 0, %vector.scevcheck ], [ 0, %loop_body_5.i169.preheader ], [ %n.vec, %middle.block ]
-+  br label %loop_body_5.i169
++loop_body_5.i170.preheader184:                    ; preds = %vector.memcheck, %vector.scevcheck, %loop_body_5.i170.preheader, %middle.block
++  %loop_idx_84.i.ph = phi i64 [ 0, %vector.memcheck ], [ 0, %vector.scevcheck ], [ 0, %loop_body_5.i170.preheader ], [ %n.vec, %middle.block ]
++  br label %loop_body_5.i170
 +
-+loop_body_5.i169:                                 ; preds = %loop_body_5.i169.preheader183, %loop_body_5.i169
-+  %loop_idx_84.i = phi i64 [ %loop_next_9.i171, %loop_body_5.i169 ], [ %loop_idx_84.i.ph, %loop_body_5.i169.preheader183 ]
++loop_body_5.i170:                                 ; preds = %loop_body_5.i170.preheader184, %loop_body_5.i170
++  %loop_idx_84.i = phi i64 [ %loop_next_9.i172, %loop_body_5.i170 ], [ %loop_idx_84.i.ph, %loop_body_5.i170.preheader184 ]
 +  %alu_17.narrow.i = add nuw nsw i64 %loop_idx_84.i, %alu_587
 +  %alu_18.i = and i64 %alu_17.narrow.i, 4294967295
 +  %rld_gep_21.i = getelementptr inbounds nuw i8, ptr %arg_v1, i64 %loop_idx_84.i
 +  %rld_i8_22.i = load i8, ptr %rld_gep_21.i, align 1
 +  %rst_gep_27.i = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_18.i
 +  store i8 %rld_i8_22.i, ptr %rst_gep_27.i, align 1
-+  %loop_next_9.i171 = add nuw nsw i64 %loop_idx_84.i, 1
-+  %exitcond.not.i172 = icmp eq i64 %loop_next_9.i171, %arg_ext_v1.i
-+  br i1 %exitcond.not.i172, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit, label %loop_body_5.i169, !llvm.loop !35
++  %loop_next_9.i172 = add nuw nsw i64 %loop_idx_84.i, 1
++  %exitcond.not.i173 = icmp eq i64 %loop_next_9.i172, %arg_ext_v1.i
++  br i1 %exitcond.not.i173, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit, label %loop_body_5.i170, !llvm.loop !35
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit: ; preds = %loop_body_5.i169, %middle.block, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit162
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit: ; preds = %loop_body_5.i170, %middle.block, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec.exit163
 +  %rst_gep_759 = getelementptr inbounds nuw i8, ptr %arg_v4, i64 %alu_594
 +  store i8 0, ptr %rst_gep_759, align 1
 +  br label %common.ret
@@ -13197,7 +13197,7 @@ index 0000000..aabd55f
 +#endif /* LEAN_NATIVE_GENERATED_C_ABI_H */
 diff --git a/src/lean_kernels/liblean_ledger_bitcoin_thumbv6m.ll b/src/lean_kernels/liblean_ledger_bitcoin_thumbv6m.ll
 new file mode 100644
-index 0000000..97b09ac
+index 0000000..6bc9963
 --- /dev/null
 +++ b/src/lean_kernels/liblean_ledger_bitcoin_thumbv6m.ll
 @@ -0,0 +1,2712 @@
@@ -13260,7 +13260,7 @@ index 0000000..97b09ac
 +  br label %loop_hdr_4
 +
 +loop_hdr_4:                                       ; preds = %loop_body_5, %entry
-+  %slot_v16.0.in = phi i32 [ %arg_v2, %entry ], [ %2, %loop_body_5 ]
++  %slot_v17.0.in = phi i32 [ %arg_v2, %entry ], [ %2, %loop_body_5 ]
 +  %loop_idx_8 = phi i64 [ 0, %entry ], [ %loop_next_9, %loop_body_5 ]
 +  %loop_cmp_10 = icmp samesign ult i64 %loop_idx_8, %arg_ext_v3
 +  br i1 %loop_cmp_10, label %loop_body_5, label %loop_exit_7
@@ -13268,8 +13268,8 @@ index 0000000..97b09ac
 +loop_body_5:                                      ; preds = %loop_hdr_4
 +  %loop_idx_8.tr = trunc i64 %loop_idx_8 to i32
 +  %1 = xor i32 %loop_idx_8.tr, -1
-+  %m64_a0l_33 = and i32 %slot_v16.0.in, 65535
-+  %m64_a0h_34 = lshr i32 %slot_v16.0.in, 16
++  %m64_a0l_33 = and i32 %slot_v17.0.in, 65535
++  %m64_a0h_34 = lshr i32 %slot_v17.0.in, 16
 +  %m64_p00_37 = mul nuw i32 %m64_a0l_33, 52429
 +  %m64_p01_38 = mul nuw i32 %m64_a0l_33, 52428
 +  %m64_p10_39 = mul nuw i32 %m64_a0h_34, 52429
@@ -13287,7 +13287,7 @@ index 0000000..97b09ac
 +  %m64_hib_54 = add nuw i32 %m64_c2_53, %m64_m1h_51
 +  %2 = lshr i32 %m64_hib_54, 3
 +  %m64_p00_80.neg = mul i32 %2, 246
-+  %alu_110.narrow = add i32 %m64_p00_80.neg, %slot_v16.0.in
++  %alu_110.narrow = add i32 %m64_p00_80.neg, %slot_v17.0.in
 +  %rst_gep_122 = getelementptr i8, ptr %0, i32 %1
 +  %3 = trunc i32 %alu_110.narrow to i8
 +  %rst_tr8_123 = add i8 %3, 48
@@ -13765,13 +13765,13 @@ index 0000000..97b09ac
 +  ret i8 %common.ret.op
 +
 +loop_hdr_44:                                      ; preds = %loop_hdr_44.preheader, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
-+  %slot_v1869.0 = phi i64 [ %common.ret.op.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
++  %slot_v1870.0 = phi i64 [ %common.ret.op.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
 +  %loop_idx_48 = phi i64 [ %loop_next_49, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
 +  %loop_cmp_50 = icmp samesign ult i64 %loop_idx_48, %arg_ext_v1
 +  br i1 %loop_cmp_50, label %loop_body_45, label %loop_exit_47
 +
 +loop_body_45:                                     ; preds = %loop_hdr_44
-+  %cmp_eq_7.i = icmp sgt i64 %slot_v1869.0, -1
++  %cmp_eq_7.i = icmp sgt i64 %slot_v1870.0, -1
 +  br i1 %cmp_eq_7.i, label %ite_then_9.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_9.i:                                     ; preds = %loop_body_45
@@ -13779,7 +13779,7 @@ index 0000000..97b09ac
 +  %rld_gep_14.i = getelementptr inbounds nuw i8, ptr %arg_v0, i32 %call_tr_58
 +  %rld_i8_15.i = load i8, ptr %rld_gep_14.i, align 1
 +  %rld_val_16.i = zext i8 %rld_i8_15.i to i64
-+  %1 = and i64 %slot_v1869.0, 70931694131085312
++  %1 = and i64 %slot_v1870.0, 70931694131085312
 +  %cmp_eq_34.i = icmp eq i64 %1, 0
 +  br i1 %cmp_eq_34.i, label %ite_then_36.i, label %ite_else_37.i
 +
@@ -13797,27 +13797,27 @@ index 0000000..97b09ac
 +  unreachable
 +
 +ite_then_46.i:                                    ; preds = %ite_then_36.i
-+  %call_313.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31004)
++  %call_313.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31004)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_322.i:                                   ; preds = %ite_then_36.i
-+  %call_589.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31420)
++  %call_589.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31420)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_598.i:                                   ; preds = %ite_then_36.i
-+  %call_864.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30982)
++  %call_864.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30982)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_873.i:                                   ; preds = %ite_then_36.i
-+  %call_1139.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30990)
++  %call_1139.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30990)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1148.i:                                  ; preds = %ite_then_36.i
-+  %call_1414.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30984)
++  %call_1414.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30984)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1423.i:                                  ; preds = %ite_then_36.i
-+  %call_1689.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30992)
++  %call_1689.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30992)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_1424.i:                                  ; preds = %ite_then_36.i
@@ -13826,7 +13826,7 @@ index 0000000..97b09ac
 +  br i1 %alu_1713894.i, label %ite_then_1723.i, label %ite_else_1724.i
 +
 +ite_then_1723.i:                                  ; preds = %ite_else_1424.i
-+  %call_1990.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31624)
++  %call_1990.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31624)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_1724.i:                                  ; preds = %ite_else_1424.i
@@ -13839,7 +13839,7 @@ index 0000000..97b09ac
 +  ]
 +
 +ite_then_2107.i:                                  ; preds = %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i
-+  %alu_2112.i = and i64 %slot_v1869.0, 9151314442816847872
++  %alu_2112.i = and i64 %slot_v1870.0, 9151314442816847872
 +  %alu_2117.i = shl nuw nsw i64 %rld_val_16.i, 50
 +  %alu_2121.i = add nuw nsw i64 %alu_2117.i, %alu_2112.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -13850,11 +13850,11 @@ index 0000000..97b09ac
 +  br i1 %alu_2146901.i, label %ite_then_2156.i, label %ite_else_2157.i
 +
 +ite_then_2156.i:                                  ; preds = %ite_else_2108.i
-+  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1869.0, 72057594037927936
++  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1870.0, 72057594037927936
 +  br i1 %cmp_lt_2169.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_2173.i
 +
 +ite_else_2173.i:                                  ; preds = %ite_then_2156.i
-+  %sh.diff.i = lshr i64 %slot_v1869.0, 55
++  %sh.diff.i = lshr i64 %slot_v1870.0, 55
 +  %tr.sh.diff.i = trunc nuw nsw i64 %sh.diff.i to i32
 +  %4 = getelementptr i8, ptr %arg_v4, i32 %tr.sh.diff.i
 +  %rld_gep_10.i.i = getelementptr i8, ptr %4, i32 -2
@@ -14126,11 +14126,11 @@ index 0000000..97b09ac
 +  br i1 %alu_5786902.i, label %ite_then_5796.i, label %ite_else_5797.i
 +
 +ite_then_5796.i:                                  ; preds = %ite_else_2157.i
-+  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1869.0, 144115188075855872
++  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1870.0, 144115188075855872
 +  br i1 %cmp_lt_5809.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_5813.i
 +
 +ite_else_5813.i:                                  ; preds = %ite_then_5796.i
-+  %alu_5801.i = lshr i64 %slot_v1869.0, 56
++  %alu_5801.i = lshr i64 %slot_v1870.0, 56
 +  %54 = trunc nuw nsw i64 %alu_5801.i to i32
 +  %call_tr_5834.i = shl nuw nsw i32 %54, 1
 +  %55 = getelementptr i8, ptr %arg_v4, i32 %call_tr_5834.i
@@ -14271,7 +14271,7 @@ index 0000000..97b09ac
 +  %94 = lshr i16 %call_tr_7802.i, 8
 +  %rst_tr8_34.i.i = trunc nuw i16 %94 to i8
 +  store i8 %rst_tr8_34.i.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_7805.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_7805.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_7810.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_7814.i = or disjoint i64 %alu_7810.i, %alu_7805.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14325,7 +14325,7 @@ index 0000000..97b09ac
 +  %103 = lshr i16 %call_tr_8312.i, 8
 +  %rst_tr8_34.i1279.i = trunc nuw i16 %103 to i8
 +  store i8 %rst_tr8_34.i1279.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_8315.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_8315.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_8320.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8324.i = or disjoint i64 %alu_8320.i, %alu_8315.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14372,7 +14372,7 @@ index 0000000..97b09ac
 +  %114 = lshr i16 %call_tr_8706.i, 8
 +  %rst_tr8_34.i1284.i = trunc nuw i16 %114 to i8
 +  store i8 %rst_tr8_34.i1284.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_8709.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_8709.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_8714.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8718.i = or disjoint i64 %alu_8714.i, %alu_8709.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14420,7 +14420,7 @@ index 0000000..97b09ac
 +  %123 = lshr i16 %call_tr_9155.i, 8
 +  %rst_tr8_34.i1289.i = trunc nuw i16 %123 to i8
 +  store i8 %rst_tr8_34.i1289.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9158.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9158.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9163.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9167.i = or disjoint i64 %alu_9163.i, %alu_9158.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14464,7 +14464,7 @@ index 0000000..97b09ac
 +  %126 = lshr i16 %call_tr_9547.i, 8
 +  %rst_tr8_34.i1294.i = trunc nuw i16 %126 to i8
 +  store i8 %rst_tr8_34.i1294.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9550.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9550.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9555.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9559.i = or disjoint i64 %alu_9555.i, %alu_9550.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14510,7 +14510,7 @@ index 0000000..97b09ac
 +  %136 = lshr i16 %call_tr_9939.i, 8
 +  %rst_tr8_34.i1299.i = trunc nuw i16 %136 to i8
 +  store i8 %rst_tr8_34.i1299.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9942.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9942.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9947.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9951.i = or disjoint i64 %alu_9947.i, %alu_9942.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14568,7 +14568,7 @@ index 0000000..97b09ac
 +  %151 = lshr i16 %call_tr_10921.i, 8
 +  %rst_tr8_34.i1304.i = trunc nuw i16 %151 to i8
 +  store i8 %rst_tr8_34.i1304.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_10924.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_10924.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_10929.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_10933.i = or disjoint i64 %alu_10929.i, %alu_10924.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -14578,11 +14578,11 @@ index 0000000..97b09ac
 +  br i1 %cmp_eq_10973.i, label %ite_then_10975.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_10975.i:                                 ; preds = %ite_else_5797.i
-+  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1869.0, 216172782113783808
++  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1870.0, 216172782113783808
 +  br i1 %cmp_lt_10988.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_10992.i
 +
 +ite_else_10992.i:                                 ; preds = %ite_then_10975.i
-+  %alu_10980.i = lshr i64 %slot_v1869.0, 56
++  %alu_10980.i = lshr i64 %slot_v1870.0, 56
 +  %152 = trunc nuw nsw i64 %alu_10980.i to i32
 +  %call_tr_11013.i = shl nuw nsw i32 %152, 1
 +  %153 = getelementptr i8, ptr %arg_v4, i32 %call_tr_11013.i
@@ -14708,23 +14708,23 @@ index 0000000..97b09ac
 +  %191 = lshr i16 %call_tr_14180.i, 8
 +  %rst_tr8_34.i1336.i = trunc nuw i16 %191 to i8
 +  store i8 %rst_tr8_34.i1336.i, ptr %rld_gep_21.i1309.i, align 1
-+  %alu_14183.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_14183.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_14188.i = shl nuw nsw i64 %alu_11020.i, 56
 +  %alu_14192.i = or disjoint i64 %alu_14188.i, %alu_14183.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_37.i:                                    ; preds = %ite_then_9.i
-+  %alu_26.i = lshr i64 %slot_v1869.0, 47
++  %alu_26.i = lshr i64 %slot_v1870.0, 47
 +  %alu_30.i = and i64 %alu_26.i, 7
-+  %alu_14203.i = and i64 %slot_v1869.0, 9222386874436288256
++  %alu_14203.i = and i64 %slot_v1870.0, 9222386874436288256
 +  %alu_14206.i = or disjoint i64 %alu_14203.i, %rld_val_16.i
-+  %alu_14209.i = and i64 %slot_v1869.0, 9222386874436223231
++  %alu_14209.i = and i64 %slot_v1870.0, 9222386874436223231
 +  %alu_14212.i = shl nuw nsw i64 %rld_val_16.i, 8
 +  %alu_14216.i = or disjoint i64 %alu_14212.i, %alu_14209.i
-+  %alu_14219.i = and i64 %slot_v1869.0, 9222386874419576831
++  %alu_14219.i = and i64 %slot_v1870.0, 9222386874419576831
 +  %alu_14222.i = shl nuw nsw i64 %rld_val_16.i, 16
 +  %alu_14226.i = or disjoint i64 %alu_14222.i, %alu_14219.i
-+  %alu_14229.i = and i64 %slot_v1869.0, 9222386870158098431
++  %alu_14229.i = and i64 %slot_v1870.0, 9222386870158098431
 +  %alu_14232.i = shl nuw nsw i64 %rld_val_16.i, 24
 +  %alu_14236.i = or disjoint i64 %alu_14232.i, %alu_14229.i
 +  %cmp_eq_14240.i = icmp eq i64 %alu_30.i, 0
@@ -14743,10 +14743,10 @@ index 0000000..97b09ac
 +  %alu_2.i.i = lshr i64 %alu_14306.i, 50
 +  %alu_6.i.i = and i64 %alu_2.i.i, 63
 +  %alu_11.i.i = and i64 %alu_14236.i, 4294967295
-+  %alu_14.i.i = and i64 %slot_v1869.0, 65535
++  %alu_14.i.i = and i64 %slot_v1870.0, 65535
 +  %alu_19.i.i = lshr i64 %alu_11.i.i, 16
-+  %alu_28.i.i = and i64 %slot_v1869.0, 9151314442816847872
-+  %192 = and i64 %slot_v1869.0, 69805794224242688
++  %alu_28.i.i = and i64 %slot_v1870.0, 9151314442816847872
++  %192 = and i64 %slot_v1870.0, 69805794224242688
 +  %alu_51257.not.i.i = icmp eq i64 %192, 6755399441055744
 +  br i1 %alu_51257.not.i.i, label %ite_then_63.i.i, label %ite_else_64.i.i
 +
@@ -14767,7 +14767,7 @@ index 0000000..97b09ac
 +  br i1 %cmp_eq_183.i.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_186.i.i
 +
 +ite_else_186.i.i:                                 ; preds = %ite_then_63.i.i
-+  %alu_191.i.i = and i64 %slot_v1869.0, 4194304
++  %alu_191.i.i = and i64 %slot_v1870.0, 4194304
 +  %cmp_eq_195.i.i = icmp eq i64 %alu_191.i.i, 0
 +  br i1 %cmp_eq_195.i.i, label %ite_then_197.i.i, label %ite_else_198.i.i
 +
@@ -14844,7 +14844,7 @@ index 0000000..97b09ac
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_2539.i.i:                                ; preds = %ite_else_64.i.i
-+  %alu_3393.i.i = lshr i64 %slot_v1869.0, 56
++  %alu_3393.i.i = lshr i64 %slot_v1870.0, 56
 +  %alu_3423259.i.i = icmp uge i64 %201, %alu_19.i.i
 +  %cmp_le_3437.not.i.i = icmp samesign ugt i64 %alu_19.i.i, %alu_3393.i.i
 +  %cmp_le_3443.i.i = icmp samesign ugt i64 %alu_11.i.i, 4259839
@@ -14855,7 +14855,7 @@ index 0000000..97b09ac
 +ite_else_3494.i.i:                                ; preds = %ite_else_2539.i.i
 +  %alu_3501.i.i = sub nuw nsw i64 %alu_3393.i.i, %alu_19.i.i
 +  %call_tr_3518.i.i = trunc nuw nsw i64 %alu_3501.i.i to i32
-+  %206 = and i64 %slot_v1869.0, 65534
++  %206 = and i64 %slot_v1870.0, 65534
 +  %cmp_le_484.i.i.i = icmp ne i64 %206, 0
 +  br label %loop_hdr_3507.i.i
 +
@@ -15020,12 +15020,12 @@ index 0000000..97b09ac
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit: ; preds = %loop_body_45, %ite_then_46.i, %ite_then_322.i, %ite_then_598.i, %ite_then_873.i, %ite_then_1148.i, %ite_then_1423.i, %ite_then_1723.i, %ite_then_2107.i, %ite_then_2156.i, %ite_then_2508.i, %ite_else_2808.i, %ite_then_2824.i, %ite_else_3143.i, %ite_then_3159.i, %ite_else_3459.i, %ite_then_3475.i, %ite_else_3775.i, %ite_then_3820.i, %ite_else_4120.i, %ite_else_3821.i, %ite_else_4426.i, %ite_then_4442.i, %ite_else_4742.i, %ite_then_4758.i, %ite_else_5077.i, %ite_then_5093.i, %ite_else_5393.i, %ite_else_5094.i, %ite_else_5736.i, %ite_then_5796.i, %ite_then_7080.i, %ite_else_7097.i, %ite_else_7795.i, %ite_then_7824.i, %ite_else_8305.i, %ite_then_8334.i, %ite_else_8699.i, %ite_then_8728.i, %ite_else_9148.i, %ite_then_9177.i, %ite_else_9540.i, %ite_then_9569.i, %ite_else_9932.i, %ite_then_9961.i, %ite_else_9972.i, %ite_else_10914.i, %ite_else_5797.i, %ite_then_10975.i, %ite_else_10992.i, %ite_else_11921.i, %ite_else_14173.i, %ite_else_37.i, %ite_then_63.i.i, %ite_then_245.i.i, %ite_else_246.i.i, %ite_then_1397.i.i, %ite_else_1398.i.i, %ite_then_2548.i.i, %ite_else_2703.i.i, %ite_else_2549.i.i, %ite_else_3123.i.i, %ite_else_2539.i.i, %loop_exit_3510.i.i, %ite_else_3948.i.i
-+  %common.ret.op.i = phi i64 [ %call_313.i, %ite_then_46.i ], [ %call_589.i, %ite_then_322.i ], [ %call_864.i, %ite_then_598.i ], [ %call_1139.i, %ite_then_873.i ], [ %call_1414.i, %ite_then_1148.i ], [ %call_1689.i, %ite_then_1423.i ], [ %call_1990.i, %ite_then_1723.i ], [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1869.0, %ite_else_2808.i ], [ %slot_v1869.0, %ite_else_3143.i ], [ %slot_v1869.0, %ite_else_3459.i ], [ %slot_v1869.0, %ite_else_3775.i ], [ %slot_v1869.0, %ite_else_4120.i ], [ %slot_v1869.0, %ite_else_4426.i ], [ %slot_v1869.0, %ite_else_4742.i ], [ %slot_v1869.0, %ite_else_5077.i ], [ %slot_v1869.0, %ite_else_5393.i ], [ %slot_v1869.0, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_then_10975.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1869.0, %loop_body_45 ], [ %call_798.i.i, %ite_then_245.i.i ], [ %call_1350.i.i, %ite_else_246.i.i ], [ %call_1950.i.i, %ite_then_1397.i.i ], [ %call_2502.i.i, %ite_else_1398.i.i ], [ %call_2969.i.i, %ite_else_2703.i.i ], [ %call_3389.i.i, %ite_else_3123.i.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ]
++  %common.ret.op.i = phi i64 [ %call_313.i, %ite_then_46.i ], [ %call_589.i, %ite_then_322.i ], [ %call_864.i, %ite_then_598.i ], [ %call_1139.i, %ite_then_873.i ], [ %call_1414.i, %ite_then_1148.i ], [ %call_1689.i, %ite_then_1423.i ], [ %call_1990.i, %ite_then_1723.i ], [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1870.0, %ite_else_2808.i ], [ %slot_v1870.0, %ite_else_3143.i ], [ %slot_v1870.0, %ite_else_3459.i ], [ %slot_v1870.0, %ite_else_3775.i ], [ %slot_v1870.0, %ite_else_4120.i ], [ %slot_v1870.0, %ite_else_4426.i ], [ %slot_v1870.0, %ite_else_4742.i ], [ %slot_v1870.0, %ite_else_5077.i ], [ %slot_v1870.0, %ite_else_5393.i ], [ %slot_v1870.0, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_then_10975.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1870.0, %loop_body_45 ], [ %call_798.i.i, %ite_then_245.i.i ], [ %call_1350.i.i, %ite_else_246.i.i ], [ %call_1950.i.i, %ite_then_1397.i.i ], [ %call_2502.i.i, %ite_else_1398.i.i ], [ %call_2969.i.i, %ite_else_2703.i.i ], [ %call_3389.i.i, %ite_else_3123.i.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ]
 +  %loop_next_49 = add nuw nsw i64 %loop_idx_48, 1
 +  br label %loop_hdr_44
 +
 +loop_exit_47:                                     ; preds = %loop_hdr_44
-+  %229 = and i64 %slot_v1869.0, -1125899906842624
++  %229 = and i64 %slot_v1870.0, -1125899906842624
 +  %alu_12622.not = icmp eq i64 %229, 72057594037927936
 +  br i1 %alu_12622.not, label %ite_else_147, label %common.ret
 +
@@ -15356,9 +15356,9 @@ index 0000000..97b09ac
 +  %m64_p10_483 = mul nuw i32 %m64_a0h_478, 57600
 +  %m64_m1a_488 = add i32 %m64_p10_483, %m64_p01_482
 +  %m64_p00l_490 = and i32 %m64_p00_481, 65280
-+  %m64_m1_489102 = shl i32 %m64_m1a_488, 16
-+  %m64_p00h_485103 = add i32 %m64_p00_481, %m64_m1_489102
-+  %m64_m1sh_491 = and i32 %m64_p00h_485103, -65536
++  %m64_m1_489103 = shl i32 %m64_m1a_488, 16
++  %m64_p00h_485104 = add i32 %m64_p00_481, %m64_m1_489103
++  %m64_m1sh_491 = and i32 %m64_p00h_485104, -65536
 +  %m64_lo32_492 = or disjoint i32 %m64_m1sh_491, %m64_p00l_490
 +  %alu_511.narrow = sub i32 %m64_a0_27, %m64_lo32_492
 +  %alu_518 = lshr i64 %alu_230, 58
@@ -15437,8 +15437,8 @@ index 0000000..97b09ac
 +  %m64_a0_975 = trunc nuw nsw i64 %alu_736 to i32
 +  %m64_p00_985 = mul nuw nsw i32 %m64_a0_975, 57600
 +  %m64_p00l_994 = and i32 %m64_p00_985, 65280
-+  %m64_p00h_98993 = mul i32 %m64_a0_975, 100000000
-+  %m64_m1sh_995 = and i32 %m64_p00h_98993, -65536
++  %m64_p00h_98994 = mul i32 %m64_a0_975, 100000000
++  %m64_m1sh_995 = and i32 %m64_p00h_98994, -65536
 +  %m64_lo32_996 = or disjoint i32 %m64_p00l_994, %m64_m1sh_995
 +  %alu_1015.narrow = sub i32 %m64_a0_471, %m64_lo32_996
 +  %call_1026 = tail call fastcc i32 @l_BitcoinLedger_FreestandingKernels_decLenU32(i32 %m64_a0_975)
@@ -15502,8 +15502,8 @@ index 0000000..97b09ac
 +  %cmp_eq_1023 = icmp samesign ult i64 %alu_732, 67108864
 +  %call_zx_1027 = zext i32 %call_1026 to i64
 +  %alu_1036 = select i1 %cmp_eq_1023, i64 4294967295, i64 0
-+  %alu_104794 = xor i64 %alu_1036, -1
-+  %alu_1053 = and i64 %call_zx_1027, %alu_104794
++  %alu_104795 = xor i64 %alu_1036, -1
++  %alu_1053 = and i64 %call_zx_1027, %alu_104795
 +  %2 = xor i32 %call_1058, 8
 +  %alu_1073 = zext i32 %2 to i64
 +  %alu_1079 = and i64 %alu_1036, %alu_1073
@@ -15511,7 +15511,7 @@ index 0000000..97b09ac
 +  %alu_1092 = add nuw nsw i64 %alu_1085, %alu_1053
 +  %cmp_eq_1099.not = icmp ne i8 %arg_v3, 0
 +  %cmp_eq_1115.not = icmp ne i32 %m64_lo32_492, %m64_a0_27
-+  %alu_113695 = or i1 %cmp_eq_1099.not, %cmp_eq_1115.not
++  %alu_113696 = or i1 %cmp_eq_1099.not, %cmp_eq_1115.not
 +  %cmp_eq_301.i = icmp eq i32 %alu_511.narrow, 0
 +  %alu_303.i = lshr i64 %slot_v46.0.i, 32
 +  %alu_308.i = sub nsw i64 8, %alu_303.i
@@ -15521,7 +15521,7 @@ index 0000000..97b09ac
 +  %alu_1164 = xor i64 %alu_330.i, 8
 +  %alu_1170 = and i64 %alu_1164, %alu_1159
 +  %alu_1176 = xor i64 %alu_1170, %alu_330.i
-+  %sel_1181 = zext i1 %alu_113695 to i64
++  %sel_1181 = zext i1 %alu_113696 to i64
 +  %cmp_eq_1187 = icmp ne i32 %arg_v2, 0
 +  %sel_1200 = zext i1 %cmp_eq_1187 to i64
 +  %alu_1205 = add nuw nsw i64 %alu_1092, %sel_1181
@@ -15538,7 +15538,7 @@ index 0000000..97b09ac
 +  %call_tr_1252 = trunc i64 %alu_1092 to i32
 +  %call_tr_1256 = trunc nuw i64 %alu_1085 to i32
 +  tail call fastcc void @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec(ptr %arg_v4, i32 %call_tr_1252, i32 %alu_1015.narrow, i32 %call_tr_1256)
-+  br i1 %alu_113695, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
++  br i1 %alu_113696, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
 +
 +ite_then_1.i:                                     ; preds = %ite_else_1233
 +  %rst_gep_7.i = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_1252
@@ -15547,19 +15547,19 @@ index 0000000..97b09ac
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit: ; preds = %ite_else_1233, %ite_then_1.i
 +  %alu_1269 = sub nsw i64 8, %alu_1176
-+  %alu_129096 = xor i64 %alu_1159, 4294967295
-+  %alu_1296 = and i64 %alu_1269, %alu_129096
++  %alu_129097 = xor i64 %alu_1159, 4294967295
++  %alu_1296 = and i64 %alu_1269, %alu_129097
 +  br label %loop_hdr_1303
 +
 +loop_hdr_1303:                                    ; preds = %loop_body_1304, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
-+  %slot_v15205.0.off0 = phi i32 [ %alu_511.narrow, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %3, %loop_body_1304 ]
++  %slot_v15193.0.off0 = phi i32 [ %alu_511.narrow, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %3, %loop_body_1304 ]
 +  %loop_idx_1307 = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %loop_next_1308, %loop_body_1304 ]
 +  %loop_cmp_1309 = icmp samesign ult i64 %loop_idx_1307, %alu_1296
 +  br i1 %loop_cmp_1309, label %loop_body_1304, label %loop_exit_1306
 +
 +loop_body_1304:                                   ; preds = %loop_hdr_1303
-+  %m64_a0l_1323 = and i32 %slot_v15205.0.off0, 65535
-+  %m64_a0h_1324 = lshr i32 %slot_v15205.0.off0, 16
++  %m64_a0l_1323 = and i32 %slot_v15193.0.off0, 65535
++  %m64_a0h_1324 = lshr i32 %slot_v15193.0.off0, 16
 +  %m64_p00_1327 = mul nuw i32 %m64_a0l_1323, 52429
 +  %m64_p01_1328 = mul nuw i32 %m64_a0l_1323, 52428
 +  %m64_p10_1329 = mul nuw i32 %m64_a0h_1324, 52429
@@ -15580,27 +15580,27 @@ index 0000000..97b09ac
 +  br label %loop_hdr_1303
 +
 +loop_exit_1306:                                   ; preds = %loop_hdr_1303
-+  %alu_1379 = select i1 %alu_113695, i64 %alu_1176, i64 0
++  %alu_1379 = select i1 %alu_113696, i64 %alu_1176, i64 0
 +  %alu_1392 = add nuw nsw i64 %alu_1092, 1
 +  %alu_1398 = add nuw nsw i64 %alu_1392, %alu_1379
 +  %call_tr_1402 = trunc i64 %alu_1398 to i32
 +  %call_tr_1406 = trunc nuw i64 %alu_1379 to i32
-+  tail call fastcc void @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec(ptr %arg_v4, i32 %call_tr_1402, i32 %slot_v15205.0.off0, i32 %call_tr_1406)
-+  br i1 %cmp_eq_1187, label %ite_then_1.i99, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit101
++  tail call fastcc void @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec(ptr %arg_v4, i32 %call_tr_1402, i32 %slot_v15193.0.off0, i32 %call_tr_1406)
++  br i1 %cmp_eq_1187, label %ite_then_1.i100, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit102
 +
-+ite_then_1.i99:                                   ; preds = %loop_exit_1306
++ite_then_1.i100:                                  ; preds = %loop_exit_1306
 +  %call_tr_1412 = trunc i64 %alu_1211 to i32
-+  %rst_gep_7.i100 = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_1412
-+  store i8 32, ptr %rst_gep_7.i100, align 1
-+  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit101
++  %rst_gep_7.i101 = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_1412
++  store i8 32, ptr %rst_gep_7.i101, align 1
++  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit102
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit101: ; preds = %loop_exit_1306, %ite_then_1.i99
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit102: ; preds = %loop_exit_1306, %ite_then_1.i100
 +  %arg_ext_v1.i = zext nneg i32 %arg_v2 to i64
 +  %4 = getelementptr i8, ptr %arg_v4, i32 %alu_1217.tr
 +  br label %loop_hdr_4.i
 +
-+loop_hdr_4.i:                                     ; preds = %loop_body_5.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit101
-+  %loop_idx_8.i = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit101 ], [ %loop_next_9.i, %loop_body_5.i ]
++loop_hdr_4.i:                                     ; preds = %loop_body_5.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit102
++  %loop_idx_8.i = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit102 ], [ %loop_next_9.i, %loop_body_5.i ]
 +  %loop_cmp_10.i = icmp samesign ult i64 %loop_idx_8.i, %arg_ext_v1.i
 +  br i1 %loop_cmp_10.i, label %loop_body_5.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit
 +
@@ -15915,7 +15915,7 @@ index 0000000..97b09ac
 +attributes #7 = { minsize nofree norecurse nosync nounwind optsize memory(none) }
 diff --git a/src/lean_kernels/liblean_ledger_bitcoin_thumbv8m.main.ll b/src/lean_kernels/liblean_ledger_bitcoin_thumbv8m.main.ll
 new file mode 100644
-index 0000000..075d4d0
+index 0000000..accac58
 --- /dev/null
 +++ b/src/lean_kernels/liblean_ledger_bitcoin_thumbv8m.main.ll
 @@ -0,0 +1,2481 @@
@@ -15979,7 +15979,7 @@ index 0000000..075d4d0
 +  br label %loop_hdr_4
 +
 +loop_hdr_4:                                       ; preds = %loop_body_5, %entry
-+  %slot_v16.0 = phi i64 [ %arg_ext_v2, %entry ], [ %alu_28, %loop_body_5 ]
++  %slot_v17.0 = phi i64 [ %arg_ext_v2, %entry ], [ %alu_28, %loop_body_5 ]
 +  %loop_idx_8 = phi i64 [ 0, %entry ], [ %loop_next_9, %loop_body_5 ]
 +  %loop_cmp_10 = icmp samesign ult i64 %loop_idx_8, %arg_ext_v3
 +  br i1 %loop_cmp_10, label %loop_body_5, label %loop_exit_7
@@ -15987,10 +15987,10 @@ index 0000000..075d4d0
 +loop_body_5:                                      ; preds = %loop_hdr_4
 +  %loop_idx_8.tr = trunc i64 %loop_idx_8 to i32
 +  %1 = xor i32 %loop_idx_8.tr, -1
-+  %alu_26 = mul nuw i64 %slot_v16.0, 3435973837
++  %alu_26 = mul nuw i64 %slot_v17.0, 3435973837
 +  %alu_28 = lshr i64 %alu_26, 35
 +  %alu_34.neg = mul nuw nsw i64 %alu_28, 246
-+  %alu_40 = add nuw nsw i64 %alu_34.neg, %slot_v16.0
++  %alu_40 = add nuw nsw i64 %alu_34.neg, %slot_v17.0
 +  %rst_gep_52 = getelementptr i8, ptr %0, i32 %1
 +  %2 = trunc i64 %alu_40 to i8
 +  %rst_tr8_53 = add i8 %2, 48
@@ -16450,13 +16450,13 @@ index 0000000..075d4d0
 +  ret i8 %common.ret.op
 +
 +loop_hdr_44:                                      ; preds = %loop_hdr_44.preheader, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
-+  %slot_v1869.0 = phi i64 [ %common.ret.op.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
++  %slot_v1870.0 = phi i64 [ %common.ret.op.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
 +  %loop_idx_48 = phi i64 [ %loop_next_49, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit ], [ 0, %loop_hdr_44.preheader ]
 +  %loop_cmp_50 = icmp samesign ult i64 %loop_idx_48, %arg_ext_v1
 +  br i1 %loop_cmp_50, label %loop_body_45, label %loop_exit_47
 +
 +loop_body_45:                                     ; preds = %loop_hdr_44
-+  %cmp_eq_7.i = icmp sgt i64 %slot_v1869.0, -1
++  %cmp_eq_7.i = icmp sgt i64 %slot_v1870.0, -1
 +  br i1 %cmp_eq_7.i, label %ite_then_9.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_9.i:                                     ; preds = %loop_body_45
@@ -16464,7 +16464,7 @@ index 0000000..075d4d0
 +  %rld_gep_14.i = getelementptr inbounds nuw i8, ptr %arg_v0, i32 %call_tr_58
 +  %rld_i8_15.i = load i8, ptr %rld_gep_14.i, align 1
 +  %rld_val_16.i = zext i8 %rld_i8_15.i to i64
-+  %1 = and i64 %slot_v1869.0, 70931694131085312
++  %1 = and i64 %slot_v1870.0, 70931694131085312
 +  %cmp_eq_34.i = icmp eq i64 %1, 0
 +  br i1 %cmp_eq_34.i, label %ite_then_36.i, label %ite_else_37.i
 +
@@ -16482,27 +16482,27 @@ index 0000000..075d4d0
 +  unreachable
 +
 +ite_then_46.i:                                    ; preds = %ite_then_36.i
-+  %call_313.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31004)
++  %call_313.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31004)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_322.i:                                   ; preds = %ite_then_36.i
-+  %call_589.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31420)
++  %call_589.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31420)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_598.i:                                   ; preds = %ite_then_36.i
-+  %call_864.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30982)
++  %call_864.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30982)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_873.i:                                   ; preds = %ite_then_36.i
-+  %call_1139.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30990)
++  %call_1139.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30990)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1148.i:                                  ; preds = %ite_then_36.i
-+  %call_1414.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30984)
++  %call_1414.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30984)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_1423.i:                                  ; preds = %ite_then_36.i
-+  %call_1689.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -30992)
++  %call_1689.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -30992)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_1424.i:                                  ; preds = %ite_then_36.i
@@ -16511,7 +16511,7 @@ index 0000000..075d4d0
 +  br i1 %alu_1713894.i, label %ite_then_1723.i, label %ite_else_1724.i
 +
 +ite_then_1723.i:                                  ; preds = %ite_else_1424.i
-+  %call_1990.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1869.0, i16 zeroext -31624)
++  %call_1990.i = tail call fastcc i64 @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msPush(ptr %arg_v4, i64 %slot_v1870.0, i16 zeroext -31624)
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_1724.i:                                  ; preds = %ite_else_1424.i
@@ -16524,7 +16524,7 @@ index 0000000..075d4d0
 +  ]
 +
 +ite_then_2107.i:                                  ; preds = %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i, %ite_else_1724.i
-+  %alu_2112.i = and i64 %slot_v1869.0, 9151314442816847872
++  %alu_2112.i = and i64 %slot_v1870.0, 9151314442816847872
 +  %alu_2117.i = shl nuw nsw i64 %rld_val_16.i, 50
 +  %alu_2121.i = add nuw nsw i64 %alu_2117.i, %alu_2112.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -16535,11 +16535,11 @@ index 0000000..075d4d0
 +  br i1 %alu_2146901.i, label %ite_then_2156.i, label %ite_else_2157.i
 +
 +ite_then_2156.i:                                  ; preds = %ite_else_2108.i
-+  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1869.0, 72057594037927936
++  %cmp_lt_2169.i = icmp samesign ult i64 %slot_v1870.0, 72057594037927936
 +  br i1 %cmp_lt_2169.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_2173.i
 +
 +ite_else_2173.i:                                  ; preds = %ite_then_2156.i
-+  %sh.diff.i = lshr i64 %slot_v1869.0, 55
++  %sh.diff.i = lshr i64 %slot_v1870.0, 55
 +  %tr.sh.diff.i = trunc nuw nsw i64 %sh.diff.i to i32
 +  %4 = getelementptr i8, ptr %arg_v4, i32 %tr.sh.diff.i
 +  %rld_gep_10.i.i = getelementptr i8, ptr %4, i32 -2
@@ -16811,11 +16811,11 @@ index 0000000..075d4d0
 +  br i1 %alu_5786902.i, label %ite_then_5796.i, label %ite_else_5797.i
 +
 +ite_then_5796.i:                                  ; preds = %ite_else_2157.i
-+  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1869.0, 144115188075855872
++  %cmp_lt_5809.i = icmp samesign ult i64 %slot_v1870.0, 144115188075855872
 +  br i1 %cmp_lt_5809.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_5813.i
 +
 +ite_else_5813.i:                                  ; preds = %ite_then_5796.i
-+  %alu_5801.i = lshr i64 %slot_v1869.0, 56
++  %alu_5801.i = lshr i64 %slot_v1870.0, 56
 +  %54 = trunc nuw nsw i64 %alu_5801.i to i32
 +  %call_tr_5834.i = shl nuw nsw i32 %54, 1
 +  %55 = getelementptr i8, ptr %arg_v4, i32 %call_tr_5834.i
@@ -16956,7 +16956,7 @@ index 0000000..075d4d0
 +  %94 = lshr i16 %call_tr_7802.i, 8
 +  %rst_tr8_34.i.i = trunc nuw i16 %94 to i8
 +  store i8 %rst_tr8_34.i.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_7805.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_7805.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_7810.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_7814.i = or disjoint i64 %alu_7810.i, %alu_7805.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17010,7 +17010,7 @@ index 0000000..075d4d0
 +  %103 = lshr i16 %call_tr_8312.i, 8
 +  %rst_tr8_34.i1279.i = trunc nuw i16 %103 to i8
 +  store i8 %rst_tr8_34.i1279.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_8315.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_8315.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_8320.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8324.i = or disjoint i64 %alu_8320.i, %alu_8315.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17057,7 +17057,7 @@ index 0000000..075d4d0
 +  %114 = lshr i16 %call_tr_8706.i, 8
 +  %rst_tr8_34.i1284.i = trunc nuw i16 %114 to i8
 +  store i8 %rst_tr8_34.i1284.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_8709.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_8709.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_8714.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_8718.i = or disjoint i64 %alu_8714.i, %alu_8709.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17105,7 +17105,7 @@ index 0000000..075d4d0
 +  %123 = lshr i16 %call_tr_9155.i, 8
 +  %rst_tr8_34.i1289.i = trunc nuw i16 %123 to i8
 +  store i8 %rst_tr8_34.i1289.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9158.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9158.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9163.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9167.i = or disjoint i64 %alu_9163.i, %alu_9158.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17149,7 +17149,7 @@ index 0000000..075d4d0
 +  %126 = lshr i16 %call_tr_9547.i, 8
 +  %rst_tr8_34.i1294.i = trunc nuw i16 %126 to i8
 +  store i8 %rst_tr8_34.i1294.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9550.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9550.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9555.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9559.i = or disjoint i64 %alu_9555.i, %alu_9550.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17195,7 +17195,7 @@ index 0000000..075d4d0
 +  %136 = lshr i16 %call_tr_9939.i, 8
 +  %rst_tr8_34.i1299.i = trunc nuw i16 %136 to i8
 +  store i8 %rst_tr8_34.i1299.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_9942.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_9942.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_9947.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_9951.i = or disjoint i64 %alu_9947.i, %alu_9942.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17253,7 +17253,7 @@ index 0000000..075d4d0
 +  %151 = lshr i16 %call_tr_10921.i, 8
 +  %rst_tr8_34.i1304.i = trunc nuw i16 %151 to i8
 +  store i8 %rst_tr8_34.i1304.i, ptr %rld_gep_21.i1260.i, align 1
-+  %alu_10924.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_10924.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_10929.i = shl nuw nsw i64 %alu_5841.i, 56
 +  %alu_10933.i = or disjoint i64 %alu_10929.i, %alu_10924.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
@@ -17263,11 +17263,11 @@ index 0000000..075d4d0
 +  br i1 %cmp_eq_10973.i, label %ite_then_10975.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_then_10975.i:                                 ; preds = %ite_else_5797.i
-+  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1869.0, 216172782113783808
++  %cmp_lt_10988.i = icmp samesign ult i64 %slot_v1870.0, 216172782113783808
 +  br i1 %cmp_lt_10988.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_10992.i
 +
 +ite_else_10992.i:                                 ; preds = %ite_then_10975.i
-+  %alu_10980.i = lshr i64 %slot_v1869.0, 56
++  %alu_10980.i = lshr i64 %slot_v1870.0, 56
 +  %152 = trunc nuw nsw i64 %alu_10980.i to i32
 +  %call_tr_11013.i = shl nuw nsw i32 %152, 1
 +  %153 = getelementptr i8, ptr %arg_v4, i32 %call_tr_11013.i
@@ -17393,23 +17393,23 @@ index 0000000..075d4d0
 +  %191 = lshr i16 %call_tr_14180.i, 8
 +  %rst_tr8_34.i1336.i = trunc nuw i16 %191 to i8
 +  store i8 %rst_tr8_34.i1336.i, ptr %rld_gep_21.i1309.i, align 1
-+  %alu_14183.i = and i64 %slot_v1869.0, 1125899906842623
++  %alu_14183.i = and i64 %slot_v1870.0, 1125899906842623
 +  %alu_14188.i = shl nuw nsw i64 %alu_11020.i, 56
 +  %alu_14192.i = or disjoint i64 %alu_14188.i, %alu_14183.i
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_37.i:                                    ; preds = %ite_then_9.i
-+  %alu_26.i = lshr i64 %slot_v1869.0, 47
++  %alu_26.i = lshr i64 %slot_v1870.0, 47
 +  %alu_30.i = and i64 %alu_26.i, 7
-+  %alu_14203.i = and i64 %slot_v1869.0, 9222386874436288256
++  %alu_14203.i = and i64 %slot_v1870.0, 9222386874436288256
 +  %alu_14206.i = or disjoint i64 %alu_14203.i, %rld_val_16.i
-+  %alu_14209.i = and i64 %slot_v1869.0, 9222386874436223231
++  %alu_14209.i = and i64 %slot_v1870.0, 9222386874436223231
 +  %alu_14212.i = shl nuw nsw i64 %rld_val_16.i, 8
 +  %alu_14216.i = or disjoint i64 %alu_14212.i, %alu_14209.i
-+  %alu_14219.i = and i64 %slot_v1869.0, 9222386874419576831
++  %alu_14219.i = and i64 %slot_v1870.0, 9222386874419576831
 +  %alu_14222.i = shl nuw nsw i64 %rld_val_16.i, 16
 +  %alu_14226.i = or disjoint i64 %alu_14222.i, %alu_14219.i
-+  %alu_14229.i = and i64 %slot_v1869.0, 9222386870158098431
++  %alu_14229.i = and i64 %slot_v1870.0, 9222386870158098431
 +  %alu_14232.i = shl nuw nsw i64 %rld_val_16.i, 24
 +  %alu_14236.i = or disjoint i64 %alu_14232.i, %alu_14229.i
 +  %cmp_eq_14240.i = icmp eq i64 %alu_30.i, 0
@@ -17428,10 +17428,10 @@ index 0000000..075d4d0
 +  %alu_2.i.i = lshr i64 %alu_14306.i, 50
 +  %alu_6.i.i = and i64 %alu_2.i.i, 63
 +  %alu_11.i.i = and i64 %alu_14236.i, 4294967295
-+  %alu_14.i.i = and i64 %slot_v1869.0, 65535
++  %alu_14.i.i = and i64 %slot_v1870.0, 65535
 +  %alu_19.i.i = lshr i64 %alu_11.i.i, 16
-+  %alu_28.i.i = and i64 %slot_v1869.0, 9151314442816847872
-+  %192 = and i64 %slot_v1869.0, 69805794224242688
++  %alu_28.i.i = and i64 %slot_v1870.0, 9151314442816847872
++  %192 = and i64 %slot_v1870.0, 69805794224242688
 +  %alu_51257.not.i.i = icmp eq i64 %192, 6755399441055744
 +  br i1 %alu_51257.not.i.i, label %ite_then_63.i.i, label %ite_else_64.i.i
 +
@@ -17452,7 +17452,7 @@ index 0000000..075d4d0
 +  br i1 %cmp_eq_183.i.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit, label %ite_else_186.i.i
 +
 +ite_else_186.i.i:                                 ; preds = %ite_then_63.i.i
-+  %alu_191.i.i = and i64 %slot_v1869.0, 4194304
++  %alu_191.i.i = and i64 %slot_v1870.0, 4194304
 +  %cmp_eq_195.i.i = icmp eq i64 %alu_191.i.i, 0
 +  br i1 %cmp_eq_195.i.i, label %ite_then_197.i.i, label %ite_else_198.i.i
 +
@@ -17529,7 +17529,7 @@ index 0000000..075d4d0
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +ite_else_2539.i.i:                                ; preds = %ite_else_64.i.i
-+  %alu_3393.i.i = lshr i64 %slot_v1869.0, 56
++  %alu_3393.i.i = lshr i64 %slot_v1870.0, 56
 +  %alu_3423259.i.i = icmp uge i64 %201, %alu_19.i.i
 +  %cmp_le_3437.not.i.i = icmp samesign ugt i64 %alu_19.i.i, %alu_3393.i.i
 +  %cmp_le_3443.i.i = icmp samesign ugt i64 %alu_11.i.i, 4259839
@@ -17540,7 +17540,7 @@ index 0000000..075d4d0
 +ite_else_3494.i.i:                                ; preds = %ite_else_2539.i.i
 +  %alu_3501.i.i = sub nuw nsw i64 %alu_3393.i.i, %alu_19.i.i
 +  %call_tr_3518.i.i = trunc nuw nsw i64 %alu_3501.i.i to i32
-+  %206 = and i64 %slot_v1869.0, 65534
++  %206 = and i64 %slot_v1870.0, 65534
 +  %cmp_le_484.i.i.i = icmp ne i64 %206, 0
 +  br label %loop_hdr_3507.i.i
 +
@@ -17705,12 +17705,12 @@ index 0000000..075d4d0
 +  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_msStep.exit: ; preds = %loop_body_45, %ite_then_46.i, %ite_then_322.i, %ite_then_598.i, %ite_then_873.i, %ite_then_1148.i, %ite_then_1423.i, %ite_then_1723.i, %ite_then_2107.i, %ite_then_2156.i, %ite_then_2508.i, %ite_else_2808.i, %ite_then_2824.i, %ite_else_3143.i, %ite_then_3159.i, %ite_else_3459.i, %ite_then_3475.i, %ite_else_3775.i, %ite_then_3820.i, %ite_else_4120.i, %ite_else_3821.i, %ite_else_4426.i, %ite_then_4442.i, %ite_else_4742.i, %ite_then_4758.i, %ite_else_5077.i, %ite_then_5093.i, %ite_else_5393.i, %ite_else_5094.i, %ite_else_5736.i, %ite_then_5796.i, %ite_then_7080.i, %ite_else_7097.i, %ite_else_7795.i, %ite_then_7824.i, %ite_else_8305.i, %ite_then_8334.i, %ite_else_8699.i, %ite_then_8728.i, %ite_else_9148.i, %ite_then_9177.i, %ite_else_9540.i, %ite_then_9569.i, %ite_else_9932.i, %ite_then_9961.i, %ite_else_9972.i, %ite_else_10914.i, %ite_else_5797.i, %ite_then_10975.i, %ite_else_10992.i, %ite_else_11921.i, %ite_else_14173.i, %ite_else_37.i, %ite_then_63.i.i, %ite_then_245.i.i, %ite_else_246.i.i, %ite_then_1397.i.i, %ite_else_1398.i.i, %ite_then_2548.i.i, %ite_else_2703.i.i, %ite_else_2549.i.i, %ite_else_3123.i.i, %ite_else_2539.i.i, %loop_exit_3510.i.i, %ite_else_3948.i.i
-+  %common.ret.op.i = phi i64 [ %call_313.i, %ite_then_46.i ], [ %call_589.i, %ite_then_322.i ], [ %call_864.i, %ite_then_598.i ], [ %call_1139.i, %ite_then_873.i ], [ %call_1414.i, %ite_then_1148.i ], [ %call_1689.i, %ite_then_1423.i ], [ %call_1990.i, %ite_then_1723.i ], [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1869.0, %ite_else_2808.i ], [ %slot_v1869.0, %ite_else_3143.i ], [ %slot_v1869.0, %ite_else_3459.i ], [ %slot_v1869.0, %ite_else_3775.i ], [ %slot_v1869.0, %ite_else_4120.i ], [ %slot_v1869.0, %ite_else_4426.i ], [ %slot_v1869.0, %ite_else_4742.i ], [ %slot_v1869.0, %ite_else_5077.i ], [ %slot_v1869.0, %ite_else_5393.i ], [ %slot_v1869.0, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_then_10975.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1869.0, %loop_body_45 ], [ %call_798.i.i, %ite_then_245.i.i ], [ %call_1350.i.i, %ite_else_246.i.i ], [ %call_1950.i.i, %ite_then_1397.i.i ], [ %call_2502.i.i, %ite_else_1398.i.i ], [ %call_2969.i.i, %ite_else_2703.i.i ], [ %call_3389.i.i, %ite_else_3123.i.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ]
++  %common.ret.op.i = phi i64 [ %call_313.i, %ite_then_46.i ], [ %call_589.i, %ite_then_322.i ], [ %call_864.i, %ite_then_598.i ], [ %call_1139.i, %ite_then_873.i ], [ %call_1414.i, %ite_then_1148.i ], [ %call_1689.i, %ite_then_1423.i ], [ %call_1990.i, %ite_then_1723.i ], [ %alu_2121.i, %ite_then_2107.i ], [ %slot_v1870.0, %ite_else_2808.i ], [ %slot_v1870.0, %ite_else_3143.i ], [ %slot_v1870.0, %ite_else_3459.i ], [ %slot_v1870.0, %ite_else_3775.i ], [ %slot_v1870.0, %ite_else_4120.i ], [ %slot_v1870.0, %ite_else_4426.i ], [ %slot_v1870.0, %ite_else_4742.i ], [ %slot_v1870.0, %ite_else_5077.i ], [ %slot_v1870.0, %ite_else_5393.i ], [ %slot_v1870.0, %ite_else_5736.i ], [ %alu_7814.i, %ite_else_7795.i ], [ %alu_8324.i, %ite_else_8305.i ], [ %alu_8718.i, %ite_else_8699.i ], [ %alu_9167.i, %ite_else_9148.i ], [ %alu_9559.i, %ite_else_9540.i ], [ %alu_9951.i, %ite_else_9932.i ], [ %alu_10933.i, %ite_else_10914.i ], [ %alu_14192.i, %ite_else_14173.i ], [ -9223372036854775808, %ite_then_2156.i ], [ -9223372036854775808, %ite_then_2508.i ], [ -9223372036854775808, %ite_then_2824.i ], [ -9223372036854775808, %ite_then_3159.i ], [ -9223372036854775808, %ite_then_3475.i ], [ -9223372036854775808, %ite_then_3820.i ], [ -9223372036854775808, %ite_else_3821.i ], [ -9223372036854775808, %ite_then_4442.i ], [ -9223372036854775808, %ite_then_4758.i ], [ -9223372036854775808, %ite_then_5093.i ], [ -9223372036854775808, %ite_else_5094.i ], [ -9223372036854775808, %ite_then_5796.i ], [ -9223372036854775808, %ite_then_7080.i ], [ -9223372036854775808, %ite_else_7097.i ], [ -9223372036854775808, %ite_then_7824.i ], [ -9223372036854775808, %ite_then_8334.i ], [ -9223372036854775808, %ite_then_8728.i ], [ -9223372036854775808, %ite_then_9177.i ], [ -9223372036854775808, %ite_then_9569.i ], [ -9223372036854775808, %ite_then_9961.i ], [ -9223372036854775808, %ite_else_9972.i ], [ -9223372036854775808, %ite_then_10975.i ], [ -9223372036854775808, %ite_else_10992.i ], [ -9223372036854775808, %ite_else_11921.i ], [ -9223372036854775808, %ite_else_5797.i ], [ %alu_14306.i, %ite_else_37.i ], [ %slot_v1870.0, %loop_body_45 ], [ %call_798.i.i, %ite_then_245.i.i ], [ %call_1350.i.i, %ite_else_246.i.i ], [ %call_1950.i.i, %ite_then_1397.i.i ], [ %call_2502.i.i, %ite_else_1398.i.i ], [ %call_2969.i.i, %ite_else_2703.i.i ], [ %call_3389.i.i, %ite_else_3123.i.i ], [ %alu_3969.i.i, %ite_else_3948.i.i ], [ -9223372036854775808, %ite_then_63.i.i ], [ -9223372036854775808, %ite_then_2548.i.i ], [ -9223372036854775808, %ite_else_2549.i.i ], [ -9223372036854775808, %ite_else_2539.i.i ], [ -9223372036854775808, %loop_exit_3510.i.i ]
 +  %loop_next_49 = add nuw nsw i64 %loop_idx_48, 1
 +  br label %loop_hdr_44
 +
 +loop_exit_47:                                     ; preds = %loop_hdr_44
-+  %229 = and i64 %slot_v1869.0, -1125899906842624
++  %229 = and i64 %slot_v1870.0, -1125899906842624
 +  %alu_12622.not = icmp eq i64 %229, 72057594037927936
 +  br i1 %alu_12622.not, label %ite_else_147, label %common.ret
 +
@@ -18021,8 +18021,8 @@ index 0000000..075d4d0
 +  %cmp_eq_393 = icmp samesign ult i64 %alu_277, 67108864
 +  %call_zx_397 = zext i32 %call_396 to i64
 +  %alu_406 = select i1 %cmp_eq_393, i64 4294967295, i64 0
-+  %alu_41792 = xor i64 %alu_406, -1
-+  %alu_423 = and i64 %call_zx_397, %alu_41792
++  %alu_41793 = xor i64 %alu_406, -1
++  %alu_423 = and i64 %call_zx_397, %alu_41793
 +  %1 = xor i32 %call_428, 8
 +  %alu_443 = zext i32 %1 to i64
 +  %alu_449 = and i64 %alu_406, %alu_443
@@ -18030,7 +18030,7 @@ index 0000000..075d4d0
 +  %alu_462 = add nuw nsw i64 %alu_455, %alu_423
 +  %cmp_eq_469.not = icmp ne i8 %arg_v3, 0
 +  %cmp_eq_485.not = icmp ne i64 %arg_ext_v0.i, 0
-+  %alu_50693 = or i1 %cmp_eq_469.not, %cmp_eq_485.not
++  %alu_50694 = or i1 %cmp_eq_469.not, %cmp_eq_485.not
 +  %call_tr_518 = trunc i64 %alu_196 to i32
 +  %cmp_eq_161.i = icmp eq i32 %call_tr_518, 0
 +  %alu_163.i = lshr i64 %slot_v46.0.i, 32
@@ -18041,7 +18041,7 @@ index 0000000..075d4d0
 +  %alu_534 = xor i64 %alu_190.i, 8
 +  %alu_540 = and i64 %alu_534, %alu_529
 +  %alu_546 = xor i64 %alu_540, %alu_190.i
-+  %sel_551 = zext i1 %alu_50693 to i64
++  %sel_551 = zext i1 %alu_50694 to i64
 +  %cmp_eq_557 = icmp ne i32 %arg_v2, 0
 +  %sel_570 = zext i1 %cmp_eq_557 to i64
 +  %alu_575 = add nuw nsw i64 %alu_462, %sel_551
@@ -18058,7 +18058,7 @@ index 0000000..075d4d0
 +  %call_tr_622 = trunc i64 %alu_462 to i32
 +  %call_tr_626 = trunc nuw i64 %alu_455 to i32
 +  tail call fastcc void @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec(ptr %arg_v4, i32 %call_tr_622, i32 %call_tr_427, i32 %call_tr_626)
-+  br i1 %alu_50693, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
++  br i1 %alu_50694, label %ite_then_1.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
 +
 +ite_then_1.i:                                     ; preds = %ite_else_603
 +  %rst_gep_7.i = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_622
@@ -18067,45 +18067,45 @@ index 0000000..075d4d0
 +
 +l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit: ; preds = %ite_else_603, %ite_then_1.i
 +  %alu_639 = sub nsw i64 8, %alu_546
-+  %alu_66094 = xor i64 %alu_529, 4294967295
-+  %alu_666 = and i64 %alu_639, %alu_66094
++  %alu_66095 = xor i64 %alu_529, 4294967295
++  %alu_666 = and i64 %alu_639, %alu_66095
 +  br label %loop_hdr_673
 +
 +loop_hdr_673:                                     ; preds = %loop_body_674, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit
-+  %slot_v15205.0 = phi i64 [ %arg_ext_v0.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %alu_689, %loop_body_674 ]
++  %slot_v15193.0 = phi i64 [ %arg_ext_v0.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %alu_689, %loop_body_674 ]
 +  %loop_idx_677 = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit ], [ %loop_next_678, %loop_body_674 ]
 +  %loop_cmp_679 = icmp samesign ult i64 %loop_idx_677, %alu_666
 +  br i1 %loop_cmp_679, label %loop_body_674, label %loop_exit_676
 +
 +loop_body_674:                                    ; preds = %loop_hdr_673
-+  %alu_686 = mul nuw i64 %slot_v15205.0, 3435973837
++  %alu_686 = mul nuw i64 %slot_v15193.0, 3435973837
 +  %alu_689 = lshr i64 %alu_686, 35
 +  %loop_next_678 = add nuw nsw i64 %loop_idx_677, 1
 +  br label %loop_hdr_673
 +
 +loop_exit_676:                                    ; preds = %loop_hdr_673
-+  %alu_714 = select i1 %alu_50693, i64 %alu_546, i64 0
++  %alu_714 = select i1 %alu_50694, i64 %alu_546, i64 0
 +  %alu_727 = add nuw nsw i64 %alu_462, 1
 +  %alu_733 = add nuw nsw i64 %alu_727, %alu_714
 +  %call_tr_737 = trunc i64 %alu_733 to i32
-+  %call_tr_739 = trunc nuw i64 %slot_v15205.0 to i32
++  %call_tr_739 = trunc nuw i64 %slot_v15193.0 to i32
 +  %call_tr_741 = trunc nuw i64 %alu_714 to i32
 +  tail call fastcc void @l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_emitDec(ptr %arg_v4, i32 %call_tr_737, i32 %call_tr_739, i32 %call_tr_741)
-+  br i1 %cmp_eq_557, label %ite_then_1.i96, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit98
++  br i1 %cmp_eq_557, label %ite_then_1.i97, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit99
 +
-+ite_then_1.i96:                                   ; preds = %loop_exit_676
++ite_then_1.i97:                                   ; preds = %loop_exit_676
 +  %call_tr_747 = trunc i64 %alu_581 to i32
-+  %rst_gep_7.i97 = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_747
-+  store i8 32, ptr %rst_gep_7.i97, align 1
-+  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit98
++  %rst_gep_7.i98 = getelementptr inbounds nuw i8, ptr %arg_v4, i32 %call_tr_747
++  store i8 32, ptr %rst_gep_7.i98, align 1
++  br label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit99
 +
-+l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit98: ; preds = %loop_exit_676, %ite_then_1.i96
++l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit99: ; preds = %loop_exit_676, %ite_then_1.i97
 +  %arg_ext_v1.i = zext nneg i32 %arg_v2 to i64
 +  %2 = getelementptr i8, ptr %arg_v4, i32 %alu_587.tr
 +  br label %loop_hdr_4.i
 +
-+loop_hdr_4.i:                                     ; preds = %loop_body_5.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit98
-+  %loop_idx_8.i = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit98 ], [ %loop_next_9.i, %loop_body_5.i ]
++loop_hdr_4.i:                                     ; preds = %loop_body_5.i, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit99
++  %loop_idx_8.i = phi i64 [ 0, %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_maybeWriteByte.exit99 ], [ %loop_next_9.i, %loop_body_5.i ]
 +  %loop_cmp_10.i = icmp samesign ult i64 %loop_idx_8.i, %arg_ext_v1.i
 +  br i1 %loop_cmp_10.i, label %loop_body_5.i, label %l___private_LeanNativeInput_0__BitcoinLedger_FreestandingKernels_copyTicker.exit
 +
