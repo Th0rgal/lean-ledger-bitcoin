@@ -187,6 +187,26 @@ def Bip32ExportPath : Prop :=
     llbBip32CheckExportPath path pathLen coinType = true ↔
       pathLen.toNat ≤ 10 ∧ ExportPath coinType.toNat (words path pathLen.toNat)
 
+/-! ## Merkle descent -/
+
+/-- The split point of a tree of `s ≥ 2` leaves is the power of two `m` with `m < s ≤ 2 * m`
+    (RFC 6962). -/
+def MerkleSplit : Prop :=
+  ∀ (s : UInt32) (e : Nat), 2 ^ e < s.toNat → s.toNat ≤ 2 * 2 ^ e →
+    (largestPow2LtU32 s).toNat = 2 ^ e
+
+/-- One step of the descent toward leaf `index` in a tree of `size` leaves, the state being
+    `size * 2 ^ 32 + index`. A tree of at most one leaf does not move. Otherwise, with `m`
+    the split point: the left subtree `(m, index)` when `index < m`, else the right subtree
+    `(size - m, index - m)`. -/
+def MerkleStep : Prop :=
+  ∀ (st : UInt64) (size index : Nat), st.toNat = size * 2 ^ 32 + index → index < 2 ^ 32 →
+    (size ≤ 1 → llbMerkleAdvanceState st = st) ∧
+    ∀ e, 2 ^ e < size → size ≤ 2 * 2 ^ e →
+      (llbMerkleAdvanceState st).toNat =
+        if index < 2 ^ e then 2 ^ e * 2 ^ 32 + index
+        else (size - 2 ^ e) * 2 ^ 32 + (index - 2 ^ e)
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -195,6 +215,8 @@ def KernelSpec : Prop :=
   CompactSizeCanonical ∧
   DualUtxo ∧
   CompactSizeRead ∧
-  Bip32ExportPath
+  Bip32ExportPath ∧
+  MerkleSplit ∧
+  MerkleStep
 
 end Spec

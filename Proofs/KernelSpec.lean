@@ -7,9 +7,10 @@ import Proofs.FreestandingKernels
 One theorem per statement of `Spec.lean`, then `kernel_meets_spec`, then one accepted and
 one rejected concrete input per statement (so no statement holds for an empty reason).
 
-Only `SplitBtc` reuses earlier work (`Proofs.FreestandingKernels.llbSatsDiv1e8_eq` and
-`llbSatsMod1e8_eq`, which are themselves stated on the kernel functions). Every other proof
-unfolds the kernel function directly.
+Some proofs reuse lemmas of `Proofs/FreestandingKernels.lean` that are themselves stated on
+the kernel functions: `llbSatsDiv1e8_eq` and `llbSatsMod1e8_eq` (`SplitBtc`), `llbBytesEq_iff`
+(`DualUtxo`), `bip32TailClear_iff` (`Bip32ExportPath`) and `largestPow2LtU32_eq`
+(`MerkleSplit`). Every other proof unfolds the kernel function directly.
 -/
 
 namespace Proofs.KernelSpec
@@ -826,11 +827,108 @@ theorem bip32ExportPath : Spec.Bip32ExportPath := by
   rw [exportCore, exportPath_iff, tailClear_nat, tailClear_nat]
   exact Iff.rfl
 
+/-! ### Merkle descent -/
+
+private theorem go_sandwich (n e : Nat) (hlo : 2 ^ e < n) (hhi : n ≤ 2 * 2 ^ e) :
+    ∀ fuel d, d ≤ e → e - d ≤ fuel →
+      InternalSpec.MerkleProtocol.largestPow2LtGo n fuel (2 ^ d) = 2 ^ e := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro d h1 h2
+    have : d = e := by omega
+    subst this; rfl
+  | succ f ih =>
+    intro d h1 h2
+    unfold InternalSpec.MerkleProtocol.largestPow2LtGo
+    by_cases h : 2 ^ d * 2 < n
+    · rw [ite_eq_left h]
+      have hde : d < e := by
+        apply Nat.lt_of_le_of_ne h1
+        intro hd; subst hd; omega
+      rw [← Nat.pow_succ]
+      exact ih (d + 1) hde (by omega)
+    · rw [ite_eq_right h]
+      have hde : d = e := by
+        apply Decidable.byContradiction
+        intro hne
+        have hlt : d + 1 ≤ e := by omega
+        have hp : 2 ^ (d + 1) ≤ 2 ^ e := Nat.pow_le_pow_right (by decide) hlt
+        rw [Nat.pow_succ] at hp
+        omega
+      rw [hde]
+
+theorem merkleSplit : Spec.MerkleSplit := by
+  intro s e hlo hhi
+  have hp : 0 < 2 ^ e := Nat.pow_pos (by decide)
+  rw [Proofs.FreestandingKernels.largestPow2LtU32_eq s (by omega)]
+  unfold InternalSpec.MerkleProtocol.largestPow2Lt
+  have he : e < 2 ^ e := Nat.lt_two_pow_self
+  exact go_sandwich s.toNat e hlo hhi s.toNat 0 (Nat.zero_le e) (by omega)
+
+private theorem pack_toNat (a b : UInt32) :
+    (packMerkleState a b).toNat = a.toNat * 4294967296 + b.toNat := by
+  have ha := a.toNat_lt; have hb := b.toNat_lt
+  unfold packMerkleState
+  rw [UInt64.toNat_add, UInt64.toNat_shiftLeft, UInt32.toNat_toUInt64, UInt32.toNat_toUInt64]
+  have e : (32 : UInt64).toNat % 64 = 32 := rfl
+  rw [e, Nat.shiftLeft_eq]
+  have e2 : (2 : Nat) ^ 32 = 4294967296 := rfl
+  have e3 : (2 : Nat) ^ 64 = 18446744073709551616 := rfl
+  rw [e2, e3]
+  omega
+
+theorem merkleStep : Spec.MerkleStep := by
+  intro st size index hst hidx
+  have e32 : (2 : Nat) ^ 32 = 4294967296 := rfl
+  rw [e32] at hst hidx
+  have hlt : st.toNat < 18446744073709551616 := st.toNat_lt
+  have hS : ((st >>> 32).toUInt32).toNat = size := by
+    rw [UInt64.toNat_toUInt32, UInt64.toNat_shiftRight]
+    have e : (32 : UInt64).toNat % 64 = 32 := rfl
+    rw [e, Nat.shiftRight_eq_div_pow, e32]
+    omega
+  have hI : st.toUInt32.toNat = index := by
+    rw [UInt64.toNat_toUInt32, e32]; omega
+  unfold llbMerkleAdvanceState
+  simp only []
+  generalize (st >>> 32).toUInt32 = S at hS ⊢
+  generalize st.toUInt32 = I at hI ⊢
+  constructor
+  · intro h1
+    have : S ≤ 1 := UInt32.le_iff_toNat_le.mpr (by rw [hS]; exact h1)
+    rw [decide_eq_true this]; rfl
+  · intro e hlo hhi
+    have hp : 0 < 2 ^ e := Nat.pow_pos (by decide)
+    have hm := merkleSplit S e (by rw [hS]; exact hlo) (by rw [hS]; exact hhi)
+    generalize 2 ^ e = m at hlo hhi hp hm ⊢
+    have hn1 : ¬ S ≤ 1 := fun h => by
+      have := UInt32.le_iff_toNat_le.mp h
+      rw [hS] at this
+      have e1 : (1 : UInt32).toNat = 1 := rfl
+      omega
+    rw [decide_eq_false hn1, e32]
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    by_cases hc : index < m
+    · have : I < largestPow2LtU32 S := UInt32.lt_iff_toNat_lt.mpr (by rw [hI, hm]; exact hc)
+      rw [decide_eq_true this, ite_eq_left hc]
+      simp only [↓reduceIte]
+      rw [pack_toNat, hm, hI]
+    · have hnl : ¬ I < largestPow2LtU32 S := fun h => by
+        have := UInt32.lt_iff_toNat_lt.mp h
+        rw [hI, hm] at this
+        exact hc this
+      rw [decide_eq_false hnl, ite_eq_right hc]
+      simp only [Bool.false_eq_true, ↓reduceIte]
+      have l1 : largestPow2LtU32 S ≤ S := UInt32.le_iff_toNat_le.mpr (by rw [hS, hm]; omega)
+      have l2 : largestPow2LtU32 S ≤ I := UInt32.le_iff_toNat_le.mpr (by rw [hI, hm]; omega)
+      rw [pack_toNat, UInt32.toNat_sub_of_le _ _ l1, UInt32.toNat_sub_of_le _ _ l2, hm, hS, hI]
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
-   compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath⟩
+   compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath, merkleSplit, merkleStep⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -913,5 +1011,16 @@ theorem witness_bip32ExportPath :
     llbBip32CheckExportPath (constU32s [0x80000030, 0x80000000, 0x80000000, 0x80000003]) 4 0 = false ∧
     llbBip32CheckExportPath (constU32s [0x80000000, 0x80000000, 0x80000000]) 3 0 = false := by
   decide
+
+theorem witness_merkleSplit :
+    largestPow2LtU32 2 = 1 ∧ largestPow2LtU32 5 = 4 ∧ largestPow2LtU32 8 = 4 ∧
+    largestPow2LtU32 9 = 8 ∧ largestPow2LtU32 4294967295 = 2147483648 := by decide
+
+/-- In a tree of 5 leaves, leaf 3 is in the left subtree of 4 and leaf 4 is the right
+    subtree of 1. A tree of one leaf does not move. -/
+theorem witness_merkleStep :
+    llbMerkleAdvanceState (5 * 4294967296 + 3) = 4 * 4294967296 + 3 ∧
+    llbMerkleAdvanceState (5 * 4294967296 + 4) = 1 * 4294967296 + 0 ∧
+    llbMerkleAdvanceState (1 * 4294967296 + 0) = 1 * 4294967296 + 0 := by decide
 
 end Proofs.KernelSpec

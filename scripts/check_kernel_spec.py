@@ -32,7 +32,6 @@ PENDING = {
     "llb_version_packed": "constant",
     "llb_bip32_pubkey_export_prefix_ok": MODEL,
     "llb_bech32_final_constant": "constant table",
-    "llb_merkle_advance_state": MODEL,
     "llb_wallet_name_char_ok": "restates its implementation; needs an independent statement",
     "llb_miniscript_older_ok": MODEL,
     "llb_miniscript_after_ok": MODEL,

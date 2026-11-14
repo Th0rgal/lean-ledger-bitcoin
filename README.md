@@ -12,12 +12,12 @@ The apps stay C and Rust. Parsing, cryptography, display and transport are not L
 
 | File | What it is |
 | --- | --- |
-| [`Spec.lean`](Spec.lean) | What the compiled kernel guarantees: 14 statements, each "accepts exactly when" or an equality, written with natural numbers. Statements only. |
+| [`Spec.lean`](Spec.lean) | What the compiled kernel guarantees: 16 statements, each "accepts exactly when" or an equality, written with natural numbers. Statements only. |
 | [`BitcoinLedger/FreestandingKernels.lean`](BitcoinLedger/FreestandingKernels.lean) | The kernel: the only Lean code that runs on the device. 31 exported functions, each called by at least one app, no imports. |
 | [`Proofs/KernelSpec.lean`](Proofs/KernelSpec.lean) | The proof of every statement of `Spec.lean` (`kernel_meets_spec`), with one accepted and one rejected input for each. |
 | [`scripts/check_kernel_spec.py`](scripts/check_kernel_spec.py) | Which exports have a statement, which do not and why. It fails if an export is called by neither app. |
 
-`Spec.lean` currently covers 17 of the 31 exports. The other 14 are listed in
+`Spec.lean` currently covers 18 of the 31 exports. The other 13 are listed in
 `scripts/check_kernel_spec.py` with the reason. The main gaps:
 
 - **Most buffer functions have no statement yet.** The kernel has an explicit memory model: a
@@ -27,8 +27,8 @@ The apps stay C and Rust. Parsing, cryptography, display and transport are not L
   mutable buffer linearly; that check is trusted, not proved. The dual-UTXO check, the
   CompactSize reader and the BIP-32 export path check have a statement. The statements
   about the Miniscript checker, both sorts and the amount formatter are not written yet.
-- **Statements still phrased against the app model.** The locktime state machine, the
-  Merkle direction stepper and a few classifiers are proved equal to definitions in
+- **Statements still phrased against the app model.** The locktime state machine and a
+  few classifiers are proved equal to definitions in
   `InternalSpec/` (see `Proofs/FreestandingKernels.lean`) and have not been restated here.
 - **Trusted, not proved:** `turbo-lean`'s extraction to LLVM IR, clang and lld, and the C
   and Rust call sites. They are checked by differential tests only.
