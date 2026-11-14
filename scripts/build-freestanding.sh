@@ -22,7 +22,8 @@
 #     bytes (default 1024), well within the 12 KB Nano X main stack.
 #
 # Environment overrides:
-#   LEAN_NATIVE       path to the lean-native driver
+#   LEAN_NATIVE       path to the lean-native driver, built from turbo-lean branch
+#                     feat/freestanding-linear-buffers (the kernel's buffer model needs it)
 #                     (default: hub cache turbo-lean/lean/.lake/build/bin/lean-native)
 #   LLB_KERNEL        kernel .lean module (default: BitcoinLedger/FreestandingKernels.lean)
 #   LLB_STACK_BUDGET  per-kernel-function worst-case frame budget in bytes (default: 1024)

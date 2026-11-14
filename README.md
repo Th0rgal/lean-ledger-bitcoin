@@ -20,10 +20,13 @@ The apps stay C and Rust. Parsing, cryptography, display and transport are not L
 `Spec.lean` currently covers 14 of the 31 exports. The other 17 are listed in
 `scripts/check_kernel_spec.py` with the reason. The main gaps:
 
-- **No memory model.** Functions that read or write a buffer (the Miniscript checker, both
-  sorts, the amount formatter, the dual-UTXO check, the CompactSize reader) have no
-  statement: in Lean their reads are placeholders and their writes are discarded, and
-  `turbo-lean` substitutes real loads and stores when compiling.
+- **Buffer functions have no statement yet.** The kernel has an explicit memory model: a
+  buffer is a value, a write returns the updated buffer, and every function that writes
+  returns the buffer it wrote. `turbo-lean` (branch `feat/freestanding-linear-buffers`)
+  compiles that model to loads and stores and refuses a function that does not use its
+  mutable buffer linearly; that check is trusted, not proved. The statements about the
+  Miniscript checker, both sorts, the amount formatter, the dual-UTXO check and the
+  CompactSize reader are not written yet.
 - **Statements still phrased against the app model.** The locktime state machine, the
   Merkle direction stepper and a few classifiers are proved equal to definitions in
   `InternalSpec/` (see `Proofs/FreestandingKernels.lean`) and have not been restated here.
@@ -51,6 +54,6 @@ lake build Tests.AxiomAudit            # only propext and Quot.sound are allowed
 
 - Patches: [`ffi/bolos/patches/`](ffi/bolos/patches/) and [`ffi/vanadium/patches/`](ffi/vanadium/patches/).
   The BOLOS patch embeds the generated LLVM IR; about 1,150 of its lines are hand-written.
-- Kernel build: [`scripts/build-freestanding.sh`](scripts/build-freestanding.sh) (needs `turbo-lean`'s `lean-native` and clang).
+- Kernel build: [`scripts/build-freestanding.sh`](scripts/build-freestanding.sh) (needs clang and `lean-native` from `turbo-lean`, branch `feat/freestanding-linear-buffers`).
 - Measurements: the JSON files in [`benchmarks/`](benchmarks/). Files named `*.experimental.json` are marked `experimental_nonvalidated`.
 - Upstream findings: [`docs/spec-cards/vanadium-upstream-bugs.md`](docs/spec-cards/vanadium-upstream-bugs.md).

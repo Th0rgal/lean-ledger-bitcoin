@@ -27,7 +27,7 @@ VND_LIB = ROOT / "ffi" / "vanadium" / "src" / "lib.rs"
 
 # Exports without a statement in Spec.lean yet, and why.
 MODEL = "proved equal to a definition of the app model (Proofs/FreestandingKernels.lean), not yet restated in Spec.lean"
-BUFFER = "reads or writes a buffer; the kernel has no memory model yet, so no statement about it can be written"
+BUFFER = "reads or writes a buffer; its statement over the buffer model is not written yet"
 PENDING = {
     "llb_version_packed": "constant",
     "llb_bip32_pubkey_export_prefix_ok": MODEL,
