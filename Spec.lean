@@ -157,6 +157,36 @@ def CompactSizeRead : Prop :=
     ((¬ ∃ v : Nat, v ≤ maxVal.toNat ∧ compactSize v <+: bytes buf bufLen.toNat) →
       (llbReadCompactSizeChecked buf bufLen maxVal).toNat = 0)
 
+/-! ## BIP-32 export path -/
+
+/-- The first `len` words of a read-only buffer of 32-bit words. -/
+def words (b : ConstU32s) (len : Nat) : List Nat :=
+  (List.range len).map fun i => (b.get (UInt32.ofNat i)).toNat
+
+/-- The hardened derivation step `n'`. -/
+def hardened (n : Nat) : Nat := 2147483648 + n
+
+/-- The paths whose public key may be exported without confirmation, for coin type `coin`
+    (`0` mainnet, `1` testnet):
+    * `m/4541509'/1112098098'` (used by Electrum to derive encryption keys);
+    * `m/purpose'/coin'/account'/...` with purpose 44, 49, 84, 86, 87 or 45;
+    * `m/48'/coin'/account'/scriptType'/...` with script type 1 or 2 (BIP-48);
+    where `account ≤ 100` and no step after the listed ones is hardened. -/
+def ExportPath (coin : Nat) (p : List Nat) : Prop :=
+  p = [hardened 4541509, hardened 1112098098] ∨
+  (∃ purpose account tail,
+    p = hardened purpose :: hardened coin :: hardened account :: tail ∧
+    purpose ∈ [44, 49, 84, 86, 87, 45] ∧ account ≤ 100 ∧ ∀ x ∈ tail, x < 2147483648) ∨
+  (∃ account scriptType tail,
+    p = hardened 48 :: hardened coin :: hardened account :: hardened scriptType :: tail ∧
+    account ≤ 100 ∧ (scriptType = 1 ∨ scriptType = 2) ∧ ∀ x ∈ tail, x < 2147483648)
+
+/-- A path is accepted exactly when it has at most 10 steps and is one of `ExportPath`. -/
+def Bip32ExportPath : Prop :=
+  ∀ (path : ConstU32s) (pathLen : UInt8) (coinType : UInt32),
+    llbBip32CheckExportPath path pathLen coinType = true ↔
+      pathLen.toNat ≤ 10 ∧ ExportPath coinType.toNat (words path pathLen.toNat)
+
 /-- Everything this file states. `Proofs.KernelSpec.kernel_meets_spec` proves it. -/
 def KernelSpec : Prop :=
   ValidAmount ∧ CheckedAdd ∧ CheckedSub ∧ SplitBtc ∧
@@ -164,6 +194,7 @@ def KernelSpec : Prop :=
   SegwitProgram ∧ WitnessOpcode ∧ SighashType ∧ TaprootSighashType ∧
   CompactSizeCanonical ∧
   DualUtxo ∧
-  CompactSizeRead
+  CompactSizeRead ∧
+  Bip32ExportPath
 
 end Spec

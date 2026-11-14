@@ -21,6 +21,17 @@ open BitcoinLedger.FreestandingKernels
 local macro "omega_split" : tactic =>
   `(tactic| ((repeat' (first | apply Iff.intro | apply And.intro | intro _)) <;> omega))
 
+/-- `omega`, after rewriting negated conjunctions (which `omega` handles with
+    `Classical.choice`) into disjunctions. -/
+local macro "omega_nc" : tactic =>
+  `(tactic| ((repeat' (first | apply Iff.intro | apply And.intro | intro _)) <;>
+     first
+       | contradiction
+       | trivial
+       | (apply Decidable.byContradiction; intro _;
+          (try simp only [not_or, Decidable.not_and_iff_not_or_not, Nat.not_lt, Nat.not_le] at *);
+          omega)))
+
 private theorem forall_byte {p : UInt8 → Bool}
     (h : (List.range 256).all (fun k => p (UInt8.ofNat k)) = true) :
     ∀ b : UInt8, p b = true := by
@@ -564,11 +575,262 @@ private theorem csB (buf : ConstBytes) (bufLen maxVal : UInt32) :
 theorem compactSizeRead : Spec.CompactSizeRead :=
   fun buf bufLen maxVal => ⟨csA buf bufLen maxVal, csB buf bufLen maxVal⟩
 
+/-! ### BIP-32 export path -/
+
+private theorem isH (p : UInt32) : llbBip32IsHardened p = decide (2147483648 ≤ p.toNat) :=
+  Bool.eq_iff_iff.mpr (by rw [decide_eq_true_eq]; exact (hardenedBit p).1)
+
+private theorem unH (p : UInt32) : (llbBip32Unharden p).toNat = p.toNat % 2147483648 :=
+  (hardenedBit p).2
+
+private theorem prefixOk_iff (p0 p1 p2 p3 : UInt32) (len : UInt8) (coin : UInt32) (tail : Bool) :
+    llbBip32PubkeyExportPrefixOk p0 p1 p2 p3 len coin tail = true ↔
+      (len.toNat = 2 ∧ p0.toNat = 2147483648 + 4541509 ∧ p1.toNat = 2147483648 + 1112098098) ∨
+      (3 ≤ len.toNat ∧ tail = true ∧ p1.toNat = 2147483648 + coin.toNat ∧
+        2147483648 ≤ p2.toNat ∧ p2.toNat ≤ 2147483648 + 100 ∧
+        ((p0.toNat = 2147483648 + 44 ∨ p0.toNat = 2147483648 + 49 ∨ p0.toNat = 2147483648 + 84 ∨
+          p0.toNat = 2147483648 + 86 ∨ p0.toNat = 2147483648 + 87 ∨ p0.toNat = 2147483648 + 45) ∨
+         (p0.toNat = 2147483648 + 48 ∧ 4 ≤ len.toNat ∧
+           (p3.toNat = 2147483648 + 1 ∨ p3.toNat = 2147483648 + 2)))) := by
+  have h0 := p0.toNat_lt; have h1 := p1.toNat_lt; have h2 := p2.toNat_lt; have h3 := p3.toNat_lt
+  have hc := coin.toNat_lt
+  unfold llbBip32PubkeyExportPrefixOk llbBip32StandardPurposeOk
+  simp only [isH, ← UInt32.toNat_inj, ← UInt8.toNat_inj, UInt32.lt_iff_toNat_lt, UInt8.lt_iff_toNat_lt,
+    UInt8.le_iff_toNat_le, unH]
+  have e2 : (2 : UInt8).toNat = 2 := rfl
+  have e3 : (3 : UInt8).toNat = 3 := rfl
+  have e4 : (4 : UInt8).toNat = 4 := rfl
+  have a1 : (0x80454C45 : UInt32).toNat = 2147483648 + 4541509 := rfl
+  have a2 : (0xC2494532 : UInt32).toNat = 2147483648 + 1112098098 := rfl
+  have n100 : (100 : UInt32).toNat = 100 := rfl
+  have n48 : (48 : UInt32).toNat = 48 := rfl
+  have n44 : (44 : UInt32).toNat = 44 := rfl
+  have n49 : (49 : UInt32).toNat = 49 := rfl
+  have n84 : (84 : UInt32).toNat = 84 := rfl
+  have n86 : (86 : UInt32).toNat = 86 := rfl
+  have n87 : (87 : UInt32).toNat = 87 := rfl
+  have n45 : (45 : UInt32).toNat = 45 := rfl
+  have n1 : (1 : UInt32).toNat = 1 := rfl
+  have n2 : (2 : UInt32).toNat = 2 := rfl
+  simp only [e2, e3, e4, a1, a2, n100, n48, n44, n49, n84, n86, n87, n45, n1, n2]
+  cases tail <;>
+  simp only [Bool.not_true, Bool.not_false, Bool.or_true, Bool.or_false,
+    Bool.false_eq_true, false_and, and_false, or_false, true_and] <;>
+  (repeat' split) <;>
+  (try simp only [Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq, Bool.and_eq_false_iff,
+    decide_eq_false_iff_not, Bool.false_eq_true, not_true_eq_false,
+    Bool.not_eq_true', not_or, Decidable.not_and_iff_not_or_not,
+    Decidable.not_not, Nat.not_lt, Nat.not_le] at *) <;>
+  omega_nc
+
+private theorem exportCore (path : ConstU32s) (len : UInt8) (coin : UInt32) :
+    llbBip32CheckExportPath path len coin = true ↔
+      len.toNat ≤ 10 ∧
+      ((len.toNat = 2 ∧ (path.get 0).toNat = 2147483648 + 4541509 ∧
+          (path.get 1).toNat = 2147483648 + 1112098098) ∨
+       (3 ≤ len.toNat ∧ (path.get 1).toNat = 2147483648 + coin.toNat ∧
+          2147483648 ≤ (path.get 2).toNat ∧ (path.get 2).toNat ≤ 2147483648 + 100 ∧
+          ((((path.get 0).toNat = 2147483648 + 44 ∨ (path.get 0).toNat = 2147483648 + 49 ∨
+              (path.get 0).toNat = 2147483648 + 84 ∨ (path.get 0).toNat = 2147483648 + 86 ∨
+              (path.get 0).toNat = 2147483648 + 87 ∨ (path.get 0).toNat = 2147483648 + 45) ∧
+             bip32TailClear path 3 len.toUInt32 = true) ∨
+           ((path.get 0).toNat = 2147483648 + 48 ∧ 4 ≤ len.toNat ∧
+             ((path.get 3).toNat = 2147483648 + 1 ∨ (path.get 3).toNat = 2147483648 + 2) ∧
+             bip32TailClear path 4 len.toUInt32 = true)))) := by
+  have hg0 := (path.get 0).toNat_lt; have hg1 := (path.get 1).toNat_lt
+  have hg2 := (path.get 2).toNat_lt; have hg3 := (path.get 3).toNat_lt
+  have hc := coin.toNat_lt
+  have hl := len.toNat_lt
+  unfold llbBip32CheckExportPath readU32
+  by_cases hd : len.toNat ≤ 10
+  · have hd' : llbBip32BolosDepthOk len = true := (depthLimits len).1.mpr hd
+    simp only [hd', Bool.not_true, Bool.false_eq_true, ↓reduceIte, UInt32.lt_iff_toNat_lt,
+      UInt32.le_iff_toNat_le, UInt8.toNat_toUInt32, ← UInt32.toNat_inj, unH,
+      show (0 : UInt32).toNat = 0 from rfl, show (1 : UInt32).toNat = 1 from rfl,
+      show (2 : UInt32).toNat = 2 from rfl, show (3 : UInt32).toNat = 3 from rfl,
+      show (48 : UInt32).toNat = 48 from rfl]
+    rw [prefixOk_iff]
+    have z0 : (0 : UInt32).toNat = 0 := rfl
+    by_cases h3 : 3 ≤ len.toNat
+    · have i0 : 0 < len.toNat := by omega
+      have i1 : 1 < len.toNat := by omega
+      have i2 : 2 < len.toNat := by omega
+      simp only [i0, i1, i2, h3, decide_true, ↓reduceIte, Bool.and_true]
+      by_cases h48 : (path.get 0).toNat % 2147483648 = 48
+      · simp only [h48, decide_true, ↓reduceIte]
+        generalize bip32TailClear path 3 len.toUInt32 = t3
+        generalize bip32TailClear path 4 len.toUInt32 = t4
+        by_cases h4 : 3 < len.toNat
+        · simp only [h4, decide_true, ↓reduceIte]
+          cases t3 <;> cases t4 <;>
+            simp only [Bool.false_eq_true, and_false, false_and, or_false, false_or, and_true, true_and] <;>
+            omega_nc
+        · simp only [h4, decide_false, Bool.false_eq_true, ↓reduceIte, z0]
+          cases t3 <;> cases t4 <;>
+            simp only [Bool.false_eq_true, and_false, false_and, or_false, false_or, and_true, true_and] <;>
+            omega_nc
+      · simp only [h48, decide_false, Bool.false_eq_true, ↓reduceIte]
+        generalize bip32TailClear path 3 len.toUInt32 = t3
+        generalize bip32TailClear path 4 len.toUInt32 = t4
+        generalize (if decide (3 < len.toNat) = true then path.get 3 else 0) = q3
+        cases t3 <;> cases t4 <;>
+          simp only [Bool.false_eq_true, and_false, false_and, or_false, false_or, and_true, true_and] <;>
+          omega_nc
+    · generalize bip32TailClear path _ len.toUInt32 = t
+      generalize bip32TailClear path 3 len.toUInt32 = t3
+      generalize bip32TailClear path 4 len.toUInt32 = t4
+      generalize (if decide (3 < len.toNat) = true then path.get 3 else 0) = q3
+      have i2 : ¬ 2 < len.toNat := by omega
+      simp only [i2, decide_false, Bool.false_eq_true, ↓reduceIte]
+      by_cases h2 : len.toNat = 2
+      · have i0 : 0 < len.toNat := by omega
+        have i1 : 1 < len.toNat := by omega
+        simp only [i0, i1, decide_true, ↓reduceIte]
+        omega_nc
+      · omega_nc
+  · have hd' : llbBip32BolosDepthOk len = false := by
+      cases h : llbBip32BolosDepthOk len
+      · rfl
+      · exact absurd ((depthLimits len).1.mp h) hd
+    simp only [hd', Bool.not_false, ↓reduceIte, Bool.false_eq_true, false_iff]
+    intro h; exact hd h.1
+
+private theorem words_length (b : ConstU32s) (n : Nat) : (Spec.words b n).length = n := by
+  unfold Spec.words; rw [List.length_map, List.length_range]
+
+private theorem words_succ3 (b : ConstU32s) (k : Nat) :
+    Spec.words b (k + 3) = (b.get 0).toNat :: (b.get 1).toNat :: (b.get 2).toNat ::
+      (List.range' 3 k).map (fun i => (b.get (UInt32.ofNat i)).toNat) := by
+  unfold Spec.words; rw [List.range_eq_range']; rfl
+
+private theorem words_succ4 (b : ConstU32s) (k : Nat) :
+    Spec.words b (k + 4) = (b.get 0).toNat :: (b.get 1).toNat :: (b.get 2).toNat ::
+      (b.get 3).toNat :: (List.range' 4 k).map (fun i => (b.get (UInt32.ofNat i)).toNat) := by
+  unfold Spec.words; rw [List.range_eq_range']; rfl
+
+private theorem tail_iff (f : Nat → Nat) (s k N : Nat) :
+    (∀ x ∈ (List.range' s k).map f, x < N) ↔ ∀ j, s ≤ j → j < k + s → f j < N := by
+  constructor
+  · intro h j h1 h2
+    exact h _ (List.mem_map.mpr ⟨j, List.mem_range'_1.mpr ⟨h1, by omega⟩, rfl⟩)
+  · intro h x hx
+    obtain ⟨j, hj, rfl⟩ := List.mem_map.mp hx
+    have hh := List.mem_range'_1.mp hj
+    exact h j hh.1 (by omega)
+
+private theorem tailClear_nat (path : ConstU32s) (lo : UInt32) (len : UInt8) :
+    bip32TailClear path lo len.toUInt32 = true ↔
+      ∀ j, lo.toNat ≤ j → j < len.toNat → (path.get (UInt32.ofNat j)).toNat < 2147483648 := by
+  have hl := len.toNat_lt
+  rw [Proofs.FreestandingKernels.bip32TailClear_iff]
+  constructor
+  · intro h j h1 h2
+    have hj : (UInt32.ofNat j).toNat = j := by
+      rw [UInt32.toNat_ofNat', Nat.mod_eq_of_lt (by omega)]
+    have hh := h (UInt32.ofNat j) (UInt32.le_iff_toNat_le.mpr (by rw [hj]; exact h1))
+      (UInt32.lt_iff_toNat_lt.mpr (by rw [hj, UInt8.toNat_toUInt32]; exact h2))
+    rw [isH] at hh
+    have := of_decide_eq_false hh
+    unfold readU32 at this
+    omega
+  · intro h i h1 h2
+    have hh := h i.toNat (UInt32.le_iff_toNat_le.mp h1)
+      (by have := UInt32.lt_iff_toNat_lt.mp h2; rwa [UInt8.toNat_toUInt32] at this)
+    rw [u32_ofNat_toNat] at hh
+    rw [isH]; unfold readU32
+    exact decide_eq_false (by omega)
+
+private theorem exportPath_iff (path : ConstU32s) (n coin : Nat) :
+    Spec.ExportPath coin (Spec.words path n) ↔
+      ((n = 2 ∧ (path.get 0).toNat = 2147483648 + 4541509 ∧
+          (path.get 1).toNat = 2147483648 + 1112098098) ∨
+       (3 ≤ n ∧ (path.get 1).toNat = 2147483648 + coin ∧
+          2147483648 ≤ (path.get 2).toNat ∧ (path.get 2).toNat ≤ 2147483648 + 100 ∧
+          ((((path.get 0).toNat = 2147483648 + 44 ∨ (path.get 0).toNat = 2147483648 + 49 ∨
+              (path.get 0).toNat = 2147483648 + 84 ∨ (path.get 0).toNat = 2147483648 + 86 ∨
+              (path.get 0).toNat = 2147483648 + 87 ∨ (path.get 0).toNat = 2147483648 + 45) ∧
+             (∀ j, 3 ≤ j → j < n → (path.get (UInt32.ofNat j)).toNat < 2147483648)) ∨
+           ((path.get 0).toNat = 2147483648 + 48 ∧ 4 ≤ n ∧
+             ((path.get 3).toNat = 2147483648 + 1 ∨ (path.get 3).toNat = 2147483648 + 2) ∧
+             (∀ j, 4 ≤ j → j < n → (path.get (UInt32.ofNat j)).toNat < 2147483648))))) := by
+  unfold Spec.ExportPath
+  constructor
+  · rintro (hp | ⟨purpose, account, tail, hp, hmem, hacc, htail⟩ |
+      ⟨account, st, tail, hp, hacc, hst, htail⟩)
+    · have hn : n = 2 := by
+        have := congrArg List.length hp
+        rwa [words_length] at this
+      subst hn
+      have hp' : [(path.get 0).toNat, (path.get 1).toNat] =
+          [Spec.hardened 4541509, Spec.hardened 1112098098] := hp
+      obtain ⟨e0, hp'⟩ := List.cons.inj hp'
+      obtain ⟨e1, _⟩ := List.cons.inj hp'
+      exact Or.inl ⟨rfl, e0, e1⟩
+    · have hn : n = tail.length + 3 := by
+        have := congrArg List.length hp
+        rwa [words_length] at this
+      subst hn
+      rw [words_succ3] at hp
+      obtain ⟨e0, hp⟩ := List.cons.inj hp
+      obtain ⟨e1, hp⟩ := List.cons.inj hp
+      obtain ⟨e2, hp⟩ := List.cons.inj hp
+      unfold Spec.hardened at e0 e1 e2
+      simp only [List.mem_cons, List.mem_nil_iff, or_false] at hmem
+      rw [← hp, tail_iff] at htail
+      exact Or.inr ⟨by omega, e1, by omega, by omega, Or.inl ⟨by omega, htail⟩⟩
+    · have hn : n = tail.length + 4 := by
+        have := congrArg List.length hp
+        rwa [words_length] at this
+      subst hn
+      rw [words_succ4] at hp
+      obtain ⟨e0, hp⟩ := List.cons.inj hp
+      obtain ⟨e1, hp⟩ := List.cons.inj hp
+      obtain ⟨e2, hp⟩ := List.cons.inj hp
+      obtain ⟨e3, hp⟩ := List.cons.inj hp
+      unfold Spec.hardened at e0 e1 e2 e3
+      rw [← hp, tail_iff] at htail
+      exact Or.inr ⟨by omega, e1, by omega, by omega, Or.inr ⟨e0, by omega, by omega, htail⟩⟩
+  · rintro (⟨h2, e0, e1⟩ | ⟨h3, e1, h2a, h2b, (⟨hstd, hT⟩ | ⟨h48, h4, hst, hT⟩)⟩)
+    · subst h2
+      refine Or.inl ?_
+      show [(path.get 0).toNat, (path.get 1).toNat] = _
+      rw [e0, e1]; rfl
+    · obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
+      have hacc : (path.get 2).toNat - 2147483648 ≤ 100 := by omega
+      refine Or.inr (Or.inl ⟨(path.get 0).toNat - 2147483648, (path.get 2).toNat - 2147483648,
+        (List.range' 3 k).map (fun i => (path.get (UInt32.ofNat i)).toNat), ?_, ?_, hacc,
+        (tail_iff (fun i => (path.get (UInt32.ofNat i)).toNat) 3 k 2147483648).mpr hT⟩)
+      · rw [words_succ3]; unfold Spec.hardened
+        have a0 : 2147483648 + ((path.get 0).toNat - 2147483648) = (path.get 0).toNat := by omega
+        have a2 : 2147483648 + ((path.get 2).toNat - 2147483648) = (path.get 2).toNat :=
+          Nat.add_sub_of_le h2a
+        rw [a0, a2, ← e1]
+      · simp only [List.mem_cons, List.mem_nil_iff, or_false]; omega
+    · obtain ⟨k, rfl⟩ : ∃ k, n = k + 4 := ⟨n - 4, by omega⟩
+      have hacc : (path.get 2).toNat - 2147483648 ≤ 100 := by omega
+      have hst' : (path.get 3).toNat - 2147483648 = 1 ∨ (path.get 3).toNat - 2147483648 = 2 := by
+        omega
+      refine Or.inr (Or.inr ⟨(path.get 2).toNat - 2147483648, (path.get 3).toNat - 2147483648,
+        (List.range' 4 k).map (fun i => (path.get (UInt32.ofNat i)).toNat), ?_, hacc, hst',
+        (tail_iff (fun i => (path.get (UInt32.ofNat i)).toNat) 4 k 2147483648).mpr hT⟩)
+      rw [words_succ4]; unfold Spec.hardened
+      have a2 : 2147483648 + ((path.get 2).toNat - 2147483648) = (path.get 2).toNat :=
+        Nat.add_sub_of_le h2a
+      have h3a : 2147483648 ≤ (path.get 3).toNat := by omega
+      have a3 : 2147483648 + ((path.get 3).toNat - 2147483648) = (path.get 3).toNat :=
+        Nat.add_sub_of_le h3a
+      rw [a2, a3, ← e1, ← h48]
+
+theorem bip32ExportPath : Spec.Bip32ExportPath := by
+  intro path len coin
+  rw [exportCore, exportPath_iff, tailClear_nat, tailClear_nat]
+  exact Iff.rfl
+
 /-- The compiled kernel satisfies every statement of `Spec.lean`. -/
 theorem kernel_meets_spec : Spec.KernelSpec :=
   ⟨validAmount, checkedAdd, checkedSub, splitBtc, hardenedBit, depthLimits,
    segwitProgram, witnessOpcode, sighashType, taprootSighashType,
-   compactSizeCanonical, dualUtxo, compactSizeRead⟩
+   compactSizeCanonical, dualUtxo, compactSizeRead, bip32ExportPath⟩
 
 /-! ## One accepted and one rejected input per statement -/
 
@@ -622,6 +884,9 @@ theorem witness_compactSize :
     llbVarIntPrefixIsCanonical 253 252 = false ∧ llbVarIntPrefixIsCanonical 254 65535 = false := by
   decide
 
+/-- A read-only buffer of 32-bit words holding `l` (zero past its end). -/
+private def constU32s (l : List UInt32) : ConstU32s := ⟨fun i => l.getD i.toNat 0, ()⟩
+
 theorem witness_dualUtxo :
     llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5000 (constBytes [0, 20, 7]) 3 = true ∧
     llbCheckDualUtxo 5000 (constBytes [0, 20, 7]) 3 5001 (constBytes [0, 20, 7]) 3 = false ∧
@@ -634,6 +899,19 @@ theorem witness_compactSizeRead :
     (llbReadCompactSizeChecked (constBytes [0xFD, 0x2C, 0x00]) 3 1000).toNat = 0 ∧
     (llbReadCompactSizeChecked (constBytes [0xFD, 0x2C, 0x01]) 2 1000).toNat = 0 ∧
     (llbReadCompactSizeChecked (constBytes [0xFD, 0x2C, 0x01]) 3 299).toNat = 0 := by
+  decide
+
+/-- `m/84'/0'/0'/0/5` and `m/48'/0'/0'/2'` are accepted on mainnet. Rejected: a hardened
+    step after the account, the wrong coin type, account 101, script type 3, and a purpose
+    outside the list. -/
+theorem witness_bip32ExportPath :
+    llbBip32CheckExportPath (constU32s [0x80000054, 0x80000000, 0x80000000, 0, 5]) 5 0 = true ∧
+    llbBip32CheckExportPath (constU32s [0x80000030, 0x80000000, 0x80000000, 0x80000002]) 4 0 = true ∧
+    llbBip32CheckExportPath (constU32s [0x80000054, 0x80000000, 0x80000000, 0x80000000, 5]) 5 0 = false ∧
+    llbBip32CheckExportPath (constU32s [0x80000054, 0x80000000, 0x80000000, 0, 5]) 5 1 = false ∧
+    llbBip32CheckExportPath (constU32s [0x80000054, 0x80000000, 0x80000065]) 3 0 = false ∧
+    llbBip32CheckExportPath (constU32s [0x80000030, 0x80000000, 0x80000000, 0x80000003]) 4 0 = false ∧
+    llbBip32CheckExportPath (constU32s [0x80000000, 0x80000000, 0x80000000]) 3 0 = false := by
   decide
 
 end Proofs.KernelSpec
